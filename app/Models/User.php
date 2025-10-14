@@ -2,47 +2,35 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    /**
+     * The table associated with the model.
+     * Memberi tahu Laravel untuk menggunakan tabel 'sis_user'.
+     *
+     * @var string
+     */
+    protected $table = 'sis_user';
 
     /**
-     * The attributes that are mass assignable.
+     * Indicates if the model should be timestamped.
+     * Memberi tahu Laravel bahwa tabel ini tidak punya kolom created_at & updated_at.
      *
-     * @var list<string>
+     * @var bool
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    public $timestamps = false;
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
+     * The groups that belong to the user.
+     * Mendefinisikan relasi "many-to-many" ke model Group
+     * melalui tabel perantara 'sis_usergroup'.
      */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    public function groups(): BelongsToMany
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->belongsToMany(Group::class, 'sis_usergroup', 'user_id', 'group_id');
     }
 }
+
