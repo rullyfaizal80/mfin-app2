@@ -2,69 +2,81 @@
 
 namespace App\Services;
 
-use App\Models\User;
-use App\Models\Page;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class MenuService
 {
     /**
-     * Mengambil dan menyusun pohon menu untuk pengguna tertentu berdasarkan hak aksesnya.
-     *
-     * @param int $userId ID dari user yang sedang login.
-     * @return Collection Mengembalikan koleksi menu yang sudah tersusun.
+     * Menerima daftar datar menu, memprosesnya, dan membangun struktur akhir yang benar.
+     * @param Collection $flatMenuList Data mentah menu yang diizinkan untuk user.
+     * @return Collection
      */
-    public function getMenuForUser(int $userId): Collection
+    public function processAndBuildMenu(Collection $flatMenuList): Collection
     {
-        // 1. Ambil data user beserta relasi grupnya menggunakan Eloquent.
-        // 'with('groups')' membuat query lebih efisien (Eager Loading).
-        $user = User::with('groups')->find($userId);
-
-        // Jika user tidak ditemukan, kembalikan koleksi kosong.
-        if (!$user) {
+        if ($flatMenuList->isEmpty()) {
             return collect();
         }
 
-        // 2. Dapatkan semua ID grup yang dimiliki oleh user.
-        $groupIds = $user->groups->pluck('id');
+        // [KUNCI 1] "Kamus" ini menerjemahkan ID ke nama kategori.
+        // Ini adalah satu-satunya bagian yang perlu Anda update jika ada departemen baru.
+        $categoryMap = [
+            1 => 'Sekolah',
+            2 => 'Kasir',
+            3 => 'Akunting',
+            4 => 'Admin',
+            5 => 'Keuangan', // Gabungan Keuangan Siswa & Guru
+            6 => 'Persediaan',
+        ];
 
-        // Jika user tidak tergabung dalam grup manapun, kembalikan koleksi kosong.
-        if ($groupIds->isEmpty()) {
-            return collect();
-        }
+        // Kelompokkan menu yang BENAR-BENAR dimiliki user berdasarkan application_id
+        $groupedByApp = $flatMenuList->groupBy('application_id');
 
-        // 3. Dapatkan semua ID halaman (page_id) yang diizinkan untuk grup-grup tersebut.
-        // Kita menggunakan DB::table() di sini karena 'sis_acl' adalah tabel pivot sederhana.
-        $allowedPageIds = DB::table('sis_acl')
-            ->whereIn('group_id', $groupIds)
-            ->pluck('page_id')
-            ->unique();
-
-        // Jika tidak ada halaman yang diizinkan, kembalikan koleksi kosong.
-        if ($allowedPageIds->isEmpty()) {
-            return collect();
-        }
-
-        // 4. Ini adalah query utama.
-        // Ambil semua menu utama (parent_id = 0) yang diizinkan,
-        // DAN secara bersamaan ambil juga anak-anaknya (sub-menu) yang juga diizinkan.
-        $menuTree = Page::whereIn('id', $allowedPageIds)      // Hanya ambil halaman yang diizinkan
-                        ->where('is_menu', 1)                 // Pastikan itu adalah item menu
-                        ->where('enabled', 1)                 // Pastikan menu tersebut aktif
-                        ->where('parent_id', 0)               // Mulai dari menu paling atas (utama)
-                        ->with(['children' => function ($query) use ($allowedPageIds) {
-                            // 'with()' akan memuat relasi 'children' yang kita buat di Page Model.
-                            // Fungsi di dalamnya adalah filter tambahan untuk sub-menu.
-                            $query->whereIn('id', $allowedPageIds) // Sub-menu juga harus diizinkan
-                                  ->where('is_menu', 1)
-                                  ->where('enabled', 1)
-                                  ->orderBy('ordering'); // Urutkan sub-menu
-                        }])
-                        ->orderBy('ordering') // Urutkan menu utama
-                        ->get();
+        $finalStructure = new Collection();
         
-        return $menuTree;
+        // Urutkan berdasarkan urutan kunci di kamus agar urutan menu konsisten
+        $sortedGroupKeys = collect($categoryMap)->keys();
+        foreach ($sortedGroupKeys as $appId) {
+            // [KUNCI 2] Hanya proses jika user memiliki menu di kategori ini
+            if ($groupedByApp->has($appId)) {
+                $menusForApp = $groupedByApp[$appId];
+                
+                // Ambil nama dari kamus dan potong jadi 1 kata
+                $categoryName = explode(' ', $categoryMap[$appId])[0];
+
+                // Bangun pohon menu multi-level untuk grup ini
+                $menuTree = $this->buildTree($menusForApp);
+
+                // Simpan hasilnya ke struktur akhir
+                $finalStructure->push((object) [
+                    'category_name' => $categoryName,
+                    'menu_tree' => $menuTree
+                ]);
+            }
+        }
+
+        return $finalStructure;
+    }
+
+    /**
+     * Fungsi rekursif untuk membangun pohon dari daftar datar (sudah benar).
+     * @param Collection $elements
+     * @param int $parentId
+     * @return Collection
+     */
+    private function buildTree(Collection $elements, int $parentId = 0): Collection
+    {
+        $branch = new Collection();
+        foreach ($elements as $element) {
+            if ($element->parent_id == $parentId) {
+                $children = $this->buildTree($elements, $element->id);
+                if ($children->isNotEmpty()) {
+                    $element->children = $children;
+                } else {
+                    $element->children = new Collection();
+                }
+                $branch->push($element);
+            }
+        }
+        return $branch;
     }
 }
-
