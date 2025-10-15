@@ -7,7 +7,7 @@ use Illuminate\Support\Collection;
 class MenuService
 {
     /**
-     * Menerima daftar datar menu, memprosesnya, dan membangun struktur akhir yang benar.
+     * Menerima daftar datar menu yang sudah terurut, memprosesnya, dan membangun struktur akhir.
      * @param Collection $flatMenuList Data mentah menu yang diizinkan untuk user.
      * @return Collection
      */
@@ -17,15 +17,14 @@ class MenuService
             return collect();
         }
 
-        // [KUNCI 1] "Kamus" ini menerjemahkan ID ke nama kategori.
-        // Ini adalah satu-satunya bagian yang perlu Anda update jika ada departemen baru.
+        // Kamus untuk menerjemahkan ID ke nama kategori, dengan urutan yang benar
         $categoryMap = [
             1 => 'Sekolah',
             2 => 'Kasir',
+            5 => 'Keuangan',
+            6 => 'Persediaan',
             3 => 'Akunting',
             4 => 'Admin',
-            5 => 'Keuangan', // Gabungan Keuangan Siswa & Guru
-            6 => 'Persediaan',
         ];
 
         // Kelompokkan menu yang BENAR-BENAR dimiliki user berdasarkan application_id
@@ -33,22 +32,21 @@ class MenuService
 
         $finalStructure = new Collection();
         
-        // Urutkan berdasarkan urutan kunci di kamus agar urutan menu konsisten
-        $sortedGroupKeys = collect($categoryMap)->keys();
-        foreach ($sortedGroupKeys as $appId) {
-            // [KUNCI 2] Hanya proses jika user memiliki menu di kategori ini
+        // Loop berdasarkan urutan kustom di kamus
+        foreach ($categoryMap as $appId => $categoryName) {
+            // Hanya proses jika user memiliki menu di kategori ini
             if ($groupedByApp->has($appId)) {
                 $menusForApp = $groupedByApp[$appId];
                 
-                // Ambil nama dari kamus dan potong jadi 1 kata
-                $categoryName = explode(' ', $categoryMap[$appId])[0];
+                // Ambil nama kategori dan potong jadi 1 kata
+                $finalCategoryName = explode(' ', $categoryName)[0];
 
                 // Bangun pohon menu multi-level untuk grup ini
                 $menuTree = $this->buildTree($menusForApp);
 
                 // Simpan hasilnya ke struktur akhir
                 $finalStructure->push((object) [
-                    'category_name' => $categoryName,
+                    'category_name' => $finalCategoryName,
                     'menu_tree' => $menuTree
                 ]);
             }
@@ -58,10 +56,7 @@ class MenuService
     }
 
     /**
-     * Fungsi rekursif untuk membangun pohon dari daftar datar (sudah benar).
-     * @param Collection $elements
-     * @param int $parentId
-     * @return Collection
+     * Fungsi rekursif untuk membangun pohon dari daftar datar (private, sebagai helper).
      */
     private function buildTree(Collection $elements, int $parentId = 0): Collection
     {

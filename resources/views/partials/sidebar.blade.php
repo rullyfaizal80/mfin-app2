@@ -17,7 +17,7 @@
 
         {{-- Loop untuk setiap item menu di dalam pohon kategori tersebut --}}
         @foreach($category->menu_tree as $menu)
-            {{-- Gunakan partial rekursif yang sudah kita buat sebelumnya --}}
+            {{-- Gunakan partial rekursif untuk merender menu dan semua anaknya --}}
             @include('partials.menu-item', ['menu' => $menu])
         @endforeach
 

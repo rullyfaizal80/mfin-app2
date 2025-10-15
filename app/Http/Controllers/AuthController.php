@@ -16,9 +16,9 @@ class AuthController extends Controller
     public function login(Request $request, MenuService $menuService)
     {
         $request->validate(['username' => 'required', 'password' => 'required']);
-        $user = DB::table('sis_user')->where('username', $request->username)->first();
+        $user = DB::table('sis_user')->where('username', 'like', $request->username)->first();
 
-        // --- Logika Cek Password Anda (sudah benar) ---
+        // --- Logika Cek Password (sudah benar dan tidak perlu diubah) ---
         if (!$user) { return back()->withErrors(['username' => 'Username tidak ditemukan.']); }
         $passwordMatch = false; $storedPass = $user->password;
         if (preg_match('/^\$2[aby]\$/', $storedPass)) {
@@ -33,20 +33,19 @@ class AuthController extends Controller
         if (strtolower($user->is_active) !== 'yes') { return back()->withErrors(['username' => 'Akun tidak aktif.']); }
         // --- Akhir Logika Cek Password ---
 
-        // Mengambil semua data mentah yang diizinkan dengan filter yang benar
         $groupIds = DB::table('sis_usergroup')->where('user_id', $user->id)->pluck('group_id');
         $allowedPageIds = DB::table('sis_acl')->whereIn('group_id', $groupIds)->pluck('page_id');
 
+        // [KUNCI] Mengambil data dengan filter dan urutan yang benar
         $allAllowedMenusData = DB::table('sis_page')
             ->whereIn('id', $allowedPageIds)
-            ->where('enabled', 1)  // <-- Filter 'enabled' diterapkan di sini
-            ->where('is_menu', 1)   // <-- Filter 'is_menu' diterapkan di sini
+            ->where('enabled', 1)
+            ->where('is_menu', 1)
             ->select('id', 'parent_id', 'title', 'link', 'icon', 'application_id')
-            ->orderBy('application_id')
-            ->orderBy('ordering')
+            ->orderBy('ordering', 'asc') // Urutkan SEMUA menu berdasarkan 'ordering'
             ->get();
         
-        // Menyerahkan data mentah ke "otak" (MenuService) untuk diproses
+        // Serahkan data yang sudah terurut ke "otak" (MenuService)
         $finalMenuData = $menuService->processAndBuildMenu($allAllowedMenusData);
 
         session([
