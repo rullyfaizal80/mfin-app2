@@ -8,11 +8,12 @@
     {{-- Bootstrap & Font Awesome --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-    {{-- 💡 [PENTING] Skrip ini berjalan sebelum halaman dirender untuk mencegah flash tema yang salah --}}
     <script>
         (function() {
-            const theme = localStorage.getItem('theme') || 'light'; // Default ke 'light'
+            const theme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-bs-theme', theme);
         })();
     </script>
@@ -23,7 +24,6 @@
     </style>
 </head>
 <body>
-    {{-- Tombol diletakkan di posisi tetap --}}
     <div style="position: fixed; top: 15px; right: 20px; z-index: 1050;">
         <button class="btn btn-outline-secondary btn-sm" id="theme-toggle">
             {{-- Ikon akan diisi oleh JavaScript --}}
@@ -36,7 +36,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     
-    {{-- Skrip untuk mengontrol tombol toggle --}}
+    {{-- Skrip untuk mengontrol tombol tema --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const toggleBtn = document.getElementById('theme-toggle');
@@ -51,10 +51,13 @@
 
             toggleBtn.addEventListener('click', () => {
                 const newTheme = htmlTag.getAttribute('data-bs-theme') === 'light' ? 'dark' : 'light';
-                localStorage.setItem('theme', newTheme); // Simpan pilihan ke localStorage
+                localStorage.setItem('theme', newTheme);
                 applyTheme(newTheme);
             });
         });
     </script>
+
+    @stack('scripts')
+
 </body>
 </html>

@@ -25,9 +25,17 @@
                 <input type="text" class="form-control" id="username" name="username" value="{{ old('username') }}" required>
             </div>
             <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" name="password" required>
-            </div>
+    <label for="password" class="form-label">Password</label>
+    
+    {{-- [PERBAIKAN] Bungkus input dan button dengan .input-group --}}
+    <div class="input-group">
+        <input type="password" class="form-control" id="password" name="password" required>
+        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+            <i class="bi bi-eye-slash"></i>
+        </button>
+    </div>
+</div>
+            
             <div class="d-grid mt-4">
                 <button type="submit" class="btn btn-primary">Masuk</button>
             </div>
@@ -39,3 +47,23 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+        const icon = togglePassword.querySelector('i');
+
+        togglePassword.addEventListener('click', function () {
+            // Ubah tipe input dari 'password' ke 'text' atau sebaliknya
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            
+            // Ganti ikon mata
+            icon.classList.toggle('bi-eye');
+            icon.classList.toggle('bi-eye-slash');
+        });
+    });
+</script>
+@endpush
