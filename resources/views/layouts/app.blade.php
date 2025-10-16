@@ -20,7 +20,29 @@
     
     {{-- CSS untuk sidebar --}}
     <style>
-        body { background-color: var(--bs-secondary-bg); }
+        /* [BARU] Aturan untuk membuat layout full-height */
+        html, body {
+            height: 100%;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bs-secondary-bg);
+        }
+        .main-container {
+            display: flex;
+            flex: 1; /* <-- Kunci: Container ini akan mengisi sisa ruang vertikal */
+            overflow: hidden;
+        }
+        .sidebar {
+            height: 100%;
+            overflow-y: auto; /* <-- Membuat sidebar bisa di-scroll jika menunya sangat panjang */
+        }
+        main {
+            overflow-y: auto; /* <-- Membuat konten utama bisa di-scroll */
+        }
+        /* Akhir dari aturan full-height */
+        
         .sidebar { border-right: 1px solid var(--bs-border-color); }
         .sidebar-nav .nav-link { display: flex; align-items: center; font-size: 15px; font-weight: 500; color: var(--bs-body-color); padding: 10px 15px; border-radius: 4px; transition: 0.3s; }
         .sidebar-nav .nav-link:hover { color: #0d6efd; background: var(--bs-tertiary-bg); }
@@ -31,6 +53,8 @@
         .sidebar-nav .nav-content a { display: flex; align-items: center; font-size: 14px; padding: 10px 0 10px 40px; transition: 0.3s; }
         .sidebar-nav .nav-content a:hover { color: #0d6efd; }
         .sidebar-nav .nav-content a i { font-size: 6px; margin-right: 8px; line-height: 0; }
+
+        .sidebar-nav ul { list-style: none; padding-left: 0; }
     </style>
 </head>
 <body>
