@@ -7,7 +7,7 @@
         <h1 class="h2">User Manager</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             <a href="#" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-plus-circle"></i>
+                <i class="bi bi-plus-circle me-1"></i>
                 New
             </a>
         </div>
@@ -18,8 +18,8 @@
             <div class="row align-items-center">
                 <div class="col-md-6">
                     <div class="input-group">
-                        <span class="input-group-text">Filter Fullname:</span>
-                        <input type="text" class="form-control form-control-sm" placeholder="Cari nama...">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control form-control-sm" placeholder="Cari nama atau username...">
                     </div>
                 </div>
                 <div class="col-md-6 text-md-end mt-2 mt-md-0">
@@ -46,25 +46,25 @@
                             <th scope="col">Aktif</th>
                             <th scope="col">Tipe</th>
                             <th scope="col">HP/Email</th>
-                            <th scope="col">Aksi</th>
+                            <th scope="col" class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($users as $user)
+                        @forelse ($users as $user)
                         <tr>
                             <td>{{ $loop->iteration + $users->firstItem() - 1 }}</td>
                             <td>{{ $user->fullname }}</td>
                             <td>{{ $user->username }}</td>
                             <td>
                                 @if(strtolower($user->is_active) == 'yes')
-                                    <span class="badge bg-success">Yes</span>
+                                    <span class="badge text-bg-success">Yes</span>
                                 @else
-                                    <span class="badge bg-danger">No</span>
+                                    <span class="badge text-bg-danger">No</span>
                                 @endif
                             </td>
                             <td>{{ $user->user_type ?? '-' }}</td>
                             <td>{{ $user->hp ?? $user->email ?? '/' }}</td>
-                            <td>
+                            <td class="text-center">
                                 <a href="#" class="btn btn-sm btn-outline-warning" title="Edit">
                                     <i class="bi bi-pencil-square"></i>
                                 </a>
@@ -73,14 +73,19 @@
                                 </a>
                             </td>
                         </tr>
-                        @endforeach
+                        @empty
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">Data tidak ditemukan.</td>
+                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
         </div>
+        @if ($users->hasPages())
         <div class="card-footer bg-body-tertiary">
-            {{-- Link Paginasi --}}
             {{ $users->links() }}
         </div>
+        @endif
     </div>
 @endsection
