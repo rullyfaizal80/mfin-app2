@@ -55,6 +55,11 @@
         .sidebar-nav .nav-content a i { font-size: 6px; margin-right: 8px; line-height: 0; }
 
         .sidebar-nav ul { list-style: none; padding-left: 0; }
+
+        /* Aturan untuk indentasi sub-sub-menu (jika ada) agar lebih dalam lagi */
+        .sidebar-nav .nav-content .nav-content a {
+            padding-left: 55px !important;
+        }
     </style>
 </head>
 <body>
