@@ -3,7 +3,10 @@
 @section('content')
 <div class="card login-card">
     <div class="card-body">
-        <h3 class="card-title text-center mb-4">Login</h3>
+        <div class="text-center mb-4">
+            <img src="{{ asset('images/logo.png') }}" alt="Logo Sekolah" width="80" class="mb-2">
+            <h4 class="text-muted">MIMHa Finance</h4>
+        </div>
 
         @if ($errors->any())
             <div class="alert alert-danger py-2">
@@ -29,6 +32,10 @@
                 <button type="submit" class="btn btn-primary">Masuk</button>
             </div>
         </form>
+
+        <small class="text-muted text-center d-block mt-4">
+            &copy; {{ date('Y') }} MIMHa Finance
+        </small>
     </div>
 </div>
 @endsection

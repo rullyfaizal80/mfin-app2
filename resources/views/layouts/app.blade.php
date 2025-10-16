@@ -60,6 +60,18 @@
         .sidebar-nav .nav-content .nav-content a {
             padding-left: 55px !important;
         }
+
+        {{-- File: resources/views/layouts/app.blade.php --}}
+
+/* [TAMBAHAN] CSS untuk memperkecil tombol toggle mobile */
+.navbar-toggler {
+    padding: 0.25rem 0.5rem; /* Samakan padding dengan tombol btn-sm */
+    font-size: 0.875rem;     /* Samakan ukuran font dengan tombol btn-sm */
+}
+.navbar-toggler-icon {
+    width: 1.2em;            /* Sedikit perkecil ukuran ikon hamburger */
+    height: 1.2em;
+}
     </style>
 </head>
 <body>
