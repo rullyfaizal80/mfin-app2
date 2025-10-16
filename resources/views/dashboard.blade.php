@@ -8,6 +8,10 @@
         <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="#">
             <i class="fa fa-coins me-2"></i>MIMHa Finance
         </a>
+
+        <button class="navbar-toggler d-md-none collapsed me-3" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
         
         <div class="d-flex align-items-center ms-auto me-3 gap-3">
             <div class="navbar-text d-none d-sm-block text-end">
@@ -27,12 +31,15 @@
 
     {{-- [PERUBAHAN] Menggunakan class "main-container" dan menghapus "container-fluid" --}}
     <div class="main-container">
-        {{-- "row" tidak lagi diperlukan di sini karena sudah dihandle oleh Flexbox --}}
-        <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-body-tertiary sidebar collapse">
-            <div class="position-sticky pt-3 sidebar-sticky">
-                @include('partials.sidebar')
-            </div>
-        </nav>
+
+    {{-- Ganti baris <nav> ini --}}
+    <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-body-tertiary sidebar collapse">
+
+        <div class="position-sticky pt-3 sidebar-sticky">
+            @include('partials.sidebar')
+        </div>
+    </nav>
+        
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
             <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
