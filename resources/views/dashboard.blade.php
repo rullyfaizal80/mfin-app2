@@ -8,20 +8,23 @@
             <i class="fa fa-coins me-2"></i>MIMHa Finance
         </a>
         
-        <div class="d-flex align-items-center ms-auto me-3">
-            <div class="nav-item text-nowrap me-3">
+        {{-- [PERUBAHAN] Mengatur ulang urutan elemen di dalam div ini --}}
+        <div class="d-flex align-items-center ms-auto me-3 gap-3">
+            
+            <div class="navbar-text d-none d-sm-block text-end">
+                <div>{{ session('fullname') }}</div>
+                <div id="realtime-clock" class="small">Memuat jam...</div>
+            </div>
+
+            <div class="nav-item text-nowrap">
                 <button class="btn btn-outline-secondary btn-sm" id="theme-toggle">
-                    {{-- Ikon akan diisi oleh JavaScript --}}
+                    {{-- Ikon akan diisi oleh JavaScript dari layouts/app.blade.php --}}
                 </button>
             </div>
-            <div class="nav-item text-nowrap me-3">
-                <span class="navbar-text">
-                    {{ session('fullname') }}
-                </span>
-            </div>
+            
             <div class="nav-item text-nowrap">
-                <a class="btn btn-outline-danger btn-sm" href="{{ route('logout') }}">
-                    <i class="fa fa-sign-out-alt me-1"></i>Logout
+                <a class="btn btn-outline-danger btn-sm" href="{{ route('logout') }}" title="Logout">
+                    <i class="fa fa-sign-out-alt"></i>
                 </a>
             </div>
         </div>
@@ -45,3 +48,35 @@
         </div>
     </div>
 @endsection
+
+{{-- [BARU] Menambahkan JavaScript khusus untuk halaman ini --}}
+@push('scripts')
+<script>
+    // Fungsi untuk mengupdate jam setiap detik
+    function updateClock() {
+        const clockElement = document.getElementById('realtime-clock');
+        if (clockElement) {
+            const now = new Date();
+            // Format: Hari, DD Bulan YYYY JJ:MM:SS (dalam bahasa Indonesia)
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: false 
+            };
+            // .replace untuk menghapus kata 'pukul' yang kadang muncul
+            clockElement.textContent = now.toLocaleDateString('id-ID', options).replace(/pukul/g, '');
+        }
+    }
+
+    // Panggil fungsi updateClock sekali saat halaman dimuat, lalu ulangi setiap detik
+    document.addEventListener('DOMContentLoaded', function() {
+        updateClock();
+        setInterval(updateClock, 1000);
+    });
+</script>
+@endpush
