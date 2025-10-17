@@ -35,6 +35,49 @@
         .sidebar-nav .nav-content a:hover { color: #0d6efd; }
         .navbar-toggler { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
         .navbar-toggler-icon { width: 1.2em; height: 1.2em; }
+
+        /* --- Sidebar tampil normal di desktop --- */
+/* --- Pastikan tinggi header konstan di semua perangkat --- */
+header.navbar {
+  min-height: 56px;
+}
+
+
+        .sidebar {
+  width: 200px;
+}
+
+@media (max-width: 767.98px) {
+  #sidebarMenu {
+    position: fixed;
+    top: 56px; /* pakai nilai konstan sesuai tinggi header */
+    left: -200px;
+    width: 200px;
+    height: calc(100vh - 56px);
+    background-color: var(--bs-body-bg);
+    z-index: 1045;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+    border-top: 1px solid var(--bs-border-color);
+  }
+
+  #sidebarMenu.show {
+    left: 0;
+  }
+
+  body.sidebar-open::after {
+    content: "";
+    position: fixed;
+    top: 56px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 56px);
+    background: rgba(0, 0, 0, 0.25);
+    z-index: 1040;
+  }
+}
+
+
     </style>
 </head>
 <body>
@@ -109,6 +152,14 @@
         }
         updateClock(); // Panggil sekali agar tidak kosong saat awal
         setInterval(updateClock, 1000); // Update setiap detik
+
+        // Efek backdrop saat sidebar dibuka
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarMenu = document.getElementById('sidebarMenu');
+    sidebarMenu.addEventListener('shown.bs.collapse', () => document.body.classList.add('sidebar-open'));
+    sidebarMenu.addEventListener('hidden.bs.collapse', () => document.body.classList.remove('sidebar-open'));
+});
+
     });
 </script>
 </body>
