@@ -14,27 +14,39 @@
     </div>
 
     <div class="card">
-        <div class="card-header bg-body-tertiary">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control form-control-sm" placeholder="Cari nama atau username...">
-                    </div>
-                </div>
-                <div class="col-md-6 text-md-end mt-2 mt-md-0">
-                    <div class="input-group input-group-sm justify-content-md-end">
-                        <label class="input-group-text">Show</label>
-                        <select class="form-select" style="max-width: 70px;">
-                            <option selected>10</option>
-                            <option value="1">25</option>
-                            <option value="2">50</option>
-                        </select>
-                        <span class="input-group-text">entries</span>
-                    </div>
-                </div>
+      {{-- File: resources/views/admin/user/index.blade.php --}}
+
+<div class="card-header bg-body-tertiary">
+    <form action="{{ route('admin.user.index') }}" method="GET">
+        {{-- [PERUBAHAN] Ganti .row menjadi .d-flex untuk layout yang lebih baik --}}
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            
+            {{-- Bagian Pencarian --}}
+            <div class="input-group input-group-sm" style="max-width: 300px;"> {{-- <-- Beri batas lebar maksimal --}}
+                <input type="text" 
+                       class="form-control" 
+                       name="search"
+                       placeholder="Cari nama atau username..." 
+                       value="{{ $searchTerm ?? '' }}">
+                <button class="btn btn-outline-secondary" type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
             </div>
+
+            {{-- Bagian Dropdown "Show" --}}
+            <div class="input-group input-group-sm justify-content-end" style="max-width: 200px;">
+                <label class="input-group-text">Show</label>
+                <select class="form-select" name="perPage" onchange="this.form.submit()">
+                    <option value="10" {{ request('perPage', 10) == 10 ? 'selected' : '' }}>10</option>
+                    <option value="25" {{ request('perPage') == 25 ? 'selected' : '' }}>25</option>
+                    <option value="50" {{ request('perPage') == 50 ? 'selected' : '' }}>50</option>
+                </select>
+                <span class="input-group-text">entries</span>
+            </div>
+            
         </div>
+    </form>
+</div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover table-striped">

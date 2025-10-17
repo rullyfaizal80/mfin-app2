@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Pagination\Paginator; // <-- [TAMBAHAN 1] Tambahkan ini
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // [TAMBAHAN 2] Tambahkan baris ini
+        Paginator::useBootstrapFive();
     }
 }

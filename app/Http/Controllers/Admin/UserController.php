@@ -8,15 +8,33 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    /**
-     * Menampilkan halaman daftar pengguna (User Manager).
-     */
-    public function index()
+    public function index(Request $request)
     {
-        // 1. Mengambil data dari tabel 'sis_user' dengan paginasi (10 data per halaman)
-        $users = DB::table('sis_user')->paginate(10);
+        // Ambil kata kunci pencarian dari URL
+        $searchTerm = $request->query('search');
+        
+        // [PERUBAHAN 1] Ambil jumlah item per halaman dari URL, default-nya 10
+        $perPage = $request->query('perPage', 10);
 
-        // 2. Mengirim data pengguna ke view
-        return view('admin.user.index', ['users' => $users]);
+        // Mulai query ke tabel sis_user
+        $query = DB::table('sis_user');
+
+        // Jika ada kata kunci pencarian, filter datanya
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('fullname', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('username', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        // [PERUBAHAN 2] Gunakan variabel $perPage untuk paginasi
+        $users = $query->paginate($perPage)->withQueryString();
+
+        // Kirim semua data yang relevan ke view
+        return view('admin.user.index', [
+            'users' => $users,
+            'searchTerm' => $searchTerm,
+            'perPage' => $perPage // <-- Kirim nilai perPage agar dropdown mengingat pilihan
+        ]);
     }
 }
