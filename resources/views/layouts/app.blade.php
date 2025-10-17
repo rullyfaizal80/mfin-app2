@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Aplikasi Keuangan')</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
@@ -41,7 +42,7 @@
     {{-- [PERUBAHAN 1] Seluruh struktur visual sekarang berada di sini --}}
     <header class="navbar sticky-top bg-body-tertiary flex-md-nowrap p-0 shadow-sm">
         <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="{{ route('dashboard') }}">
-            <i class="fa fa-coins me-2"></i>MIMHa Finance
+            <img src="{{ asset('favicon.ico') }}" alt="Logo" width="24" height="24" class="me-2">MIMHa Finance
         </a>
         <button class="navbar-toggler d-md-none collapsed me-3" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
