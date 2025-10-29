@@ -9,10 +9,3 @@ deployment:
     - /bin/cp -R * $DEPLOYPATH
     - /bin/cp .htaccess $DEPLOYPATH
 
-    # Jalankan perintah composer dan artisan
-    - /usr/local/bin/composer install --no-interaction --no-dev --optimize-autoloader -d $DEPLOYPATH
-    - /usr/bin/php $DEPLOYPATH/artisan migrate --force
-    - /usr/bin/php $DEPLOYPATH/artisan cache:clear
-    - /usr/bin/php $DEPLOYPATH/artisan route:cache
-    - /usr/bin/php $DEPLOYPATH/artisan config:cache
-    - /usr/bin/php $DEPLOYPATH/artisan view:cache
