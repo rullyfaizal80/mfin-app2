@@ -30,6 +30,10 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/admin/user', [UserController::class, 'index'])->name('admin.user.index');
     Route::get('/admin/level', [LevelController::class, 'index'])->name('admin.level.index');
     Route::get('/admin/level/create', [LevelController::class, 'create'])->name('admin.level.create');
+    Route::post('/admin/level', [LevelController::class, 'store'])->name('admin.level.store');
+    Route::delete('/admin/level/{id}', [LevelController::class, 'destroy'])->name('admin.level.destroy');
+    Route::get('/admin/level/{id}/edit', [LevelController::class, 'edit'])->name('admin.level.edit');
+    Route::put('/admin/level/{id}', [LevelController::class, 'update'])->name('admin.level.update');
     
     // Semua rute lain yang memerlukan login harus diletakkan di sini
 });
