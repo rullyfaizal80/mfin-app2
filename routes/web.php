@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\LevelController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +28,8 @@ Route::middleware(['custom.auth'])->group(function () {
     
     // Rute user manager
     Route::get('/admin/user', [UserController::class, 'index'])->name('admin.user.index');
+    Route::get('/admin/level', [LevelController::class, 'index'])->name('admin.level.index');
+    Route::get('/admin/level/create', [LevelController::class, 'create'])->name('admin.level.create');
     
     // Semua rute lain yang memerlukan login harus diletakkan di sini
 });

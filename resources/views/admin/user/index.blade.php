@@ -16,9 +16,8 @@
             <form id="user-filter-form" action="{{ route('admin.user.index') }}" method="GET">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <div class="input-group input-group-sm" style="max-width: 300px;">
-                        {{-- [PERUBAHAN 2] Tambahkan ID pada input pencarian --}}
                         <input type="text" id="user-search-input" class="form-control" name="search" placeholder="Ketik untuk mencari..." value="{{ $searchTerm ?? '' }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
                     </div>
                     <div class="input-group input-group-sm justify-content-end" style="max-width: 200px;">
                         <label class="input-group-text">Show</label>
