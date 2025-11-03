@@ -33,6 +33,11 @@
                 <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
                 <span>{{ $menu->title }}</span>
             </a>
+        @elseif ($menu->link === 'admin/acl')
+            <a class="nav-link collapsed" href="{{ route('admin.acl.index') }}">
+                <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
+                <span>{{ $menu->title }}</span>
+            </a>
         @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">

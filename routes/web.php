@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\LevelController;
 use App\Http\Controllers\Admin\GroupController;
+use App\Http\Controllers\Admin\AclController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,6 +44,11 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/admin/group/{id}/edit', [GroupController::class, 'edit'])->name('admin.group.edit');
     Route::put('/admin/group/{id}', [GroupController::class, 'update'])->name('admin.group.update');
     Route::delete('/admin/group/{id}', [GroupController::class, 'destroy'])->name('admin.group.destroy');
+
+    Route::get('/admin/acl', [AclController::class, 'index'])->name('admin.acl.index');
+    Route::get('/admin/acl/{id}/edit', [AclController::class, 'edit'])->name('admin.acl.edit');
+    Route::post('/admin/acl/add', [AclController::class, 'addPermission'])->name('admin.acl.add');
+    Route::delete('/admin/acl/remove', [AclController::class, 'removePermission'])->name('admin.acl.remove');
         
     // Semua rute lain yang memerlukan login harus diletakkan di sini
 });
