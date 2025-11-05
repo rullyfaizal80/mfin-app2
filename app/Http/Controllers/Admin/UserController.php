@@ -66,11 +66,15 @@ class UserController extends Controller
         // 1. Validasi Input Utama
         $request->validate([
             'fullname' => 'required|string|max:45',
-            'username' => 'required|string|max:45|unique:sis_user,username',
+            // [PERUBAHAN] Tambahkan 'alpha_dash' di akhir string
+            'username' => 'required|string|max:45|unique:sis_user,username|alpha_dash', 
             'password' => 'required|string|min:6|confirmed',
             'email'    => 'nullable|email|max:45|unique:sis_user,email',
-            'group_ids' => 'required|array|min:1', // Memastikan minimal 1 grup dipilih
-            'level_ids' => 'required|array|min:1', // Memastikan minimal 1 level dipilih
+            'group_ids' => 'required|array|min:1', 
+            'level_ids' => 'required|array|min:1', 
+        ], [
+            // [INI TAMBAHAN PESAN ERROR]
+            'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, strip (-), dan underscore (_).'
         ]);
 
         // 2. Siapkan Data untuk tabel 'sis_user'
@@ -149,7 +153,8 @@ class UserController extends Controller
             'fullname' => 'required|string|max:45',
             'username' => [
                 'required', 'string', 'max:45',
-                Rule::unique('sis_user')->ignore($id) // Abaikan ID saat ini saat cek unique
+                Rule::unique('sis_user')->ignore($id), // Abaikan ID saat ini saat cek unique
+                'alpha_dash' // <-- [INI TAMBAHANNYA] Cukup tambahkan 'alpha_dash' di sini
             ],
             'email'    => [
                 'nullable', 'email', 'max:45',
@@ -158,6 +163,10 @@ class UserController extends Controller
             'password' => 'nullable|string|min:6|confirmed', // Password opsional saat update
             'group_ids' => 'required|array|min:1',
             'level_ids' => 'required|array|min:1',
+        ], [
+            // [INI TAMBAHAN PESAN ERROR]
+            // Pesan ini diletakkan sebagai argumen kedua dari fungsi validate()
+            'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, strip (-), dan underscore (_).'
         ]);
 
         // 2. Siapkan data untuk tabel 'sis_user'

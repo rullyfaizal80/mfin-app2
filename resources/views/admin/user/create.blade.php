@@ -14,7 +14,6 @@
 
 <div class="card">
     <div class="card-body">
-        {{-- Menampilkan error validasi jika ada --}}
         @if ($errors->any())
             <div class="alert alert-danger mb-4" role="alert">
                 <h5 class="alert-heading">Terjadi Kesalahan!</h5>
@@ -29,11 +28,10 @@
         <form action="{{ route('admin.user.store') }}" method="POST">
             @csrf
             <div class="row">
-                {{-- Kolom Kiri: Personal Details --}}
+                {{-- Kolom Kiri: Personal Details (Tidak ada perubahan) --}}
                 <div class="col-md-6">
                     <h5 class="mb-3 text-primary border-bottom pb-2">Personal Details</h5>
-                    
-                    {{-- (Semua kolom personal dari form Anda sebelumnya) --}}
+
                     <div class="mb-3">
                         <label for="fullname" class="form-label">Fullname *</label>
                         <input type="text" id="fullname" name="fullname" class="form-control @error('fullname') is-invalid @enderror" value="{{ old('fullname') }}" required>
@@ -65,6 +63,33 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="street" class="form-label">Street</label>
+                        <textarea id="street" name="street" class="form-control">{{ old('street') }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" id="city" name="city" class="form-control" value="{{ old('city') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="province" class="form-label">Province</label>
+                            <input type="text" id="province" name="province" class="form-control" value="{{ old('province') }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" id="country" name="country" class="form-control" value="{{ old('country') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="postalcode" class="form-label">Postal Code</label>
+                            <input type="text" id="postalcode" name="postalcode" class="form-control" value="{{ old('postalcode') }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="mobile_phone" class="form-label">Mobile Phone</label>
                         <input type="text" id="mobile_phone" name="mobile_phone" class="form-control" value="{{ old('mobile_phone') }}">
                     </div>
@@ -74,39 +99,54 @@
                         <input type="email" id="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}">
                         @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    {{-- (Tambahkan kolom personal lain di sini jika perlu) --}}
+
+                    <div class="mb-3">
+                        <label for="religion" class="form-label">Religion</label>
+                        <input type="text" id="religion" name="religion" class="form-control" value="{{ old('religion') }}">
+                    </div>
                 </div>
 
-                {{-- Kolom Kanan: Account --}}
+                {{-- Kolom Kanan: Account (Perbaikan Autofill & Urutan) --}}
                 <div class="col-md-6">
                     <h5 class="mb-3 text-primary border-bottom pb-2">Account</h5>
 
                     <div class="mb-3">
                         <label for="username" class="form-label">Username *</label>
-                        <input type="text" id="username" name="username" class="form-control @error('username') is-invalid @enderror" required>
+                        {{-- [PERBAIKAN 1] Tambahkan autocomplete="off" --}}
+                        <input type="text" id="username" name="username" class="form-control @error('username') is-invalid @enderror" value="{{ old('username') }}" required autocomplete="off">
                         @error('username') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="mb-3">
                         <label for="password" class="form-label">Password *</label>
-                        <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror" required>
+                        {{-- [PERBAIKAN 1] Tambahkan autocomplete="new-password" --}}
+                        <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror" required autocomplete="new-password">
                         @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="mb-3">
                         <label for="password_confirmation" class="form-label">Confirm Password *</label>
-                        <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" required>
+                        {{-- [PERBAIKAN 1] Tambahkan autocomplete="new-password" --}}
+                        <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" required autocomplete="new-password">
                     </div>
                     
                     <div class="mb-3">
-                        <label for="is_active" class="form-label">Status</label>
+                        <label for="is_active" class="form-label">Active</label>
                         <select id="is_active" name="is_active" class="form-select">
-                            <option value="yes" {{ old('is_active', 'yes') == 'yes' ? 'selected' : '' }}>Active</option>
-                            <option value="no" {{ old('is_active') == 'no' ? 'selected' : '' }}>Inactive</option>
+                            <option value="yes" {{ old('is_active', 'yes') == 'yes' ? 'selected' : '' }}>Yes</option>
+                            <option value="no" {{ old('is_active') == 'no' ? 'selected' : '' }}>No</option>
                         </select>
                     </div>
 
-                    {{-- [TAMBAHAN BARU] Pilihan Group --}}
+                    <div class="mb-3">
+                        <label for="is_admin" class="form-label">Admin</label>
+                        <select id="is_admin" name="is_admin" class="form-select">
+                            <option value="no" {{ old('is_admin', 'no') == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_admin') == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    {{-- [PERBAIKAN 2] Pindahkan 'Groups' dan 'Levels' ke sini --}}
                     <div class="mb-3">
                         <label for="group_ids" class="form-label">Groups *</label>
                         <select id="group_ids" name="group_ids[]" class="form-select @error('group_ids') is-invalid @enderror" multiple size="5" required>
@@ -116,11 +156,10 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Tahan Ctrl (atau Cmd di Mac) untuk memilih lebih dari satu.</small>
+                        <small class="text-muted">Tahan Ctrl (Cmd) untuk memilih lebih dari satu.</small>
                         @error('group_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
-                    {{-- [TAMBAHAN BARU] Pilihan Level --}}
                     <div class="mb-3">
                         <label for="level_ids" class="form-label">Levels *</label>
                         <select id="level_ids" name="level_ids[]" class="form-select @error('level_ids') is-invalid @enderror" multiple size="4" required>
@@ -130,11 +169,42 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Tahan Ctrl (atau Cmd di Mac) untuk memilih lebih dari satu.</small>
+                        <small class="text-muted">Tahan Ctrl (Cmd) untuk memilih lebih dari satu.</small>
                         @error('level_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-                    
-                    {{-- (Tambahkan kolom akun lain di sini jika perlu: is_admin, user_type, dll.) --}}
+                    {{-- Akhir Perbaikan 2 --}}
+
+                    <div class="mb-3">
+                        <label for="is_student" class="form-label">Student</label>
+                        <select id="is_student" name="is_student" class="form-select">
+                            <option value="no" {{ old('is_student', 'no') == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_student') == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_parent" class="form-label">Parent</label>
+                        <select id="is_parent" name="is_parent" class="form-select">
+                            <option value="no" {{ old('is_parent', 'no') == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_parent') == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_teacher" class="form-label">Teacher</label>
+                        <select id="is_teacher" name="is_teacher" class="form-select">
+                            <option value="no" {{ old('is_teacher', 'no') == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_teacher') == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_educator" class="form-label">Educator</label>
+                        <select id="is_educator" name="is_educator" class="form-select">
+                            <option value="no" {{ old('is_educator', 'no') == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_educator') == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
