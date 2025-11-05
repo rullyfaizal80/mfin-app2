@@ -30,6 +30,11 @@ Route::middleware(['custom.auth'])->group(function () {
     
     // Rute user manager
     Route::get('/admin/user', [UserController::class, 'index'])->name('admin.user.index');
+    Route::get('/admin/user/create', [UserController::class, 'create'])->name('admin.user.create');
+    Route::post('/admin/user', [UserController::class, 'store'])->name('admin.user.store');
+    Route::get('/admin/user/{id}/edit', [UserController::class, 'edit'])->name('admin.user.edit');
+    Route::put('/admin/user/{id}', [UserController::class, 'update'])->name('admin.user.update');
+    Route::delete('/admin/user/{id}', [UserController::class, 'destroy'])->name('admin.user.destroy');
     
     Route::get('/admin/level', [LevelController::class, 'index'])->name('admin.level.index');
     Route::get('/admin/level/create', [LevelController::class, 'create'])->name('admin.level.create');
