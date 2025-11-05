@@ -25,19 +25,21 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.user.store') }}" method="POST">
+        <form action="{{ route('admin.user.store') }}" method="POST" id="user-form">
             @csrf
             <div class="row">
-                {{-- Kolom Kiri: Personal Details (Tidak ada perubahan) --}}
+                {{-- Kolom Kiri: Personal Details --}}
                 <div class="col-md-6">
                     <h5 class="mb-3 text-primary border-bottom pb-2">Personal Details</h5>
-
+                    
                     <div class="mb-3">
                         <label for="fullname" class="form-label">Fullname *</label>
                         <input type="text" id="fullname" name="fullname" class="form-control @error('fullname') is-invalid @enderror" value="{{ old('fullname') }}" required>
                         @error('fullname') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
+                    {{-- ... (semua field personal details lainnya tetap sama) ... --}}
+                    
                     <div class="mb-3">
                         <label for="nickname" class="form-label">Nickname</label>
                         <input type="text" id="nickname" name="nickname" class="form-control" value="{{ old('nickname') }}">
@@ -104,32 +106,50 @@
                         <label for="religion" class="form-label">Religion</label>
                         <input type="text" id="religion" name="religion" class="form-control" value="{{ old('religion') }}">
                     </div>
+
                 </div>
 
-                {{-- Kolom Kanan: Account (Perbaikan Autofill & Urutan) --}}
+                {{-- Kolom Kanan: Account --}}
                 <div class="col-md-6">
                     <h5 class="mb-3 text-primary border-bottom pb-2">Account</h5>
 
                     <div class="mb-3">
                         <label for="username" class="form-label">Username *</label>
-                        {{-- [PERBAIKAN 1] Tambahkan autocomplete="off" --}}
                         <input type="text" id="username" name="username" class="form-control @error('username') is-invalid @enderror" value="{{ old('username') }}" required autocomplete="off">
-                        @error('username') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        {{-- Pesan error kustom untuk JS --}}
+                        <div class="invalid-feedback" data-js-message="Username tidak boleh mengandung spasi.">
+                            @error('username') {{ $message }} @enderror
+                        </div>
                     </div>
 
+                    {{-- [PERUBAHAN] Field Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password" class="form-label">Password *</label>
-                        {{-- [PERBAIKAN 1] Tambahkan autocomplete="new-password" --}}
-                        <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror" required autocomplete="new-password">
-                        @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="input-group">
+                            <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror" required autocomplete="new-password">
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <div class="invalid-feedback" data-js-message="Password minimal harus 6 karakter.">
+                                @error('password') {{ $message }} @enderror
+                            </div>
+                        </div>
                     </div>
 
+                    {{-- [PERUBAHAN] Field Konfirmasi Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password_confirmation" class="form-label">Confirm Password *</label>
-                        {{-- [PERBAIKAN 1] Tambahkan autocomplete="new-password" --}}
-                        <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" required autocomplete="new-password">
+                        <div class="input-group">
+                            <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" required autocomplete="new-password">
+                            <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <div class="invalid-feedback" data-js-message="Konfirmasi password tidak cocok."></div>
+                        </div>
                     </div>
                     
+                    {{-- ... (Sisa field Account lainnya tetap sama) ... --}}
+
                     <div class="mb-3">
                         <label for="is_active" class="form-label">Active</label>
                         <select id="is_active" name="is_active" class="form-select">
@@ -146,7 +166,6 @@
                         </select>
                     </div>
 
-                    {{-- [PERBAIKAN 2] Pindahkan 'Groups' dan 'Levels' ke sini --}}
                     <div class="mb-3">
                         <label for="group_ids" class="form-label">Groups *</label>
                         <select id="group_ids" name="group_ids[]" class="form-select @error('group_ids') is-invalid @enderror" multiple size="5" required>
@@ -157,7 +176,7 @@
                             @endforeach
                         </select>
                         <small class="text-muted">Tahan Ctrl (Cmd) untuk memilih lebih dari satu.</small>
-                        @error('group_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @error('group_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="mb-3">
@@ -170,9 +189,8 @@
                             @endforeach
                         </select>
                         <small class="text-muted">Tahan Ctrl (Cmd) untuk memilih lebih dari satu.</small>
-                        @error('level_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @error('level_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
-                    {{-- Akhir Perbaikan 2 --}}
 
                     <div class="mb-3">
                         <label for="is_student" class="form-label">Student</label>
@@ -205,6 +223,7 @@
                             <option value="yes" {{ old('is_educator') == 'yes' ? 'selected' : '' }}>Yes</option>
                         </select>
                     </div>
+
                 </div>
             </div>
 
@@ -220,3 +239,99 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+{{-- [TAMBAHAN BARU] JavaScript untuk validasi & tombol mata --}}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Fungsi Toggle Password (Tombol Mata) ---
+        function setupToggle(toggleId, inputId) {
+            const toggleButton = document.getElementById(toggleId);
+            const input = document.getElementById(inputId);
+            if (toggleButton && input) {
+                toggleButton.addEventListener('click', function () {
+                    // Ganti tipe input
+                    const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                    input.setAttribute('type', type);
+                    
+                    // Ganti ikon mata
+                    const icon = this.querySelector('i');
+                    icon.classList.toggle('bi-eye');
+                    icon.classList.toggle('bi-eye-slash');
+                });
+            }
+        }
+        
+        setupToggle('togglePassword', 'password');
+        setupToggle('togglePasswordConfirm', 'password_confirmation');
+
+        // --- Fungsi Validasi Real-time ---
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const passwordConfirmInput = document.getElementById('password_confirmation');
+
+        // Fungsi helper untuk menampilkan error
+        function showError(input, message) {
+            input.classList.add('is-invalid');
+            let errorFeedback = input.closest('.mb-3, .input-group').querySelector('.invalid-feedback');
+            if (errorFeedback) {
+                errorFeedback.textContent = message;
+            }
+        }
+
+        // Fungsi helper untuk membersihkan error
+        function clearError(input) {
+            input.classList.remove('is-invalid');
+            let errorFeedback = input.closest('.mb-3, .input-group').querySelector('.invalid-feedback');
+            if (errorFeedback && errorFeedback.hasAttribute('data-js-message')) {
+                // Reset ke pesan error server jika ada, atau pesan JS default
+                errorFeedback.textContent = errorFeedback.getAttribute('data-js-message'); 
+            }
+        }
+        
+        // 1. Validasi Username (tidak boleh spasi)
+        if (usernameInput) {
+            usernameInput.addEventListener('input', function () {
+                if (/\s/.test(this.value)) {
+                    showError(this, 'Username tidak boleh mengandung spasi.');
+                } else {
+                    clearError(this);
+                }
+            });
+        }
+
+        // 2. Validasi Password (minimal 6 karakter)
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function () {
+                if (this.value.length > 0 && this.value.length < 6) {
+                    showError(this, 'Password minimal harus 6 karakter.');
+                } else {
+                    clearError(this);
+                }
+                // Cek ulang konfirmasi jika password utama diubah
+                validatePasswordConfirm(); 
+            });
+        }
+
+        // 3. Validasi Konfirmasi Password (harus cocok)
+        function validatePasswordConfirm() {
+            if (passwordConfirmInput.value.length > 0 && passwordInput.value !== passwordConfirmInput.value) {
+                showError(passwordConfirmInput, 'Konfirmasi password tidak cocok.');
+            } else {
+                clearError(passwordConfirmInput);
+            }
+        }
+
+        if (passwordConfirmInput) {
+            passwordConfirmInput.addEventListener('input', validatePasswordConfirm);
+        }
+
+        // 4. Hapus error server saat pengguna mulai mengetik
+        document.querySelectorAll('input.is-invalid, select.is-invalid').forEach(function(input) {
+            input.addEventListener('input', function() {
+                input.classList.remove('is-invalid');
+            });
+        });
+    });
+</script>
+@endpush

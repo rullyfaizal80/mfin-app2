@@ -25,12 +25,12 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.user.update', $user->id) }}" method="POST">
+        <form action="{{ route('admin.user.update', $user->id) }}" method="POST" id="user-form">
             @csrf
             @method('PUT')
 
             <div class="row">
-                {{-- Kolom Kiri: Personal Details --}}
+                {{-- Kolom Kiri: Personal Details (Tidak ada perubahan) --}}
                 <div class="col-md-6">
                     <h5 class="mb-3 text-primary border-bottom pb-2">Personal Details</h5>
 
@@ -80,6 +80,17 @@
                         </div>
                     </div>
                     
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" id="country" name="country" class="form-control" value="{{ old('country', $user->country) }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="postalcode" class="form-label">Postal Code</label>
+                            <input type="text" id="postalcode" name="postalcode" class="form-control" value="{{ old('postalcode', $user->postalcode) }}">
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="mobile_phone" class="form-label">Mobile Phone</label>
                         <input type="text" id="mobile_phone" name="mobile_phone" class="form-control" value="{{ old('mobile_phone', $user->mobile_phone) }}">
@@ -104,26 +115,46 @@
                     <div class="mb-3">
                         <label for="username" class="form-label">Username *</label>
                         <input type="text" id="username" name="username" class="form-control @error('username') is-invalid @enderror" value="{{ old('username', $user->username) }}" required>
-                        @error('username') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        {{-- Pesan error kustom untuk JS --}}
+                        <div class="invalid-feedback" data-js-message="Username tidak boleh mengandung spasi.">
+                            @error('username') {{ $message }} @enderror
+                        </div>
                     </div>
 
+                    {{-- [PERUBAHAN] Field Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
-                        <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror">
-                        <small class="text-muted">Kosongkan jika tidak ingin mengubah password.</small>
-                        @error('password') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <small class="text-muted">(Kosongkan jika tidak ingin mengubah)</small>
+                        <div class="input-group">
+                            <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror" autocomplete="new-password">
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <div class="invalid-feedback" data-js-message="Password minimal harus 6 karakter.">
+                                @error('password') {{ $message }} @enderror
+                            </div>
+                        </div>
                     </div>
 
+                    {{-- [PERUBAHAN] Field Konfirmasi Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password_confirmation" class="form-label">Confirm Password</label>
-                        <input type="password" id="password_confirmation" name="password_confirmation" class="form-control">
+                        <div class="input-group">
+                            <input type="password" id="password_confirmation" name="password_confirmation" class="form-control" autocomplete="new-password">
+                            <button class="btn btn-outline-secondary" type="button" id="togglePasswordConfirm">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <div class="invalid-feedback" data-js-message="Konfirmasi password tidak cocok."></div>
+                        </div>
                     </div>
                     
+                    {{-- ... (Sisa field Account lainnya tetap sama) ... --}}
+
                     <div class="mb-3">
-                        <label for="is_active" class="form-label">Status</label>
+                        <label for="is_active" class="form-label">Active</label>
                         <select id="is_active" name="is_active" class="form-select">
-                            <option value="yes" {{ old('is_active', $user->is_active) == 'yes' ? 'selected' : '' }}>Active</option>
-                            <option value="no" {{ old('is_active', $user->is_active) == 'no' ? 'selected' : '' }}>Inactive</option>
+                            <option value="yes" {{ old('is_active', $user->is_active) == 'yes' ? 'selected' : '' }}>Yes</option>
+                            <option value="no" {{ old('is_active', $user->is_active) == 'no' ? 'selected' : '' }}>No</option>
                         </select>
                     </div>
 
@@ -132,17 +163,6 @@
                         <select id="is_admin" name="is_admin" class="form-select">
                             <option value="no" {{ old('is_admin', $user->is_admin) == 'no' ? 'selected' : '' }}>No</option>
                             <option value="yes" {{ old('is_admin', $user->is_admin) == 'yes' ? 'selected' : '' }}>Yes</option>
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="user_type" class="form-label">User Type</label>
-                        <select id="user_type" name="user_type" class="form-select">
-                            <option value="personal_educator" {{ old('user_type', $user->user_type) == 'personal_educator' ? 'selected' : '' }}>Administrator</option>
-                            <option value="finance" {{ old('user_type', $user->user_type) == 'finance' ? 'selected' : '' }}>Keuangan</option>
-                            <option value="administration" {{ old('user_type', $user->user_type) == 'administration' ? 'selected' : '' }}>Tata Usaha</option>
-                            <option value="cashier" {{ old('user_type', $user->user_type) == 'cashier' ? 'selected' : '' }}>Kasir</option>
-                            <option value="kabid" {{ old('user_type', $user->user_type) == 'kabid' ? 'selected' : '' }}>Kabid</option>
                         </select>
                     </div>
 
@@ -156,7 +176,7 @@
                             @endforeach
                         </select>
                         <small class="text-muted">Tahan Ctrl (Cmd) untuk memilih lebih dari satu.</small>
-                        @error('group_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @error('group_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
 
                     <div class="mb-3">
@@ -169,8 +189,41 @@
                             @endforeach
                         </select>
                         <small class="text-muted">Tahan Ctrl (Cmd) untuk memilih lebih dari satu.</small>
-                        @error('level_ids') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        @error('level_ids') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                     </div>
+
+                    <div class="mb-3">
+                        <label for="is_student" class="form-label">Student</label>
+                        <select id="is_student" name="is_student" class="form-select">
+                            <option value="no" {{ old('is_student', $user->is_student) == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_student', $user->is_student) == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_parent" class="form-label">Parent</label>
+                        <select id="is_parent" name="is_parent" class="form-select">
+                            <option value="no" {{ old('is_parent', $user->is_parent) == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_parent', $user->is_parent) == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_teacher" class="form-label">Teacher</label>
+                        <select id="is_teacher" name="is_teacher" class="form-select">
+                            <option value="no" {{ old('is_teacher', $user->is_teacher) == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_teacher', $user->is_teacher) == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="is_educator" class="form-label">Educator</label>
+                        <select id="is_educator" name="is_educator" class="form-select">
+                            <option value="no" {{ old('is_educator', $user->is_educator) == 'no' ? 'selected' : '' }}>No</option>
+                            <option value="yes" {{ old('is_educator', $user->is_educator) == 'yes' ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
                 </div>
             </div>
 
@@ -186,3 +239,105 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+{{-- [TAMBAHAN BARU] JavaScript untuk validasi & tombol mata --}}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Fungsi Toggle Password (Tombol Mata) ---
+        function setupToggle(toggleId, inputId) {
+            const toggleButton = document.getElementById(toggleId);
+            const input = document.getElementById(inputId);
+            if (toggleButton && input) {
+                toggleButton.addEventListener('click', function () {
+                    // Ganti tipe input
+                    const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+                    input.setAttribute('type', type);
+                    
+                    // Ganti ikon mata
+                    const icon = this.querySelector('i');
+                    icon.classList.toggle('bi-eye');
+                    icon.classList.toggle('bi-eye-slash');
+                });
+            }
+        }
+        
+        setupToggle('togglePassword', 'password');
+        setupToggle('togglePasswordConfirm', 'password_confirmation');
+
+        // --- Fungsi Validasi Real-time ---
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const passwordConfirmInput = document.getElementById('password_confirmation');
+
+        // Fungsi helper untuk menampilkan error
+        function showError(input, message) {
+            input.classList.add('is-invalid');
+            let errorFeedback = input.closest('.mb-3, .input-group').querySelector('.invalid-feedback');
+            if (errorFeedback) {
+                errorFeedback.textContent = message;
+            }
+        }
+
+        // Fungsi helper untuk membersihkan error
+        function clearError(input) {
+            input.classList.remove('is-invalid');
+            let errorFeedback = input.closest('.mb-3, .input-group').querySelector('.invalid-feedback');
+            if (errorFeedback && errorFeedback.hasAttribute('data-js-message')) {
+                // Reset ke pesan error server jika ada, atau pesan JS default
+                errorFeedback.textContent = errorFeedback.getAttribute('data-js-message'); 
+            }
+        }
+        
+        // 1. Validasi Username (tidak boleh spasi)
+        if (usernameInput) {
+            usernameInput.addEventListener('input', function () {
+                if (/\s/.test(this.value)) {
+                    showError(this, 'Username tidak boleh mengandung spasi.');
+                } else {
+                    clearError(this);
+                }
+            });
+        }
+
+        // 2. Validasi Password (minimal 6 karakter)
+        // Di form edit, ini opsional, jadi hanya validasi jika DIISI
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function () {
+                if (this.value.length > 0 && this.value.length < 6) {
+                    showError(this, 'Password minimal harus 6 karakter.');
+                } else {
+                    clearError(this);
+                }
+                // Cek ulang konfirmasi jika password utama diubah
+                validatePasswordConfirm(); 
+            });
+        }
+
+        // 3. Validasi Konfirmasi Password (harus cocok)
+        function validatePasswordConfirm() {
+             // Hanya validasi jika password utama juga diisi
+            if (passwordInput.value.length > 0) {
+                if (passwordConfirmInput.value !== passwordInput.value) {
+                    showError(passwordConfirmInput, 'Konfirmasi password tidak cocok.');
+                } else {
+                    clearError(passwordConfirmInput);
+                }
+            } else {
+                 clearError(passwordConfirmInput); // Bersihkan jika password utama kosong
+            }
+        }
+
+        if (passwordConfirmInput) {
+            passwordConfirmInput.addEventListener('input', validatePasswordConfirm);
+        }
+
+        // 4. Hapus error server saat pengguna mulai mengetik
+        document.querySelectorAll('input.is-invalid, select.is-invalid').forEach(function(input) {
+            input.addEventListener('input', function() {
+                input.classList.remove('is-invalid');
+            });
+        });
+    });
+</script>
+@endpush
