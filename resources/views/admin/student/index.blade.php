@@ -7,7 +7,7 @@
         <h1 class="h2">Data Siswa</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             {{-- Kita arahkan ke route 'create' yang akan kita buat nanti --}}
-            <a href="#" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle me-1"></i>Siswa Baru</a>
+            <a href="{{ route('student.create') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle me-1"></i>Siswa Baru</a>
         </div>
     </div>
 

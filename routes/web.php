@@ -29,7 +29,6 @@ Route::middleware(['custom.auth'])->group(function () {
         return view('dashboard');
     })->name('dashboard');
     
-    // Rute user manager
     Route::get('/admin/user', [UserController::class, 'index'])->name('admin.user.index');
     Route::get('/admin/user/create', [UserController::class, 'create'])->name('admin.user.create');
     Route::post('/admin/user', [UserController::class, 'store'])->name('admin.user.store');
@@ -57,6 +56,7 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::delete('/admin/acl/remove', [AclController::class, 'removePermission'])->name('admin.acl.remove');
 
     Route::get('/user/student', [StudentController::class, 'index'])->name('student.index');
-        
-    // Semua rute lain yang memerlukan login harus diletakkan di sini
+    Route::get('/user/student/create', [StudentController::class, 'create'])->name('student.create');
+    Route::post('/user/student', [StudentController::class, 'store'])->name('student.store'); 
+    
 });
