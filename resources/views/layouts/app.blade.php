@@ -41,8 +41,6 @@
 header.navbar {
   min-height: 56px;
 }
-
-
         .sidebar {
   width: 200px;
 }
@@ -76,15 +74,13 @@ header.navbar {
     z-index: 1040;
   }
 }
-
-
     </style>
 </head>
 <body>
     
     {{-- [PERUBAHAN 1] Seluruh struktur visual sekarang berada di sini --}}
-    <header class="navbar sticky-top bg-body-tertiary flex-md-nowrap p-0 shadow-sm">
-        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6" href="{{ route('dashboard') }}">
+    <header class="navbar sticky-top bg-body-tertiary flex-md-nowrap p-0 shadow-sm align-items-center">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-4 d-flex align-items-center" href="{{ route('dashboard') }}">
             <img src="{{ asset('favicon.ico') }}" alt="Logo" width="24" height="24" class="me-2">MIMHa Finance
         </a>
         <button class="navbar-toggler d-md-none collapsed me-3" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
