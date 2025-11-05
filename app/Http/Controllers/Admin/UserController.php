@@ -27,6 +27,8 @@ class UserController extends Controller
             });
         }
 
+        $query->orderBy('sis_user.fullname', 'asc');
+        
         $users = $query->paginate($perPage)->withQueryString();
 
         if ($request->ajax()) {

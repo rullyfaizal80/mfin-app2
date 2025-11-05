@@ -3,6 +3,7 @@
 @section('title', 'Create New User | MFIN')
 
 @section('content')
+{{-- ... (bagian atas halaman tetap sama) ... --}}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Create New User</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
@@ -30,6 +31,7 @@
             <div class="row">
                 {{-- Kolom Kiri: Personal Details --}}
                 <div class="col-md-6">
+                    {{-- ... (Semua field personal details Anda di sini) ... --}}
                     <h5 class="mb-3 text-primary border-bottom pb-2">Personal Details</h5>
                     
                     <div class="mb-3">
@@ -37,8 +39,6 @@
                         <input type="text" id="fullname" name="fullname" class="form-control @error('fullname') is-invalid @enderror" value="{{ old('fullname') }}" required>
                         @error('fullname') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
-
-                    {{-- ... (semua field personal details lainnya tetap sama) ... --}}
                     
                     <div class="mb-3">
                         <label for="nickname" class="form-label">Nickname</label>
@@ -106,7 +106,6 @@
                         <label for="religion" class="form-label">Religion</label>
                         <input type="text" id="religion" name="religion" class="form-control" value="{{ old('religion') }}">
                     </div>
-
                 </div>
 
                 {{-- Kolom Kanan: Account --}}
@@ -116,13 +115,11 @@
                     <div class="mb-3">
                         <label for="username" class="form-label">Username *</label>
                         <input type="text" id="username" name="username" class="form-control @error('username') is-invalid @enderror" value="{{ old('username') }}" required autocomplete="off">
-                        {{-- Pesan error kustom untuk JS --}}
                         <div class="invalid-feedback" data-js-message="Username tidak boleh mengandung spasi.">
                             @error('username') {{ $message }} @enderror
                         </div>
                     </div>
 
-                    {{-- [PERUBAHAN] Field Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password" class="form-label">Password *</label>
                         <div class="input-group">
@@ -136,7 +133,6 @@
                         </div>
                     </div>
 
-                    {{-- [PERUBAHAN] Field Konfirmasi Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password_confirmation" class="form-label">Confirm Password *</label>
                         <div class="input-group">
@@ -148,8 +144,7 @@
                         </div>
                     </div>
                     
-                    {{-- ... (Sisa field Account lainnya tetap sama) ... --}}
-
+                    {{-- ... (Sisa field Account lainnya: Active, Admin, Groups, Levels, Student, Parent, Teacher, Educator) ... --}}
                     <div class="mb-3">
                         <label for="is_active" class="form-label">Active</label>
                         <select id="is_active" name="is_active" class="form-select">
@@ -223,12 +218,12 @@
                             <option value="yes" {{ old('is_educator') == 'yes' ? 'selected' : '' }}>Yes</option>
                         </select>
                     </div>
-
                 </div>
             </div>
 
             <div class="text-end mt-4">
-                <button type="submit" class="btn btn-primary">
+                {{-- [PERUBAHAN] Tambahkan ID pada tombol Save --}}
+                <button type="submit" id="save-button" class="btn btn-primary">
                     <i class="bi bi-check-circle me-1"></i> Save
                 </button>
                 <a href="{{ route('admin.user.index') }}" class="btn btn-secondary">
@@ -241,20 +236,18 @@
 @endsection
 
 @push('scripts')
-{{-- [TAMBAHAN BARU] JavaScript untuk validasi & tombol mata --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const saveButton = document.getElementById('save-button'); // Ambil tombol save
+
         // --- Fungsi Toggle Password (Tombol Mata) ---
         function setupToggle(toggleId, inputId) {
             const toggleButton = document.getElementById(toggleId);
             const input = document.getElementById(inputId);
             if (toggleButton && input) {
                 toggleButton.addEventListener('click', function () {
-                    // Ganti tipe input
                     const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
                     input.setAttribute('type', type);
-                    
-                    // Ganti ikon mata
                     const icon = this.querySelector('i');
                     icon.classList.toggle('bi-eye');
                     icon.classList.toggle('bi-eye-slash');
@@ -270,6 +263,14 @@
         const passwordInput = document.getElementById('password');
         const passwordConfirmInput = document.getElementById('password_confirmation');
 
+        // [BARU] Fungsi untuk mengecek semua validasi dan status tombol
+        function checkFormValidity() {
+            // Cek semua input yang punya class 'is-invalid' di dalam form
+            const invalidInputs = document.querySelectorAll('#user-form .is-invalid');
+            // Nonaktifkan tombol jika ada input yang tidak valid
+            saveButton.disabled = invalidInputs.length > 0;
+        }
+
         // Fungsi helper untuk menampilkan error
         function showError(input, message) {
             input.classList.add('is-invalid');
@@ -277,6 +278,7 @@
             if (errorFeedback) {
                 errorFeedback.textContent = message;
             }
+            checkFormValidity(); // [BARU] Cek status tombol
         }
 
         // Fungsi helper untuk membersihkan error
@@ -284,9 +286,9 @@
             input.classList.remove('is-invalid');
             let errorFeedback = input.closest('.mb-3, .input-group').querySelector('.invalid-feedback');
             if (errorFeedback && errorFeedback.hasAttribute('data-js-message')) {
-                // Reset ke pesan error server jika ada, atau pesan JS default
                 errorFeedback.textContent = errorFeedback.getAttribute('data-js-message'); 
             }
+            checkFormValidity(); // [BARU] Cek status tombol
         }
         
         // 1. Validasi Username (tidak boleh spasi)
@@ -308,7 +310,6 @@
                 } else {
                     clearError(this);
                 }
-                // Cek ulang konfirmasi jika password utama diubah
                 validatePasswordConfirm(); 
             });
         }
@@ -329,9 +330,18 @@
         // 4. Hapus error server saat pengguna mulai mengetik
         document.querySelectorAll('input.is-invalid, select.is-invalid').forEach(function(input) {
             input.addEventListener('input', function() {
-                input.classList.remove('is-invalid');
+                // Saat mengetik, hapus 'is-invalid' tapi JANGAN panggil checkFormValidity()
+                // Biarkan validasi 'input' di atas yang menanganinya
+                if(input.id !== 'username' && input.id !== 'password' && input.id !== 'password_confirmation') {
+                   input.classList.remove('is-invalid');
+                   checkFormValidity(); // Cek ulang untuk field selain yg divalidasi JS
+                }
             });
         });
+
+        // [BARU] Cek validitas form saat halaman pertama kali dimuat
+        // Ini akan menonaktifkan tombol jika halaman dimuat dengan error server
+        checkFormValidity();
     });
 </script>
 @endpush

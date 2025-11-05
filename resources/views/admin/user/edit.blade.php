@@ -3,6 +3,7 @@
 @section('title', 'Edit User | MFIN')
 
 @section('content')
+{{-- ... (bagian atas halaman tetap sama) ... --}}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Edit User: <strong class="text-primary">{{ $user->fullname }}</strong></h1>
     <div class="btn-toolbar mb-2 mb-md-0">
@@ -30,8 +31,9 @@
             @method('PUT')
 
             <div class="row">
-                {{-- Kolom Kiri: Personal Details (Tidak ada perubahan) --}}
+                {{-- Kolom Kiri: Personal Details --}}
                 <div class="col-md-6">
+                    {{-- ... (Semua field personal details Anda di sini) ... --}}
                     <h5 class="mb-3 text-primary border-bottom pb-2">Personal Details</h5>
 
                     <div class="mb-3">
@@ -115,13 +117,11 @@
                     <div class="mb-3">
                         <label for="username" class="form-label">Username *</label>
                         <input type="text" id="username" name="username" class="form-control @error('username') is-invalid @enderror" value="{{ old('username', $user->username) }}" required>
-                        {{-- Pesan error kustom untuk JS --}}
                         <div class="invalid-feedback" data-js-message="Username tidak boleh mengandung spasi.">
                             @error('username') {{ $message }} @enderror
                         </div>
                     </div>
 
-                    {{-- [PERUBAHAN] Field Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password" class="form-label">Password</label>
                         <small class="text-muted">(Kosongkan jika tidak ingin mengubah)</small>
@@ -136,7 +136,6 @@
                         </div>
                     </div>
 
-                    {{-- [PERUBAHAN] Field Konfirmasi Password dengan Tombol Mata --}}
                     <div class="mb-3">
                         <label for="password_confirmation" class="form-label">Confirm Password</label>
                         <div class="input-group">
@@ -148,8 +147,7 @@
                         </div>
                     </div>
                     
-                    {{-- ... (Sisa field Account lainnya tetap sama) ... --}}
-
+                    {{-- ... (Sisa field Account lainnya: Active, Admin, Groups, Levels, Student, Parent, Teacher, Educator) ... --}}
                     <div class="mb-3">
                         <label for="is_active" class="form-label">Active</label>
                         <select id="is_active" name="is_active" class="form-select">
@@ -223,12 +221,12 @@
                             <option value="yes" {{ old('is_educator', $user->is_educator) == 'yes' ? 'selected' : '' }}>Yes</option>
                         </select>
                     </div>
-
                 </div>
             </div>
 
             <div class="text-end mt-4">
-                <button type="submit" class="btn btn-primary">
+                {{-- [PERUBAHAN] Tambahkan ID pada tombol Update --}}
+                <button type="submit" id="save-button" class="btn btn-primary">
                     <i class="bi bi-check-circle me-1"></i> Update
                 </button>
                 <a href="{{ route('admin.user.index') }}" class="btn btn-secondary">
@@ -241,20 +239,18 @@
 @endsection
 
 @push('scripts')
-{{-- [TAMBAHAN BARU] JavaScript untuk validasi & tombol mata --}}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        const saveButton = document.getElementById('save-button'); // Ambil tombol save
+
         // --- Fungsi Toggle Password (Tombol Mata) ---
         function setupToggle(toggleId, inputId) {
             const toggleButton = document.getElementById(toggleId);
             const input = document.getElementById(inputId);
             if (toggleButton && input) {
                 toggleButton.addEventListener('click', function () {
-                    // Ganti tipe input
                     const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
                     input.setAttribute('type', type);
-                    
-                    // Ganti ikon mata
                     const icon = this.querySelector('i');
                     icon.classList.toggle('bi-eye');
                     icon.classList.toggle('bi-eye-slash');
@@ -269,6 +265,14 @@
         const usernameInput = document.getElementById('username');
         const passwordInput = document.getElementById('password');
         const passwordConfirmInput = document.getElementById('password_confirmation');
+        
+        // [BARU] Fungsi untuk mengecek semua validasi dan status tombol
+        function checkFormValidity() {
+            // Cek semua input yang punya class 'is-invalid' di dalam form
+            const invalidInputs = document.querySelectorAll('#user-form .is-invalid');
+            // Nonaktifkan tombol jika ada input yang tidak valid
+            saveButton.disabled = invalidInputs.length > 0;
+        }
 
         // Fungsi helper untuk menampilkan error
         function showError(input, message) {
@@ -277,6 +281,7 @@
             if (errorFeedback) {
                 errorFeedback.textContent = message;
             }
+            checkFormValidity(); // [BARU] Cek status tombol
         }
 
         // Fungsi helper untuk membersihkan error
@@ -284,9 +289,9 @@
             input.classList.remove('is-invalid');
             let errorFeedback = input.closest('.mb-3, .input-group').querySelector('.invalid-feedback');
             if (errorFeedback && errorFeedback.hasAttribute('data-js-message')) {
-                // Reset ke pesan error server jika ada, atau pesan JS default
                 errorFeedback.textContent = errorFeedback.getAttribute('data-js-message'); 
             }
+            checkFormValidity(); // [BARU] Cek status tombol
         }
         
         // 1. Validasi Username (tidak boleh spasi)
@@ -300,8 +305,7 @@
             });
         }
 
-        // 2. Validasi Password (minimal 6 karakter)
-        // Di form edit, ini opsional, jadi hanya validasi jika DIISI
+        // 2. Validasi Password (minimal 6 karakter) - Opsional di Edit
         if (passwordInput) {
             passwordInput.addEventListener('input', function () {
                 if (this.value.length > 0 && this.value.length < 6) {
@@ -309,14 +313,12 @@
                 } else {
                     clearError(this);
                 }
-                // Cek ulang konfirmasi jika password utama diubah
                 validatePasswordConfirm(); 
             });
         }
 
         // 3. Validasi Konfirmasi Password (harus cocok)
         function validatePasswordConfirm() {
-             // Hanya validasi jika password utama juga diisi
             if (passwordInput.value.length > 0) {
                 if (passwordConfirmInput.value !== passwordInput.value) {
                     showError(passwordConfirmInput, 'Konfirmasi password tidak cocok.');
@@ -324,7 +326,7 @@
                     clearError(passwordConfirmInput);
                 }
             } else {
-                 clearError(passwordConfirmInput); // Bersihkan jika password utama kosong
+                 clearError(passwordConfirmInput);
             }
         }
 
@@ -335,9 +337,15 @@
         // 4. Hapus error server saat pengguna mulai mengetik
         document.querySelectorAll('input.is-invalid, select.is-invalid').forEach(function(input) {
             input.addEventListener('input', function() {
-                input.classList.remove('is-invalid');
+                if(input.id !== 'username' && input.id !== 'password' && input.id !== 'password_confirmation') {
+                   input.classList.remove('is-invalid');
+                   checkFormValidity();
+                }
             });
         });
+
+        // [BARU] Cek validitas form saat halaman pertama kali dimuat
+        checkFormValidity();
     });
 </script>
 @endpush
