@@ -30,7 +30,7 @@
                         {{ $student->home_phone ?? $student->mobile_phone }}
                     </td>
                     <td class="text-center">
-                        <a href="#" class="btn btn-sm btn-outline-warning" title="Edit">
+                        <a href="{{ route('student.edit', $student->id) }}" class="btn btn-sm btn-outline-warning" title="Edit">
                             <i class="bi bi-pencil-square"></i>
                         </a>
                         <form action="{{ route('student.destroy', $student->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">

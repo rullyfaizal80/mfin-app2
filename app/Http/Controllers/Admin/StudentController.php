@@ -189,4 +189,143 @@ class StudentController extends Controller
         return redirect()->route('student.index')
                          ->with('success', 'Data siswa berhasil dihapus.');
     }
+
+    public function edit(string $id)
+    {
+        // 1. Ambil data gabungan dari sis_user dan sis_student
+        $student = DB::table('sis_user')
+                    ->join('sis_student', 'sis_user.id', '=', 'sis_student.id')
+                    ->where('sis_user.id', $id)
+                    ->select('sis_user.*', 'sis_student.*') // Ambil semua kolom dari kedua tabel
+                    ->first();
+
+        // Jika siswa tidak ditemukan, kembali ke index
+        if (!$student) {
+            return redirect()->route('student.index')->with('error', 'Data siswa tidak ditemukan.');
+        }
+
+        // 2. Ambil daftar orang tua (sama seperti di method create)
+        $parents = DB::table('sis_user')
+                    ->where('is_parent', 'yes')
+                    ->orderBy('fullname', 'asc')
+                    ->get(['id', 'fullname']);
+
+        // 3. [LOGIKA PENTING] Proses data radio button untuk view
+        // Ini untuk memisahkan nilai 'other'
+        $distanceOptions = ['<1 km', '1-5 km', '> 5km'];
+        $gotoOptions = ['antar jemput orang tua', 'antar jemput langganan', 'sendiri'];
+
+        $student->distancetoschool1 = in_array($student->distancetoschool, $distanceOptions) ? $student->distancetoschool : 'other';
+        $student->distancetoschool2 = in_array($student->distancetoschool, $distanceOptions) ? '' : $student->distancetoschool;
+        
+        $student->gotoschool_with1 = in_array($student->gotoschool_with, $gotoOptions) ? $student->gotoschool_with : 'other';
+        $student->gotoschool_with2 = in_array($student->gotoschool_with, $gotoOptions) ? '' : $student->gotoschool_with;
+
+        // 4. Tampilkan view edit dengan data siswa dan data parents
+        return view('admin.student.edit', [
+            'student' => $student,
+            'parents' => $parents
+        ]);
+    }
+
+    /**
+     * [BARU] Memperbarui data siswa di database.
+     */
+    public function update(Request $request, string $id)
+    {
+        // 1. Validasi Data
+        // Mirip dengan store(), tapi 'unique' rules harus mengabaikan ID saat ini
+        $request->validate([
+            'fullname' => 'required|string|max:45',
+            'is_active' => 'required|string',
+            'nis' => [
+                'required', 'string', 'max:45', 'alpha_dash',
+                Rule::unique('sis_student', 'nis')->ignore($id), // Abaikan ID ini
+                Rule::unique('sis_user', 'username')->ignore($id) // Abaikan ID ini
+            ],
+            'email'    => [
+                'nullable', 'email', 'max:45',
+                Rule::unique('sis_user', 'email')->ignore($id) // Abaikan ID ini
+            ],
+        ], [
+            'nis.alpha_dash' => 'NIS hanya boleh berisi huruf, angka, strip (-), dan underscore (_).',
+            'nis.unique' => 'NIS ini sudah terdaftar.',
+            'email.unique' => 'Email ini sudah terdaftar.',
+        ]);
+
+        // 2. Siapkan Data (Radio button) - sama seperti store()
+        $distancetoschool = $request->distancetoschool1 === 'other' 
+            ? ($request->distancetoschool2 ?? '')
+            : $request->distancetoschool1;
+            
+        $gotoschool_with = $request->gotoschool_with1 === 'other' 
+            ? ($request->gotoschool_with2 ?? '')
+            : $request->gotoschool_with1;
+
+        // 3. Gunakan Transaksi Database
+        DB::transaction(function () use ($request, $id, $distancetoschool, $gotoschool_with) {
+            
+            // 3a. Update tabel 'sis_user'
+            DB::table('sis_user')->where('id', $id)->update([
+                'fullname' => $request->fullname,
+                'nickname' => $request->nickname, // Boleh null
+                'username' => $request->nis, // Update username jika NIS berubah
+                'placeofbirth' => $request->placeofbirth,
+                'dateofbirth' => $request->dateofbirth,
+                'gender' => $request->gender,
+                'street' => $request->street,
+                'city' => $request->city,
+                'province' => $request->province,
+                'country' => $request->country,
+                'postalcode' => $request->postalcode,
+                'home_phone' => $request->home_phone,
+                'mobile_phone' => $request->mobile_phone,
+                'email' => $request->email,
+                'religion' => $request->religion,
+                'is_active' => $request->is_active,
+                // Kita tidak mengubah 'is_student', 'is_admin', dll.
+                
+                'updated' => now(),
+                'update_by' => session('user_id'),
+            ]);
+
+            // 3b. Update tabel 'sis_student'
+            DB::table('sis_student')->where('id', $id)->update([
+                'nis' => $request->nis,
+                'nin' => $request->nin ?? '',
+                'father_id' => $request->father_id ?? 0,
+                'mother_id' => $request->mother_id ?? 0,
+                'parent_id' => $request->parent_id ?? 0,
+                'parent_relation' => $request->parent_relation ?? '',
+                'mothertongue' => $request->mothertongue ?? '',
+                'birthorder' => $request->birthorder ?? '',
+                'total_sibling' => $request->total_sibling ?? '',
+                'total_stepbrother' => $request->total_stepbrother ?? '',
+                'total_fosterbrother' => $request->total_fosterbrother ?? '',
+                'live_with' => $request->live_with ?? '',
+                'distancetoschool' => $distancetoschool ?? '',
+                'gotoschool_with' => $gotoschool_with ?? '',
+                'cronic_desease' => $request->cronic_desease ?? '',
+                'severe_desease' => $request->severe_desease ?? '',
+                'height' => $request->height ?? 0,
+                'weight' => $request->weight ?? 0,
+                
+                'updated' => now(),
+                'update_by' => session('user_id'),
+            ]);
+
+            // Jika password diisi, update password
+            // (Kita set password = NIS jika diubah)
+            if ($request->filled('nis')) {
+                DB::table('sis_user')->where('id', $id)->update([
+                    'password' => Hash::make($request->nis)
+                ]);
+            }
+
+        }); // Transaksi Selesai
+
+        // 4. Redirect kembali
+        return redirect()->route('student.index')
+                         ->with('success', 'Data siswa berhasil diperbarui.');
+    }
 }

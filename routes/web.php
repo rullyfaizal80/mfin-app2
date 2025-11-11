@@ -59,5 +59,7 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/student/create', [StudentController::class, 'create'])->name('student.create');
     Route::post('/user/student', [StudentController::class, 'store'])->name('student.store');
     Route::delete('/user/student/{id}', [StudentController::class, 'destroy'])->name('student.destroy');
+    Route::get('/user/student/{id}/edit', [StudentController::class, 'edit'])->name('student.edit');
+    Route::put('/user/student/{id}', [StudentController::class, 'update'])->name('student.update');
     
 });
