@@ -7,7 +7,7 @@
         <h1 class="h2">Data Orang Tua</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             {{-- Kita akan arahkan ke 'parent.create' nanti --}}
-            <a href="#" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle me-1"></i>Orang Tua Baru</a>
+            <a href="{{ route('parent.create') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-circle me-1"></i>Orang Tua Baru</a>
         </div>
     </div>
 
