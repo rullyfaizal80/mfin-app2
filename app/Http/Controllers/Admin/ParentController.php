@@ -142,4 +142,28 @@ class ParentController extends Controller
                          ->with('success', 'Data orang tua baru berhasil ditambahkan.');
     }
 
+    /**
+     * [BARU] Menghapus data orang tua dari database (2 tabel).
+     */
+    public function destroy($id)
+    {
+        // Pengecekan agar tidak bisa menghapus diri sendiri
+        if ($id == session('user_id')) {
+            return redirect()->route('parent.index')
+                             ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
+
+        // Kita gunakan Transaksi untuk memastikan kedua tabel terhapus
+        DB::transaction(function () use ($id) {
+            // 1. Hapus dari sis_parents (child table) terlebih dahulu
+            DB::table('sis_parents')->where('id', $id)->delete();
+            
+            // 2. Hapus dari sis_user (parent table)
+            DB::table('sis_user')->where('id', $id)->delete();
+        });
+
+        return redirect()->route('parent.index')
+                         ->with('success', 'Data orang tua berhasil dihapus.');
+    }
+
 }

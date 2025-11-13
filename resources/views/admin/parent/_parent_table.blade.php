@@ -27,7 +27,7 @@
                         <a href="#" class="btn btn-sm btn-outline-warning" title="Edit">
                             <i class="bi bi-pencil-square"></i>
                         </a>
-                        <form action="#" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">
+                        <form action="{{ route('parent.destroy', $parent->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus">

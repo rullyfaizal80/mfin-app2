@@ -66,6 +66,6 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/parents', [ParentController::class, 'index'])->name('parent.index');
     Route::get('/user/parents/create', [ParentController::class, 'create'])->name('parent.create');
     Route::post('/user/parents', [ParentController::class, 'store'])->name('parent.store');
+    Route::delete('/user/parents/{id}', [ParentController::class, 'destroy'])->name('parent.destroy');
 
-    
 });
