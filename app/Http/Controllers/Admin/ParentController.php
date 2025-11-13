@@ -166,4 +166,92 @@ class ParentController extends Controller
                          ->with('success', 'Data orang tua berhasil dihapus.');
     }
 
+    /**
+     * [BARU] Menampilkan form untuk mengedit data orang tua.
+     */
+    public function edit(string $id)
+    {
+        // 1. Ambil data gabungan dari sis_user dan sis_parents
+        $parent = DB::table('sis_user')
+                    ->leftJoin('sis_parents', 'sis_user.id', '=', 'sis_parents.id')
+                    ->where('sis_user.id', $id)
+                    ->select('sis_user.*', 'sis_parents.*', 'sis_user.id as user_id') // Ambil semua
+                    ->first();
+
+        // Jika orang tua tidak ditemukan
+        if (!$parent) {
+            return redirect()->route('parent.index')->with('error', 'Data orang tua tidak ditemukan.');
+        }
+
+        // 2. Tampilkan view edit dengan data
+        return view('admin.parent.edit', [
+            'parent' => $parent
+        ]);
+    }
+
+    /**
+     * [BARU] Memperbarui data orang tua di database.
+     */
+    public function update(Request $request, string $id)
+    {
+        // 1. Validasi Data
+        $request->validate([
+            'fullname' => 'required|string|max:45',
+            'email'    => [
+                'nullable', 'email', 'max:45',
+                Rule::unique('sis_user', 'email')->ignore($id) // Abaikan ID ini
+            ],
+        ]);
+
+        // 2. Gunakan Transaksi Database
+        DB::transaction(function () use ($request, $id) {
+            
+            // 3a. Update tabel 'sis_user'
+            DB::table('sis_user')->where('id', $id)->update([
+                'fullname' => $request->fullname,
+                'nickname' => $request->nickname, // Boleh null
+                'placeofbirth' => $request->placeofbirth,
+                'dateofbirth' => $request->dateofbirth,
+                'gender' => $request->gender,
+                'street' => $request->street,
+                'city' => $request->city,
+                'province' => $request->province,
+                'country' => $request->country,
+                'postalcode' => $request->postalcode,
+                'home_phone' => $request->home_phone,
+                'mobile_phone' => $request->mobile_phone,
+                'email' => $request->email,
+                'religion' => $request->religion,
+                'is_active' => $request->is_active,
+                'is_teacher' => $request->is_teacher ?? 'no',
+                
+                'updated' => now(),
+                'update_by' => session('user_id'),
+            ]);
+
+            // 3b. Update tabel 'sis_parents'
+            // Gunakan updateOrInsert jika data di sis_parents belum ada
+            DB::table('sis_parents')->updateOrInsert(
+                ['id' => $id], // Kondisi pencarian
+                [ // Data yang akan di-update atau di-insert
+                    'education' => $request->education ?? '',
+                    'profession' => $request->profession ?? '',
+                    'company' => $request->company ?? '',
+                    'company_phone' => $request->company_phone ?? '',
+                    'position' => $request->position ?? '',
+                    'salary' => $request->salary ?? '',
+                    
+                    'updated' => now(),
+                    'update_by' => session('user_id'),
+                    // 'created' tidak di-set agar tidak menimpa data lama saat update
+                ]
+            );
+
+        }); // Transaksi Selesai
+
+        // 4. Redirect kembali
+        return redirect()->route('parent.index')
+                         ->with('success', 'Data orang tua berhasil diperbarui.');
+    }
+
 }

@@ -67,5 +67,7 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/parents/create', [ParentController::class, 'create'])->name('parent.create');
     Route::post('/user/parents', [ParentController::class, 'store'])->name('parent.store');
     Route::delete('/user/parents/{id}', [ParentController::class, 'destroy'])->name('parent.destroy');
+    Route::get('/user/parents/{id}/edit', [ParentController::class, 'edit'])->name('parent.edit');
+    Route::put('/user/parents/{id}', [ParentController::class, 'update'])->name('parent.update');
 
 });

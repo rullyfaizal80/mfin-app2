@@ -24,7 +24,7 @@
                     </td>
                     <td>{{ $parent->company_phone ?? '-' }}</td>
                     <td class="text-center">
-                        <a href="#" class="btn btn-sm btn-outline-warning" title="Edit">
+                        <a href="{{ route('parent.edit', $parent->id) }}" class="btn btn-sm btn-outline-warning" title="Edit">
                             <i class="bi bi-pencil-square"></i>
                         </a>
                         <form action="{{ route('parent.destroy', $parent->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">
