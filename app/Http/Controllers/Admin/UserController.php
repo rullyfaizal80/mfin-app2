@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule; // <-- [TAMBAHAN] Untuk validasi 'unique' saat update
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -15,15 +15,37 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
+        // [MODIFIKASI] Query ini di-update untuk mengambil data group
         $searchTerm = $request->query('search');
         $perPage = $request->query('perPage', 10);
 
-        $query = DB::table('sis_user');
+        $query = DB::table('sis_user')
+            ->select(
+                'sis_user.id', 
+                'sis_user.fullname', 
+                'sis_user.username', 
+                'sis_user.is_active',
+                'sis_user.email',
+                'sis_user.mobile_phone',
+                // Menggunakan GROUP_CONCAT untuk menggabungkan nama grup
+                DB::raw('GROUP_CONCAT(DISTINCT sis_group.group_name ORDER BY sis_group.group_name SEPARATOR ", ") as groups') 
+            )
+            ->leftJoin('sis_usergroup', 'sis_user.id', '=', 'sis_usergroup.user_id')
+            ->leftJoin('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
+            ->groupBy(
+                'sis_user.id', 
+                'sis_user.fullname', 
+                'sis_user.username', 
+                'sis_user.is_active',
+                'sis_user.email',
+                'sis_user.mobile_phone'
+            ); // Kelompokkan berdasarkan data user
 
         if ($searchTerm) {
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('fullname', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('username', 'like', '%' . $searchTerm . '%');
+                $q->where('sis_user.fullname', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('sis_user.username', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('sis_user.email', 'like', '%' . $searchTerm . '%');
             });
         }
 
@@ -32,7 +54,6 @@ class UserController extends Controller
         $users = $query->paginate($perPage)->withQueryString();
 
         if ($request->ajax()) {
-            // (Catatan: _user_table.blade.php nanti perlu di-update untuk menampilkan grup)
             return view('admin.user._user_table', ['users' => $users]);
         }
 
@@ -44,12 +65,10 @@ class UserController extends Controller
     }
 
     /**
-     * [MODIFIKASI] Menampilkan form untuk membuat user baru.
-     * Sekarang juga mengambil data group dan level.
+     * Menampilkan form untuk membuat user baru.
      */
     public function create()
     {
-        // Ambil data untuk pilihan di form
         $groups = DB::table('sis_group')->orderBy('ordering', 'asc')->get();
         $levels = DB::table('sis_level')->orderBy('grade', 'asc')->get();
 
@@ -61,21 +80,19 @@ class UserController extends Controller
 
     /**
      * [MODIFIKASI] Menyimpan user baru ke database.
-     * Sekarang menyimpan ke 3 tabel sekaligus.
+     * Perbaikan: Menambahkan 'is_company' dan 'update_by'
      */
     public function store(Request $request)
     {
         // 1. Validasi Input Utama
         $request->validate([
             'fullname' => 'required|string|max:45',
-            // [PERUBAHAN] Tambahkan 'alpha_dash' di akhir string
             'username' => 'required|string|max:45|unique:sis_user,username|alpha_dash', 
             'password' => 'required|string|min:6|confirmed',
             'email'    => 'nullable|email|max:45|unique:sis_user,email',
             'group_ids' => 'required|array|min:1', 
             'level_ids' => 'required|array|min:1', 
         ], [
-            // [INI TAMBAHAN PESAN ERROR]
             'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, strip (-), dan underscore (_).'
         ]);
 
@@ -85,13 +102,16 @@ class UserController extends Controller
         $userData['created'] = now();
         $userData['updated'] = now();
 
-        // 3. Gunakan Transaksi Database (SANGAT PENTING)
-        // Ini memastikan jika salah satu query gagal, semua data akan di-rollback.
+        // [PERBAIKAN] Tambahkan field wajib yang tidak ada di form
+        $userData['is_company'] = 'no'; 
+        $userData['update_by'] = session('user_id'); 
+
+        // 3. Gunakan Transaksi Database
         DB::transaction(function () use ($userData, $request) {
             // 3a. Simpan ke sis_user dan ambil ID user baru
             $newUserId = DB::table('sis_user')->insertGetId($userData);
 
-            // 3b. Siapkan data untuk sis_usergroup (Bulk Insert)
+            // 3b. Siapkan data untuk sis_usergroup
             $userGroupData = [];
             foreach ($request->group_ids as $groupId) {
                 $userGroupData[] = [
@@ -101,7 +121,7 @@ class UserController extends Controller
             }
             DB::table('sis_usergroup')->insert($userGroupData);
 
-            // 3c. Siapkan data untuk sis_userlevel (Bulk Insert)
+            // 3c. Siapkan data untuk sis_userlevel
             $userLevelData = [];
             foreach ($request->level_ids as $levelId) {
                 $userLevelData[] = [
@@ -112,27 +132,24 @@ class UserController extends Controller
             DB::table('sis_userlevel')->insert($userLevelData);
         });
 
-        // 4. Redirect kembali ke halaman daftar user
+        // 4. Redirect kembali
         return redirect()->route('admin.user.index')
-                         ->with('success', 'User created successfully!');
+                         ->with('success', 'User berhasil ditambahkan.');
     }
 
     /**
-     * [BARU] Menampilkan form untuk mengedit user.
+     * Menampilkan form untuk mengedit user.
      */
     public function edit($id)
     {
-        // 1. Ambil data user
         $user = DB::table('sis_user')->find($id);
         if (!$user) {
-            return redirect()->route('admin.user.index')->with('error', 'User not found!');
+            return redirect()->route('admin.user.index')->with('error', 'User tidak ditemukan!');
         }
 
-        // 2. Ambil semua pilihan group dan level
         $groups = DB::table('sis_group')->orderBy('ordering', 'asc')->get();
         $levels = DB::table('sis_level')->orderBy('grade', 'asc')->get();
 
-        // 3. Ambil group dan level yang sudah dimiliki user
         $selectedGroups = DB::table('sis_usergroup')->where('user_id', $id)->pluck('group_id')->toArray();
         $selectedLevels = DB::table('sis_userlevel')->where('user_id', $id)->pluck('level_id')->toArray();
 
@@ -146,7 +163,8 @@ class UserController extends Controller
     }
 
     /**
-     * [BARU] Memperbarui data user di database.
+     * [MODIFIKASI] Memperbarui data user di database.
+     * Perbaikan: Menambahkan 'update_by'
      */
     public function update(Request $request, $id)
     {
@@ -154,20 +172,17 @@ class UserController extends Controller
         $request->validate([
             'fullname' => 'required|string|max:45',
             'username' => [
-                'required', 'string', 'max:45',
-                Rule::unique('sis_user')->ignore($id), // Abaikan ID saat ini saat cek unique
-                'alpha_dash' // <-- [INI TAMBAHANNYA] Cukup tambahkan 'alpha_dash' di sini
+                'required', 'string', 'max:45', 'alpha_dash',
+                Rule::unique('sis_user')->ignore($id),
             ],
             'email'    => [
                 'nullable', 'email', 'max:45',
                 Rule::unique('sis_user')->ignore($id)
             ],
-            'password' => 'nullable|string|min:6|confirmed', // Password opsional saat update
+            'password' => 'nullable|string|min:6|confirmed',
             'group_ids' => 'required|array|min:1',
             'level_ids' => 'required|array|min:1',
         ], [
-            // [INI TAMBAHAN PESAN ERROR]
-            // Pesan ini diletakkan sebagai argumen kedua dari fungsi validate()
             'username.alpha_dash' => 'Username hanya boleh berisi huruf, angka, strip (-), dan underscore (_).'
         ]);
 
@@ -175,9 +190,15 @@ class UserController extends Controller
         $userData = $request->except(['_token', '_method', 'password_confirmation', 'group_ids', 'level_ids']);
         $userData['updated'] = now();
 
+        // [PERBAIKAN] Tambahkan 'update_by'
+        $userData['update_by'] = session('user_id');
+
         // 3. Hanya update password jika diisi
         if ($request->filled('password')) {
             $userData['password'] = Hash::make($request->password);
+        } else {
+            // Hapus 'password' dari array jika tidak diisi
+            unset($userData['password']); 
         }
 
         // 4. Mulai Transaksi Database
@@ -189,14 +210,14 @@ class UserController extends Controller
             DB::table('sis_usergroup')->where('user_id', $id)->delete();
             DB::table('sis_userlevel')->where('user_id', $id)->delete();
 
-            // 4c. Siapkan data baru untuk sis_usergroup (Bulk Insert)
+            // 4c. Siapkan data baru untuk sis_usergroup
             $userGroupData = [];
             foreach ($request->group_ids as $groupId) {
                 $userGroupData[] = ['user_id' => $id, 'group_id' => $groupId];
             }
             DB::table('sis_usergroup')->insert($userGroupData);
 
-            // 4d. Siapkan data baru untuk sis_userlevel (Bulk Insert)
+            // 4d. Siapkan data baru untuk sis_userlevel
             $userLevelData = [];
             foreach ($request->level_ids as $levelId) {
                 $userLevelData[] = ['user_id' => $id, 'level_id' => $levelId];
@@ -206,25 +227,34 @@ class UserController extends Controller
 
         // 5. Redirect kembali
         return redirect()->route('admin.user.index')
-                         ->with('success', 'User updated successfully!');
+                         ->with('success', 'User berhasil diperbarui.');
     }
 
     /**
-     * [BARU] Menghapus user dari database.
+     * Menghapus user dari database.
      */
     public function destroy($id)
     {
-        // Gunakan transaksi untuk memastikan semua data terkait terhapus
+        // Pengecekan agar tidak bisa menghapus diri sendiri
+        if ($id == session('user_id')) {
+            return redirect()->route('admin.user.index')
+                             ->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
+        }
+
         DB::transaction(function () use ($id) {
             // 1. Hapus dari tabel pivot
             DB::table('sis_usergroup')->where('user_id', $id)->delete();
             DB::table('sis_userlevel')->where('user_id', $id)->delete();
             
-            // 2. Hapus dari tabel utama
+            // 2. Hapus dari tabel anak (jika ada) - DITANGANI OLEH onDelete('cascade')
+            // DB::table('sis_student')->where('id', $id)->delete();
+            // DB::table('sis_parents')->where('id', $id)->delete();
+            
+            // 3. Hapus dari tabel utama
             DB::table('sis_user')->where('id', $id)->delete();
         });
 
         return redirect()->route('admin.user.index')
-                         ->with('success', 'User deleted successfully!');
+                         ->with('success', 'User berhasil dihapus.');
     }
 }
