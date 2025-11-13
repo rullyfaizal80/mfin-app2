@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\AclController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\ParentController;
+use App\Http\Controllers\Admin\TeacherController;
 
 /*
 |--------------------------------------------------------------------------
@@ -69,5 +70,9 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::delete('/user/parents/{id}', [ParentController::class, 'destroy'])->name('parent.destroy');
     Route::get('/user/parents/{id}/edit', [ParentController::class, 'edit'])->name('parent.edit');
     Route::put('/user/parents/{id}', [ParentController::class, 'update'])->name('parent.update');
-
+    
+    Route::get('/user/teacher', [TeacherController::class, 'index'])->name('teacher.index');
+    Route::get('/user/teacher/create', [TeacherController::class, 'create'])->name('teacher.create');
+    Route::post('/user/teacher', [TeacherController::class, 'store'])->name('teacher.store');
+    Route::delete('/user/teacher/{id}', [TeacherController::class, 'destroy'])->name('teacher.destroy');
 });
