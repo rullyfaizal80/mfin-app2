@@ -75,4 +75,7 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/teacher/create', [TeacherController::class, 'create'])->name('teacher.create');
     Route::post('/user/teacher', [TeacherController::class, 'store'])->name('teacher.store');
     Route::delete('/user/teacher/{id}', [TeacherController::class, 'destroy'])->name('teacher.destroy');
+    Route::get('/user/teacher/{id}/edit', [TeacherController::class, 'edit'])->name('teacher.edit');  
+    Route::put('/user/teacher/{id}', [TeacherController::class, 'update'])->name('teacher.update');
+
 });
