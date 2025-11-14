@@ -118,6 +118,9 @@ header.navbar {
     {{-- File: resources/views/layouts/app.blade.php (bagian paling bawah) --}}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ asset('assets/js/main.js') }}"></script>
+
 @stack('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {

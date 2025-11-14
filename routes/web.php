@@ -78,4 +78,19 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/teacher/{id}/edit', [TeacherController::class, 'edit'])->name('teacher.edit');  
     Route::put('/user/teacher/{id}', [TeacherController::class, 'update'])->name('teacher.update');
 
+    // [TAMBAHAN] Rute untuk "Personal CV" (Halaman Tab 2)
+    Route::get('/user/teacher/{id}/cv', [TeacherController::class, 'editCv'])->name('teacher.editCv');
+    // [TAMBAHAN] Rute AJAX untuk Riwayat Pendidikan
+    Route::post('/user/teacher/cv/education', [TeacherController::class, 'storeEducation'])->name('teacher.cv.education.store');
+    Route::delete('/user/teacher/cv/education/{id}', [TeacherController::class, 'destroyEducation'])->name('teacher.cv.education.destroy');
+    // [TAMBAHAN] Rute AJAX untuk Pengalaman Kerja
+    Route::post('/user/teacher/cv/work', [TeacherController::class, 'storeWork'])->name('teacher.cv.work.store');
+    Route::delete('/user/teacher/cv/work/{id}', [TeacherController::class, 'destroyWork'])->name('teacher.cv.work.destroy');
+    // [TAMBAHAN] Rute AJAX untuk Pelatihan
+    Route::post('/user/teacher/cv/training', [TeacherController::class, 'storeTraining'])->name('teacher.cv.training.store');
+    Route::delete('/user/teacher/cv/training/{id}', [TeacherController::class, 'destroyTraining'])->name('teacher.cv.training.destroy');
+    // [TAMBAHAN] Rute AJAX untuk Organisasi
+    Route::post('/user/teacher/cv/organization', [TeacherController::class, 'storeOrganization'])->name('teacher.cv.organization.store');
+    Route::delete('/user/teacher/cv/organization/{id}', [TeacherController::class, 'destroyOrganization'])->name('teacher.cv.organization.destroy');
+
 });
