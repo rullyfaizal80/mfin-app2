@@ -53,6 +53,11 @@
                 <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
                 <span>{{ $menu->title }}</span>
             </a>
+        @elseif ($menu->link === 'master/cyear')
+            <a class="nav-link collapsed" href="{{ route('cyear.index') }}">
+                <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
+                <span>{{ $menu->title }}</span>
+            </a>
         @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">
