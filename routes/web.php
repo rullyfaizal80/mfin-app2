@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\AclController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\ParentController;
 use App\Http\Controllers\Admin\TeacherController;
+use App\Http\Controllers\Admin\CyearController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,4 +76,10 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/teacher/create', [TeacherController::class, 'create'])->name('teacher.create');
     Route::post('/user/teacher', [TeacherController::class, 'store'])->name('teacher.store');
     Route::delete('/user/teacher/{id}', [TeacherController::class, 'destroy'])->name('teacher.destroy');
+
+    Route::get('/master/cyear', [CyearController::class, 'index'])->name('cyear.index');
+    Route::post('/master/cyear', [CyearController::class, 'store'])->name('cyear.store');
+    Route::get('/master/cyear/{id}/edit', [CyearController::class, 'edit'])->name('cyear.edit');
+    Route::put('/master/cyear/{id}', [CyearController::class, 'update'])->name('cyear.update');
+    Route::delete('/master/cyear/{id}', [CyearController::class, 'destroy'])->name('cyear.destroy');
 });
