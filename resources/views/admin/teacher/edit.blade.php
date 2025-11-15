@@ -206,7 +206,7 @@
     <label class="form-label">KTP Saat Ini:</label>
     <div>
         {{-- Langsung gunakan nilai dari DB, karena sudah benar (contoh: personal_identity2965.jpg) --}}
-        <img src="{{ asset('storage/uploads/teachers/' . $teacher->personal_identity) }}" alt="KTP" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
+        <img src="{{ asset('uploads/teachers/' . $teacher->personal_identity) }}" alt="KTP" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
     </div>
     <small class="text-muted">{{ $teacher->personal_identity }}</small>
 </div>

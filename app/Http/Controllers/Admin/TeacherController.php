@@ -237,18 +237,35 @@ class TeacherController extends Controller
             ];
 
             // 3c. Handle Upload File KTP jika ada file baru
-            if ($request->hasFile('ktp_upload')) {
-                // Hapus file lama jika ada
-                $oldData = DB::table('sis_teacher')->find($id);
-                if ($oldData && $oldData->personal_identity) {
-                    Storage::delete('uploads/teachers/' . $oldData->personal_identity);
-                }
-                
-                // Simpan file baru
-                $filename = 'personal_identity' . $id . '.' . $request->file('ktp_upload')->getClientOriginalExtension();
-                $request->file('ktp_upload')->storeAs('uploads/teachers', $filename);
-                $teacherData['personal_identity'] = $filename;
-            }
+           if ($request->hasFile('ktp_upload')) {
+
+    // Ambil data lama
+    $oldData = DB::table('sis_teacher')->find($id);
+
+    // Hapus file lama jika ada
+    if ($oldData && $oldData->personal_identity) {
+        $oldFilePath = 'uploads/teachers/' . $oldData->personal_identity;
+
+        if (file_exists(public_path($oldFilePath))) {
+            unlink(public_path($oldFilePath));
+        }
+    }
+
+    // Buat nama file baru
+    $filename = 'personal_identity' . $id . '.' . 
+                $request->file('ktp_upload')->getClientOriginalExtension();
+
+    // Simpan file langsung ke public/uploads/teachers
+    $request->file('ktp_upload')->storeAs(
+        'uploads/teachers', 
+        $filename, 
+        'public_uploads'    // disk custom
+    );
+
+    // Simpan ke DB hanya nama filenya
+    $teacherData['personal_identity'] = $filename;
+}
+
 
             // 3d. Update 'sis_teacher'
             // Kita gunakan 'update' saja, asumsi data sudah dibuat saat 'create'
