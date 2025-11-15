@@ -200,17 +200,18 @@
                                 @error('ktp_upload') <div class="invalid-feedback">{{ $message }}</div> @enderror
                             </div>
                             
-                            {{-- [PERBAIKAN BUG GAMBAR] --}}
-                            @if($teacher->personal_identity)
-                            <div class="mb-3">
-                                <label class="form-label">KTP Saat Ini:</label>
-                                <div>
-                                    {{-- Menggunakan Storage::url() agar path-nya benar --}}
-                                    <img src="{{ Storage::url('uploads/teachers/' . $teacher->personal_identity) }}" alt="KTP" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
-                                </div>
-                                <small class="text-muted">{{ $teacher->personal_identity }}</small>
-                            </div>
-                            @endif
+                           {{-- [PERBAIKAN FINAL] --}}
+@if($teacher->personal_identity)
+<div class="mb-3">
+    <label class="form-label">KTP Saat Ini:</label>
+    <div>
+        {{-- Langsung gunakan nilai dari DB, karena sudah benar (contoh: personal_identity2965.jpg) --}}
+        <img src="{{ asset('storage/uploads/teachers/' . $teacher->personal_identity) }}" alt="KTP" style="max-width: 200px; max-height: 200px; border: 1px solid #ddd; padding: 5px;">
+    </div>
+    <small class="text-muted">{{ $teacher->personal_identity }}</small>
+</div>
+@endif
+                            
 
                         </div>
                     </div>

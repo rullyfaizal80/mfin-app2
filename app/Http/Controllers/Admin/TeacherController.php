@@ -241,12 +241,12 @@ class TeacherController extends Controller
                 // Hapus file lama jika ada
                 $oldData = DB::table('sis_teacher')->find($id);
                 if ($oldData && $oldData->personal_identity) {
-                    Storage::delete('public/uploads/teachers/' . $oldData->personal_identity);
+                    Storage::delete('uploads/teachers/' . $oldData->personal_identity);
                 }
                 
                 // Simpan file baru
                 $filename = 'personal_identity' . $id . '.' . $request->file('ktp_upload')->getClientOriginalExtension();
-                $request->file('ktp_upload')->storeAs('public/uploads/teachers', $filename);
+                $request->file('ktp_upload')->storeAs('uploads/teachers', $filename);
                 $teacherData['personal_identity'] = $filename;
             }
 
