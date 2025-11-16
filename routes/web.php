@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CsubjectController;
+use App\Http\Controllers\Admin\CgradeController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -104,4 +105,11 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/master/csubject/{id}/edit', [CsubjectController::class, 'edit'])->name('csubject.edit');
     Route::put('/master/csubject/{id}', [CsubjectController::class, 'update'])->name('csubject.update');
     Route::delete('/master/csubject/{id}', [CsubjectController::class, 'destroy'])->name('csubject.destroy');
+
+    Route::get('/master/cgrade', [CgradeController::class, 'index'])->name('cgrade.index');
+    Route::post('/master/cgrade', [CgradeController::class, 'store'])->name('cgrade.store');
+    Route::get('/master/cgrade/{id}/edit', [CgradeController::class, 'edit'])->name('cgrade.edit');
+    Route::put('/master/cgrade/{id}', [CgradeController::class, 'update'])->name('cgrade.update');
+    Route::delete('/master/cgrade/{id}', [CgradeController::class, 'destroy'])->name('cgrade.destroy');
+    
 });
