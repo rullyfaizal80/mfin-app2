@@ -347,7 +347,6 @@ class TeacherController extends Controller
 
     public function storeEducation(Request $request)
 {
-    // [PERBAIKAN] Validasi manual
     $validator = Validator::make($request->all(), [
         'teacher_id' => 'required|integer',
         'level' => 'required|string|max:45',
@@ -355,7 +354,6 @@ class TeacherController extends Controller
         'start_date' => 'required|date',
     ]);
 
-    // [PERBAIKAN] Cek jika gagal, kirim error JSON
     if ($validator->fails()) {
         return response()->json(['errors' => $validator->errors()], 422);
     }
@@ -370,25 +368,53 @@ class TeacherController extends Controller
         'end_date' => $request->end_date,
     ]);
 
-    $education = DB::table('sis_education_level')->where('teacher_id', $request->teacher_id)->orderBy('start_date', 'desc')->get();
-    return view('admin.teacher._cv_education_table', ['education' => $education]);
-}
+    $education = DB::table('sis_education_level')
+        ->where('teacher_id', $request->teacher_id)
+        ->orderBy('start_date', 'desc')
+        ->get();
 
-    public function destroyEducation(string $id)
-    {
-        $item = DB::table('sis_education_level')->find($id);
-        if (!$item) { return response()->json(['error' => 'Data not found'], 404); }
-        
-        $teacher_id = $item->teacher_id;
-        DB::table('sis_education_level')->where('id', $id)->delete();
-        
-        $education = DB::table('sis_education_level')->where('teacher_id', $teacher_id)->orderBy('start_date', 'desc')->get();
-        return view('admin.teacher._cv_education_table', ['education' => $education]);
+    // 🔥 INI KUNCI
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_education_table', compact('education'))->render();
     }
 
-    public function storeWork(Request $request)
+    // 🔥 Jika non-AJAX (fallback)
+    return redirect()->back()->with('success', 'Pendidikan berhasil ditambahkan.');
+}
+
+public function destroyEducation(Request $request, string $id)
 {
-    // [PERBAIKAN] Validasi manual
+    $item = DB::table('sis_education_level')->find($id);
+    if (!$item) { 
+        return response()->json(['error' => 'Data not found'], 404); 
+    }
+
+    $teacher_id = $item->teacher_id;
+
+    DB::table('sis_education_level')
+        ->where('id', $id)
+        ->delete();
+
+    $education = DB::table('sis_education_level')
+        ->where('teacher_id', $teacher_id)
+        ->orderBy('start_date', 'desc')
+        ->get();
+
+    // 🔥 INI KUNCI
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_education_table', compact('education'))->render();
+    }
+
+    // 🔥 fallback jika bukan AJAX
+    return redirect()->back()->with('success', 'Data berhasil dihapus.');
+}
+
+
+    /* ============================================================
+   WORK EXPERIENCE
+   ============================================================ */
+public function storeWork(Request $request)
+{
     $validator = Validator::make($request->all(), [
         'teacher_id' => 'required|integer',
         'institution' => 'required|string|max:45',
@@ -396,7 +422,6 @@ class TeacherController extends Controller
         'start_date' => 'required|date',
     ]);
 
-    // [PERBAIKAN] Cek jika gagal, kirim error JSON
     if ($validator->fails()) {
         return response()->json(['errors' => $validator->errors()], 422);
     }
@@ -411,95 +436,163 @@ class TeacherController extends Controller
         'end_date' => $request->end_date,
     ]);
 
-    $work = DB::table('sis_work_experience')->where('teacher_id', $request->teacher_id)->orderBy('start_date', 'desc')->get();
-    return view('admin.teacher._cv_work_table', ['work' => $work]);
-}
+    $work = DB::table('sis_work_experience')
+        ->where('teacher_id', $request->teacher_id)
+        ->orderBy('start_date', 'desc')
+        ->get();
 
-    public function destroyWork(string $id)
-    {
-        $item = DB::table('sis_work_experience')->find($id);
-        if (!$item) { return response()->json(['error' => 'Data not found'], 404); }
-
-        $teacher_id = $item->teacher_id;
-        DB::table('sis_work_experience')->where('id', $id)->delete();
-        
-        $work = DB::table('sis_work_experience')->where('teacher_id', $teacher_id)->orderBy('start_date', 'desc')->get();
-        return view('admin.teacher._cv_work_table', ['work' => $work]);
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_work_table', compact('work'))->render();
     }
 
-    public function storeTraining(Request $request)
+    return redirect()->back()->with('success', 'Pekerjaan berhasil ditambahkan.');
+}
+
+public function destroyWork(Request $request, string $id)
 {
-    // [PERBAIKAN] Validasi manual
+    $item = DB::table('sis_work_experience')->find($id);
+    if (!$item) {
+        return response()->json(['error' => 'Data not found'], 404);
+    }
+
+    $teacher_id = $item->teacher_id;
+
+    DB::table('sis_work_experience')->where('id', $id)->delete();
+
+    $work = DB::table('sis_work_experience')
+        ->where('teacher_id', $teacher_id)
+        ->orderBy('start_date', 'desc')
+        ->get();
+
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_work_table', compact('work'))->render();
+    }
+
+    return redirect()->back()->with('success', 'Data pekerjaan berhasil dihapus.');
+}
+
+/* ============================================================
+   TRAINING
+   ============================================================ */
+public function storeTraining(Request $request)
+{
     $validator = Validator::make($request->all(), [
         'teacher_id' => 'required|integer',
         'year' => 'required|date',
         'title' => 'required|string|max:100',
     ]);
 
-    // [PERBAIKAN] Cek jika gagal, kirim error JSON
     if ($validator->fails()) {
         return response()->json(['errors' => $validator->errors()], 422);
     }
 
+    // Generate ID manual
+    $newId = DB::table('sis_training')->max('id');
+    $newId = $newId ? $newId + 1 : 1;
+
     DB::table('sis_training')->insert([
+        'id' => $newId,
         'teacher_id' => $request->teacher_id,
         'year' => $request->year,
         'provider' => $request->provider ?? '',
         'title' => $request->title,
     ]);
 
-    $training = DB::table('sis_training')->where('teacher_id', $request->teacher_id)->orderBy('year', 'desc')->get();
-    return view('admin.teacher._cv_training_table', ['training' => $training]);
-}
+    $training = DB::table('sis_training')
+        ->where('teacher_id', $request->teacher_id)
+        ->orderBy('year', 'desc')
+        ->get();
 
-    public function destroyTraining(string $id)
-    {
-        $item = DB::table('sis_training')->find($id);
-        if (!$item) { return response()->json(['error' => 'Data not found'], 404); }
-
-        $teacher_id = $item->teacher_id;
-        DB::table('sis_training')->where('id', $id)->delete();
-        
-        $training = DB::table('sis_training')->where('teacher_id', $teacher_id)->orderBy('year', 'desc')->get();
-        return view('admin.teacher._cv_training_table', ['training' => $training]);
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_training_table', compact('training'))->render();
     }
 
-    public function storeOrganization(Request $request)
+    return redirect()->back()->with('success', 'Pelatihan berhasil ditambahkan.');
+}
+
+public function destroyTraining(Request $request, string $id)
 {
-    // [PERBAIKAN] Validasi manual
+    $item = DB::table('sis_training')->find($id);
+    if (!$item) {
+        return response()->json(['error' => 'Data not found'], 404);
+    }
+
+    $teacher_id = $item->teacher_id;
+
+    DB::table('sis_training')->where('id', $id)->delete();
+
+    $training = DB::table('sis_training')
+        ->where('teacher_id', $teacher_id)
+        ->orderBy('year', 'desc')
+        ->get();
+
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_training_table', compact('training'))->render();
+    }
+
+    return redirect()->back()->with('success', 'Data pelatihan berhasil dihapus.');
+}
+
+/* ============================================================
+   ORGANIZATION
+   ============================================================ */
+public function storeOrganization(Request $request)
+{
     $validator = Validator::make($request->all(), [
         'teacher_id' => 'required|integer',
         'year' => 'required|date',
         'organization_name' => 'required|string|max:50',
     ]);
 
-    // [PERBAIKAN] Cek jika gagal, kirim error JSON
     if ($validator->fails()) {
         return response()->json(['errors' => $validator->errors()], 422);
     }
 
+    // Generate ID manual
+    $newId = DB::table('sis_organization')->max('id');
+    $newId = $newId ? $newId + 1 : 1;
+
     DB::table('sis_organization')->insert([
+        'id' => $newId,
         'teacher_id' => $request->teacher_id,
         'year' => $request->year,
         'organization_name' => $request->organization_name,
         'position' => $request->position ?? '',
     ]);
 
-    $organization = DB::table('sis_organization')->where('teacher_id', $request->teacher_id)->orderBy('year', 'desc')->get();
-    return view('admin.teacher._cv_organization_table', ['organization' => $organization]);
-}
+    $organization = DB::table('sis_organization')
+        ->where('teacher_id', $request->teacher_id)
+        ->orderBy('year', 'desc')
+        ->get();
 
-    public function destroyOrganization(string $id)
-    {
-        $item = DB::table('sis_organization')->find($id);
-        if (!$item) { return response()->json(['error' => 'Data not found'], 404); }
-
-        $teacher_id = $item->teacher_id;
-        DB::table('sis_organization')->where('id', $id)->delete();
-        
-        $organization = DB::table('sis_organization')->where('teacher_id', $teacher_id)->orderBy('year', 'desc')->get();
-        return view('admin.teacher._cv_organization_table', ['organization' => $organization]);
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_organization_table', compact('organization'))->render();
     }
 
+    return redirect()->back()->with('success', 'Organisasi berhasil ditambahkan.');
+}
+
+public function destroyOrganization(Request $request, string $id)
+{
+    $item = DB::table('sis_organization')->find($id);
+    if (!$item) {
+        return response()->json(['error' => 'Data not found'], 404);
+    }
+
+    $teacher_id = $item->teacher_id;
+
+    DB::table('sis_organization')->where('id', $id)->delete();
+
+    $organization = DB::table('sis_organization')
+        ->where('teacher_id', $teacher_id)
+        ->orderBy('year', 'desc')
+        ->get();
+
+    if ($request->ajax()) {
+        return view('admin.teacher._cv_organization_table', compact('organization'))->render();
+    }
+
+    return redirect()->back()->with('success', 'Data organisasi berhasil dihapus.');
+}
     
 }
