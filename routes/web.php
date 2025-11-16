@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin\CsubjectController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -97,4 +98,10 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/master/cyear/{id}/edit', [CyearController::class, 'edit'])->name('cyear.edit');
     Route::put('/master/cyear/{id}', [CyearController::class, 'update'])->name('cyear.update');
     Route::delete('/master/cyear/{id}', [CyearController::class, 'destroy'])->name('cyear.destroy');
+
+    Route::get('/master/csubject', [CsubjectController::class, 'index'])->name('csubject.index');
+    Route::post('/master/csubject', [CsubjectController::class, 'store'])->name('csubject.store');
+    Route::get('/master/csubject/{id}/edit', [CsubjectController::class, 'edit'])->name('csubject.edit');
+    Route::put('/master/csubject/{id}', [CsubjectController::class, 'update'])->name('csubject.update');
+    Route::delete('/master/csubject/{id}', [CsubjectController::class, 'destroy'])->name('csubject.destroy');
 });
