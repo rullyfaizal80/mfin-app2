@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\CgradeController;
 use App\Http\Controllers\Admin\CgroupController;
 use App\Http\Controllers\Admin\CtypeController;
 use App\Http\Controllers\Admin\CschoolController;
+use App\Http\Controllers\Admin\ClassListController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -127,5 +128,12 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/master/cschool/{id}/edit', [CschoolController::class, 'edit'])->name('cschool.edit');
     Route::put('/master/cschool/{id}', [CschoolController::class, 'update'])->name('cschool.update');
     Route::delete('/master/cschool/{id}', [CschoolController::class, 'destroy'])->name('cschool.destroy');
+
+    Route::get('/sclass/class_list', [ClassListController::class, 'index'])->name('class_list.index');
+    Route::get('/sclass/class_list/create', [ClassListController::class, 'create'])->name('class_list.create');
+    Route::post('/sclass/class_list', [ClassListController::class, 'store'])->name('class_list.store');
+    Route::get('/sclass/class_list/{id}/edit', [ClassListController::class, 'edit'])->name('class_list.edit');
+    Route::put('/sclass/class_list/{id}', [ClassListController::class, 'update'])->name('class_list.update');
+    Route::delete('/sclass/class_list/{id}', [ClassListController::class, 'destroy'])->name('class_list.destroy');
 
 });

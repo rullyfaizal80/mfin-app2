@@ -83,6 +83,11 @@
         <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
         <span>{{ $menu->title }}</span>
     </a>
+@elseif ($menu->link === 'sclass/class_list')
+    <a class="nav-link collapsed" href="{{ route('class_list.index') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
+        <span>{{ $menu->title }}</span>
+    </a>
 @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">
