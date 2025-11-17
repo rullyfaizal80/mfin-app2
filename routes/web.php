@@ -12,6 +12,8 @@ use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CsubjectController;
 use App\Http\Controllers\Admin\CgradeController;
+use App\Http\Controllers\Admin\CgroupController;
+use App\Http\Controllers\Admin\CtypeController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -79,18 +81,13 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/user/teacher/{id}/edit', [TeacherController::class, 'edit'])->name('teacher.edit');
     Route::put('/user/teacher/{id}', [TeacherController::class, 'update'])->name('teacher.update');
 
-    // [TAMBAHAN] Rute untuk "Personal CV" (Halaman Tab 2)
     Route::get('/user/teacher/{id}/cv', [TeacherController::class, 'editCv'])->name('teacher.editCv');
-    // [TAMBAHAN] Rute AJAX untuk Riwayat Pendidikan
     Route::post('/user/teacher/cv/education', [TeacherController::class, 'storeEducation'])->name('teacher.cv.education.store');
     Route::delete('/user/teacher/cv/education/{id}', [TeacherController::class, 'destroyEducation'])->name('teacher.cv.education.destroy');
-    // [TAMBAHAN] Rute AJAX untuk Pengalaman Kerja
     Route::post('/user/teacher/cv/work', [TeacherController::class, 'storeWork'])->name('teacher.cv.work.store');
     Route::delete('/user/teacher/cv/work/{id}', [TeacherController::class, 'destroyWork'])->name('teacher.cv.work.destroy');
-    // [TAMBAHAN] Rute AJAX untuk Pelatihan
     Route::post('/user/teacher/cv/training', [TeacherController::class, 'storeTraining'])->name('teacher.cv.training.store');
     Route::delete('/user/teacher/cv/training/{id}', [TeacherController::class, 'destroyTraining'])->name('teacher.cv.training.destroy');
-    // [TAMBAHAN] Rute AJAX untuk Organisasi
     Route::post('/user/teacher/cv/organization', [TeacherController::class, 'storeOrganization'])->name('teacher.cv.organization.store');
     Route::delete('/user/teacher/cv/organization/{id}', [TeacherController::class, 'destroyOrganization'])->name('teacher.cv.organization.destroy');
 
@@ -111,5 +108,17 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/master/cgrade/{id}/edit', [CgradeController::class, 'edit'])->name('cgrade.edit');
     Route::put('/master/cgrade/{id}', [CgradeController::class, 'update'])->name('cgrade.update');
     Route::delete('/master/cgrade/{id}', [CgradeController::class, 'destroy'])->name('cgrade.destroy');
+
+    Route::get('/master/cgroup', [CgroupController::class, 'index'])->name('cgroup.index');
+    Route::post('/master/cgroup', [CgroupController::class, 'store'])->name('cgroup.store');
+    Route::get('/master/cgroup/{id}/edit', [CgroupController::class, 'edit'])->name('cgroup.edit');
+    Route::put('/master/cgroup/{id}', [CgroupController::class, 'update'])->name('cgroup.update');
+    Route::delete('/master/cgroup/{id}', [CgroupController::class, 'destroy'])->name('cgroup.destroy');
+    
+    Route::get('/master/ctype', [CtypeController::class, 'index'])->name('ctype.index');
+    Route::post('/master/ctype', [CtypeController::class, 'store'])->name('ctype.store');
+    Route::get('/master/ctype/{id}/edit', [CtypeController::class, 'edit'])->name('ctype.edit');
+    Route::put('/master/ctype/{id}', [CtypeController::class, 'update'])->name('ctype.update');
+    Route::delete('/master/ctype/{id}', [CtypeController::class, 'destroy'])->name('ctype.destroy');
     
 });

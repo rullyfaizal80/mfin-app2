@@ -68,6 +68,16 @@
         <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
         <span>{{ $menu->title }}</span>
     </a>
+@elseif ($menu->link === 'master/cgroup')
+    <a class="nav-link collapsed" href="{{ route('cgroup.index') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
+        <span>{{ $menu->title }}</span>
+    </a>
+@elseif ($menu->link === 'master/ctype')
+    <a class="nav-link collapsed" href="{{ route('ctype.index') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
+        <span>{{ $menu->title }}</span>
+    </a>
 @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">
