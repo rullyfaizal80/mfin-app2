@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\CsubjectController;
 use App\Http\Controllers\Admin\CgradeController;
 use App\Http\Controllers\Admin\CgroupController;
 use App\Http\Controllers\Admin\CtypeController;
+use App\Http\Controllers\Admin\CschoolController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -120,5 +121,11 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/master/ctype/{id}/edit', [CtypeController::class, 'edit'])->name('ctype.edit');
     Route::put('/master/ctype/{id}', [CtypeController::class, 'update'])->name('ctype.update');
     Route::delete('/master/ctype/{id}', [CtypeController::class, 'destroy'])->name('ctype.destroy');
-    
+
+    Route::get('/master/cschool', [CschoolController::class, 'index'])->name('cschool.index');
+    Route::post('/master/cschool', [CschoolController::class, 'store'])->name('cschool.store');
+    Route::get('/master/cschool/{id}/edit', [CschoolController::class, 'edit'])->name('cschool.edit');
+    Route::put('/master/cschool/{id}', [CschoolController::class, 'update'])->name('cschool.update');
+    Route::delete('/master/cschool/{id}', [CschoolController::class, 'destroy'])->name('cschool.destroy');
+
 });
