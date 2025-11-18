@@ -144,4 +144,5 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::delete('/sclass/class_user/{class_list_id}/{class_user_id}', [ClassUserController::class, 'destroy'])->name('class_user.destroy');
     Route::post('/sclass/class_user/{class_list_id}/copy', [ClassUserController::class, 'copyStudents'])->name('class_user.copy');
     Route::get('/sclass/ajax_search_students', [ClassUserController::class, 'ajaxSearchStudents'])->name('class_user.ajax_search');
+    Route::get('/sclass/ajax_get_classes', [ClassUserController::class, 'ajaxGetClassesByYear'])->name('class_user.ajax_get_classes');
 });
