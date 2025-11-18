@@ -73,22 +73,32 @@
         <div class="col-lg-9 mb-4">
             <div class="card h-100">
                 <div class="card-header bg-body-tertiary">
-                    <form id="search-form" action="{{ route('class_user.index', $class_list_id) }}" method="GET">
-                        <div class="d-flex justify-content-between">  
-                            <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <div class="d-flex justify-content-between flex-wrap gap-2">
+                        {{-- Bagian Kiri: Search Form & PerPage --}}
+                        <form id="search-form" action="{{ route('class_user.index', $class_list_id) }}" method="GET" class="d-flex gap-2 align-items-center flex-grow-1">
+                            <div class="d-flex align-items-center">
+                                <span class="me-2 small text-nowrap">Tampil:</span>
+                                <select id="perPage" name="perPage" class="form-select form-select-sm" style="width: 70px;">
+                                    <option value="10" {{ request('perPage') == 10 ? 'selected' : '' }}>10</option>
+                                    <option value="25" {{ request('perPage') == 25 ? 'selected' : '' }}>25</option>
+                                    <option value="50" {{ request('perPage') == 50 ? 'selected' : '' }}>50</option>
+                                    <option value="100" {{ request('perPage') == 100 ? 'selected' : '' }}>100</option>
+                                </select>
+                            </div>
+
+                            <div class="input-group input-group-sm" style="max-width: 250px;">
                                 <input type="text" id="search-input" class="form-control" name="search" placeholder="Cari Siswa..." value="{{ request('search') }}">
                                 <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
                             </div>
-                            <div class="d-flex align-items-center">
-                                <span class="me-2 small">Tampil:</span>
-                                <select id="perPage" name="perPage" class="form-select form-select-sm" style="width: 70px;">
-                                    <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10</option>
-                                    <option value="25" {{ $perPage == 25 ? 'selected' : '' }}>25</option>
-                                    <option value="50" {{ $perPage == 50 ? 'selected' : '' }}>50</option>
-                                </select>
-                            </div>   
+                        </form>
+
+                        {{-- Bagian Kanan: Tombol Export [BARU] --}}
+                        <div>
+                            <a href="{{ route('class_user.export', $class_list_id) }}" class="btn btn-sm btn-success text-white" target="_blank">
+                                <i class="bi bi-file-earmark-excel"></i> Export Excel
+                            </a>
                         </div>
-                    </form>
+                    </div>
                 </div>
                 <div id="table-container">
                     @include('admin.class_user._student_table', ['list_data' => $list_data])
@@ -109,11 +119,10 @@
                         <form action="{{ route('class_user.update', ['class_list_id' => $class_list_id, 'class_user_id' => $edit_data->id]) }}" method="POST">
                         @method('PUT')
                         
-                        {{-- Mode Edit: Tampilkan Detail Lengkap --}}
-                        <div class="mb-2">
-                            <label class="form-label small">Nama Siswa</label>
-                            <input type="text" class="form-control form-control-sm" value="{{ $edit_data->fullname }}" readonly disabled>
+                        <div class="alert alert-warning py-2 small">
+                            <i class="bi bi-pencil"></i> Mengedit status: <strong>{{ $edit_data->fullname }}</strong>
                         </div>
+
                         <div class="mb-2">
                             <label class="form-label small">Tgl Masuk</label>
                             <input type="date" class="form-control form-control-sm" name="join_start" value="{{ old('join_start', $edit_data->join_start) }}" required>
@@ -130,20 +139,23 @@
                             </select>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-sm">Simpan Perubahan</button>
+                            <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
                             <a href="{{ route('class_user.index', $class_list_id) }}" class="btn btn-outline-secondary btn-sm mt-1">Batal</a>
                         </div>
 
                     @else
-                        {{-- Mode Tambah: Sederhana (Hanya Nama) --}}
+                        {{-- Mode Tambah: Dropdown Saja --}}
                         <form action="{{ route('class_user.store', $class_list_id) }}" method="POST">
                             @csrf
                             <div class="mb-3">
-                                <label for="user_id" class="form-label small">Cari & Pilih Siswa</label>
-                                <select id="user_id" name="user_id" class="form-select" required></select>
+                                <label for="user_id" class="form-label small fw-bold">Nama Siswa</label>
+                                {{-- Select ini akan diubah otomatis oleh JS menjadi Dropdown Select2 --}}
+                                <select id="user_id" name="user_id" class="form-select" required>
+                                    {{-- Kosong, akan diisi AJAX --}}
+                                </select>
                             </div>
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-success btn-sm">Tambahkan ke Kelas</button>
+                                <button type="submit" class="btn btn-success btn-sm">Tambahkan</button>
                             </div>
                         </form>
                     @endif
@@ -203,18 +215,19 @@
         $(document).ready(function() {
             // 1. Select2 AJAX untuk Tambah Siswa
             $('#user_id').select2({
-                theme: "bootstrap-5",
+                theme: "bootstrap-5", // Pastikan tema bootstrap 5 aktif
                 width: '100%',
-                placeholder: "Ketik Nama / NIS...",
-                minimumInputLength: 3,
+                placeholder: "- Pilih Siswa -",
+                allowClear: true,
+                minimumInputLength: 0, // [PERBAIKAN] 0 = Langsung tampil saat diklik
                 ajax: {
                     url: "{{ route('class_user.ajax_search') }}",
                     dataType: 'json',
                     delay: 250,
                     data: function (params) {
                         return {
-                            term: params.term,
-                            class_list_id: "{{ $class_list_id }}" // Exclude siswa yg sdh ada
+                            term: params.term, // Kata kunci pencarian (bisa kosong)
+                            class_list_id: "{{ $class_list_id }}" 
                         };
                     },
                     processResults: function (data) {
@@ -224,59 +237,63 @@
                 }
             });
 
-            // 2. Logika AJAX untuk Dropdown Copy (Tahun -> Kelas)
+            // ... (Sisa script Copy Siswa / Tahun Ajaran biarkan sama) ...
+             // 2. Logika AJAX untuk Dropdown Copy (Tahun -> Kelas)
             const filterYear = document.getElementById('filter_year');
             const classSelect = document.getElementById('class_copy_id');
             const copyBtn = document.getElementById('btn-copy');
-
-            filterYear.addEventListener('change', function() {
-                const yearId = this.value;
-                classSelect.innerHTML = '<option value="">Loading...</option>';
-                classSelect.disabled = true;
-                copyBtn.disabled = true;
-
-                if (yearId) {
-                    fetch(`{{ route('class_user.ajax_get_classes') }}?cyear_id=${yearId}&current_class_id={{ $class_list_id }}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            classSelect.innerHTML = '<option value="">- Pilih Kelas Tujuan -</option>';
-                            data.forEach(cls => {
-                                classSelect.innerHTML += `<option value="${cls.id}">${cls.title}</option>`;
+            
+            if(filterYear) {
+                filterYear.addEventListener('change', function() {
+                    const yearId = this.value;
+                    classSelect.innerHTML = '<option value="">Loading...</option>';
+                    classSelect.disabled = true;
+                    copyBtn.disabled = true;
+    
+                    if (yearId) {
+                        fetch(`{{ route('class_user.ajax_get_classes') }}?cyear_id=${yearId}&current_class_id={{ $class_list_id }}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                classSelect.innerHTML = '<option value="">- Pilih Kelas Tujuan -</option>';
+                                data.forEach(cls => {
+                                    classSelect.innerHTML += `<option value="${cls.id}">${cls.title}</option>`;
+                                });
+                                classSelect.disabled = false;
                             });
-                            classSelect.disabled = false;
-                        });
-                } else {
-                    classSelect.innerHTML = '<option value="">- Pilih Tahun Dulu -</option>';
-                }
-            });
+                    } else {
+                        classSelect.innerHTML = '<option value="">- Pilih Tahun Dulu -</option>';
+                    }
+                });
+    
+                classSelect.addEventListener('change', function() {
+                    copyBtn.disabled = !this.value;
+                });
+            }
 
-            classSelect.addEventListener('change', function() {
-                copyBtn.disabled = !this.value;
-            });
-
-            // 3. Sinkronisasi Checkbox Table ke Form Copy
-            // Kita perlu memindahkan value checkbox dari Table (form terpisah/tanpa form) ke Form Copy
+            // 3. Sinkronisasi Checkbox
             const copyForm = document.getElementById('copy-form');
             const hiddenContainer = document.getElementById('selected-students-container');
-
-            copyForm.addEventListener('submit', function(e) {
-                hiddenContainer.innerHTML = ''; // Reset
-                const checkboxes = document.querySelectorAll('input[name="student_ids[]"]:checked');
-                
-                if (checkboxes.length === 0) {
-                    e.preventDefault();
-                    alert('Pilih minimal satu siswa dari tabel untuk disalin.');
-                    return;
-                }
-
-                checkboxes.forEach(cb => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = 'student_ids[]';
-                    input.value = cb.value;
-                    hiddenContainer.appendChild(input);
+            
+            if(copyForm){
+                copyForm.addEventListener('submit', function(e) {
+                    hiddenContainer.innerHTML = ''; 
+                    const checkboxes = document.querySelectorAll('input[name="student_ids[]"]:checked');
+                    
+                    if (checkboxes.length === 0) {
+                        e.preventDefault();
+                        alert('Pilih minimal satu siswa dari tabel untuk disalin.');
+                        return;
+                    }
+    
+                    checkboxes.forEach(cb => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'student_ids[]';
+                        input.value = cb.value;
+                        hiddenContainer.appendChild(input);
+                    });
                 });
-            });
+            }
         });
     </script>
 

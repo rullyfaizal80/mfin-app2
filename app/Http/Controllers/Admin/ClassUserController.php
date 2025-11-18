@@ -386,27 +386,25 @@ class ClassUserController extends Controller
     /**
      * [AJAX] Menangani pencarian siswa untuk Select2
      */
-    public function ajaxSearchStudents(Request $request, $class_list_id = 0)
+    public function ajaxSearchStudents(Request $request)
     {
         $search = $request->query('term');
-        
-        if (empty($search)) {
-            return response()->json(['items' => []]);
-        }
-        
-        // Ambil ID kelas dari request jika ada (ini untuk filter NOT IN)
         $class_list_id = $request->query('class_list_id', 0);
 
         $query = DB::table('sis_user as u')
             ->join('sis_student as s', 'u.id', '=', 's.id')
             ->where('u.is_student', 'yes')
-            ->where('u.is_active', 'yes')
-            ->where(function ($q) use ($search) {
+            ->where('u.is_active', 'yes');
+
+        // Jika ada kata kunci pencarian
+        if (!empty($search)) {
+            $query->where(function ($q) use ($search) {
                 $q->where('u.fullname', 'like', '%' . $search . '%')
                   ->orWhere('s.nis', 'like', '%' . $search . '%');
             });
+        }
 
-        // Filter siswa yang sudah ada di kelas ini
+        // Filter: Jangan tampilkan siswa yang SUDAH ada di kelas ini
         if ($class_list_id != 0) {
              $query->whereNotIn('u.id', function ($subQuery) use ($class_list_id) {
                 $subQuery->select('user_id')
@@ -415,8 +413,10 @@ class ClassUserController extends Controller
             });
         }
            
+        // Ambil 50 data teratas (urut abjad)
         $students = $query->select('u.id', 'u.fullname', 's.nis')
-                         ->limit(50) // Batasi 50 hasil
+                         ->orderBy('u.fullname', 'asc')
+                         ->limit(50) 
                          ->get();
 
         // Format data untuk Select2
@@ -449,5 +449,100 @@ class ClassUserController extends Controller
             ->get();
 
         return response()->json($classes);
+    }
+
+    /**
+     * Export Data Siswa per Kelas ke Excel
+     */
+    public function exportExcel($class_list_id)
+    {
+        // 1. Ambil Info Kelas (untuk nama file)
+        $class_info = DB::table('sis_class_list')->where('id', $class_list_id)->first();
+        $file_name = 'Data_Siswa_Kelas_' . str_replace(' ', '_', $class_info->title) . '.xls';
+
+        // 2. Query Data (Replikasi dari kode lama 'exp_classuser')
+        $data = DB::table('sis_class_list as cl')
+            ->join('sis_class_user as cu', 'cl.id', '=', 'cu.class_list_id')
+            ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
+            ->join('sis_student as s', 'u.id', '=', 's.id')
+            ->leftJoin('sis_user as ayah', 's.father_id', '=', 'ayah.id')
+            ->leftJoin('sis_user as ibu', 's.mother_id', '=', 'ibu.id')
+            ->where('cl.id', $class_list_id)
+            ->where('u.is_active', 'yes') // Hanya siswa aktif
+            ->select(
+                'cl.title as kelas',
+                'u.fullname as nama',
+                'u.gender as jenis_kelamin',
+                'u.placeofbirth as tempat_lahir',
+                'u.dateofbirth as tanggal_lahir',
+                's.nis',
+                'u.street as jalan',
+                'u.city as kota',
+                'ayah.fullname as ayah',
+                'ibu.fullname as ibu',
+                'u.home_phone as tlp_rumah',
+                'u.mobile_phone as hp'
+            )
+            ->orderBy('u.fullname', 'asc')
+            ->get();
+
+        // 3. Generate Output HTML Table (Excel akan membacanya sebagai tabel)
+        return response()->streamDownload(function() use ($data) {
+            echo '<html><head><meta charset="UTF-8"></head><body>';
+            echo '<table border="1" cellpadding="5" cellspacing="0">';
+            
+            // Header Tabel
+            echo '<tr style="background-color: #f2f2f2; font-weight: bold;">
+                    <th>No</th>
+                    <th>Kelas</th>
+                    <th>Nama Siswa</th>
+                    <th>L/P</th>
+                    <th>Tempat Lahir</th>
+                    <th>Tanggal Lahir</th>
+                    <th>NIS</th>
+                    <th>Alamat</th>
+                    <th>Kota</th>
+                    <th>Nama Ayah</th>
+                    <th>Nama Ibu</th>
+                    <th>Tlp Rumah</th>
+                    <th>HP</th>
+                  </tr>';
+
+            // Isi Data
+            $no = 1;
+            foreach ($data as $row) {
+                // Konversi Gender (F->P, M->L) sesuai kode lama
+                $gender = ($row->jenis_kelamin == 'F') ? 'P' : 'L';
+                
+                // Format Tanggal
+                $tgl_lahir = ($row->tanggal_lahir && $row->tanggal_lahir != '0000-00-00') 
+                             ? date('d-m-Y', strtotime($row->tanggal_lahir)) 
+                             : '-';
+
+                echo '<tr>';
+                echo '<td>' . $no++ . '</td>';
+                echo '<td>' . $row->kelas . '</td>';
+                echo '<td>' . $row->nama . '</td>';
+                echo '<td style="text-align:center;">' . $gender . '</td>';
+                echo '<td>' . $row->tempat_lahir . '</td>';
+                echo '<td>' . $tgl_lahir . '</td>'; // Excel otomatis mendeteksi format tanggal
+                echo '<td style="mso-number-format:\'\@\'">' . $row->nis . '</td>'; // Format Text agar 0 di depan tidak hilang
+                echo '<td>' . $row->jalan . '</td>';
+                echo '<td>' . $row->kota . '</td>';
+                echo '<td>' . $row->ayah . '</td>';
+                echo '<td>' . $row->ibu . '</td>';
+                echo '<td style="mso-number-format:\'\@\'">' . $row->tlp_rumah . '</td>';
+                echo '<td style="mso-number-format:\'\@\'">' . $row->hp . '</td>';
+                echo '</tr>';
+            }
+
+            echo '</table></body></html>';
+        }, $file_name, [
+            "Content-Type" => "application/vnd.ms-excel",
+            "Content-Disposition" => "attachment; filename=\"$file_name\"",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ]);
     }
 }
