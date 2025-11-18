@@ -25,7 +25,7 @@
                     <td>{{ $class->cyear_title }}</td>
                     <td class="text-center">
                         {{-- TODO: Buat route sclass/class_user/index/{id} --}}
-                        <a href="#" class="btn btn-sm btn-outline-success" title="Siswa Kelas">
+                        <a href="{{ route('class_user.index', $class->id) }}" class="btn btn-sm btn-outline-success" title="Siswa Kelas">
                             <i class="bi bi-people-fill"></i>
                         </a>
                         <a href="{{ route('class_list.edit', $class->id) }}" class="btn btn-sm btn-outline-warning" title="Edit">

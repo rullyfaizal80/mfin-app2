@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\CgroupController;
 use App\Http\Controllers\Admin\CtypeController;
 use App\Http\Controllers\Admin\CschoolController;
 use App\Http\Controllers\Admin\ClassListController;
+use App\Http\Controllers\Admin\ClassUserController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -136,4 +137,11 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::put('/sclass/class_list/{id}', [ClassListController::class, 'update'])->name('class_list.update');
     Route::delete('/sclass/class_list/{id}', [ClassListController::class, 'destroy'])->name('class_list.destroy');
 
+    Route::get('/sclass/class_user/{class_list_id}', [ClassUserController::class, 'index'])->name('class_user.index');
+    Route::get('/sclass/class_user/{class_list_id}/edit/{class_user_id}', [ClassUserController::class, 'index'])->name('class_user.edit');
+    Route::post('/sclass/class_user/{class_list_id}', [ClassUserController::class, 'store'])->name('class_user.store');
+    Route::put('/sclass/class_user/{class_list_id}/{class_user_id}', [ClassUserController::class, 'update'])->name('class_user.update');
+    Route::delete('/sclass/class_user/{class_list_id}/{class_user_id}', [ClassUserController::class, 'destroy'])->name('class_user.destroy');
+    Route::post('/sclass/class_user/{class_list_id}/copy', [ClassUserController::class, 'copyStudents'])->name('class_user.copy');
+    Route::get('/sclass/ajax_search_students', [ClassUserController::class, 'ajaxSearchStudents'])->name('class_user.ajax_search');
 });
