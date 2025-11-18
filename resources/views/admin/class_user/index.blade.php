@@ -74,9 +74,19 @@
             <div class="card h-100">
                 <div class="card-header bg-body-tertiary">
                     <form id="search-form" action="{{ route('class_user.index', $class_list_id) }}" method="GET">
-                        <div class="input-group input-group-sm" style="max-width: 300px;">
-                            <input type="text" id="search-input" class="form-control" name="search" placeholder="Cari Siswa..." value="{{ request('search') }}">
-                            <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                        <div class="d-flex justify-content-between">  
+                            <div class="input-group input-group-sm" style="max-width: 300px;">
+                                <input type="text" id="search-input" class="form-control" name="search" placeholder="Cari Siswa..." value="{{ request('search') }}">
+                                <button class="btn btn-outline-secondary" type="submit"><i class="bi bi-search"></i></button>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <span class="me-2 small">Tampil:</span>
+                                <select id="perPage" name="perPage" class="form-select form-select-sm" style="width: 70px;">
+                                    <option value="10" {{ $perPage == 10 ? 'selected' : '' }}>10</option>
+                                    <option value="25" {{ $perPage == 25 ? 'selected' : '' }}>25</option>
+                                    <option value="50" {{ $perPage == 50 ? 'selected' : '' }}>50</option>
+                                </select>
+                            </div>   
                         </div>
                     </form>
                 </div>
@@ -270,35 +280,47 @@
         });
     </script>
 
-    {{-- Script Search Table & Pagination --}}
+    {{-- Script Search Table, Pagination & Per Page --}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tableContainer = document.getElementById('table-container');
             const searchInput = document.getElementById('search-input');
+            const perPageSelect = document.getElementById('perPage'); // [BARU]
             const baseUrl = "{{ route('class_user.index', $class_list_id) }}";
             let debounceTimer;
 
             function fetchTableData(url) {
-                fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                // Pastikan parameter search dan perPage selalu terbawa jika url tidak lengkap
+                const currentUrl = new URL(url, window.location.origin);
+                if(searchInput.value) currentUrl.searchParams.set('search', searchInput.value);
+                if(perPageSelect.value) currentUrl.searchParams.set('perPage', perPageSelect.value);
+
+                fetch(currentUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(response => response.text())
                 .then(html => {
                     tableContainer.innerHTML = html;
-                    window.history.pushState({ path: url }, '', url);
+                    window.history.pushState({ path: currentUrl.toString() }, '', currentUrl.toString());
                 });
             }
 
+            // Event: Ketik di kotak pencarian
             if (searchInput) {
                 searchInput.addEventListener('keyup', function () {
                     clearTimeout(debounceTimer);
                     debounceTimer = setTimeout(function () {
-                        const params = new URLSearchParams();
-                        params.append('search', searchInput.value);
-                        const url = `${baseUrl}?${params.toString()}`;
-                        fetchTableData(url);
+                        fetchTableData(baseUrl); // Panggil ulang base URL dengan parameter terkini
                     }, 500);
                 });
             }
+
+            // [BARU] Event: Ganti jumlah baris (perPage)
+            if (perPageSelect) {
+                perPageSelect.addEventListener('change', function() {
+                    fetchTableData(baseUrl);
+                });
+            }
             
+            // Event: Klik Pagination
             tableContainer.addEventListener('click', function(event) {
                 if (event.target.tagName === 'A' && event.target.closest('.page-item')) {
                     event.preventDefault();

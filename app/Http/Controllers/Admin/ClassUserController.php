@@ -16,16 +16,16 @@ class ClassUserController extends Controller
      */
     public function index(Request $request, $class_list_id, $class_user_id = 0)
     {
-        // ... (Kode awal sama) ...
+        // 1. Ambil Info Detail Kelas
         $class_info = $this->getClassInfo($class_list_id);
         if (!$class_info) {
             return redirect()->route('class_list.index')->with('error', 'Kelas tidak ditemukan.');
         }
 
-        // [TAMBAHAN] Ambil semua tahun ajaran untuk dropdown "Salin Siswa"
+        // 2. Ambil data dropdown tahun ajaran (untuk fitur copy)
         $all_years = DB::table('sis_cyear')->orderBy('date_start', 'desc')->get();
 
-        // ... (Kode edit_data sama) ...
+        // 3. Siapkan data untuk form Edit
         $edit_data = (object) [
             'id' => 0,
             'user_id' => '',
@@ -36,8 +36,7 @@ class ClassUserController extends Controller
         ];
         
         if ($class_user_id != 0) {
-             // ... (Logika edit data sama) ...
-             $data = DB::table('sis_class_user as cu')
+            $data = DB::table('sis_class_user as cu')
                 ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
                 ->where('cu.id', $class_user_id)
                 ->select('cu.*', 'u.fullname')
@@ -45,10 +44,11 @@ class ClassUserController extends Controller
             if ($data) { $edit_data = $data; }
         }
 
-        // ... (Logika query list_data sama) ...
+        // 4. Ambil Daftar Siswa di Kelas (Query Utama)
         $search = $request->query('search');
+        $perPage = $request->query('perPage', 10); // [BARU] Default 10 jika tidak ada input
+
         $query = DB::table('sis_class_user as cu')
-            // ... (Join sama) ...
             ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
             ->join('sis_student as s', 'u.id', '=', 's.id')
             ->where('cu.class_list_id', $class_list_id)
@@ -56,7 +56,6 @@ class ClassUserController extends Controller
             ->select(
                 'cu.id as class_user_id', 
                 'u.id as user_id', 
-                // 's.nis',  <-- NIS Tetap diambil di query tidak apa-apa, nanti di view tidak ditampilkan
                 'u.fullname', 
                 'u.placeofbirth', 
                 'u.dateofbirth', 
@@ -67,8 +66,13 @@ class ClassUserController extends Controller
         if ($search) {
             $query->where('u.fullname', 'like', '%' . $search . '%');
         }
-        $list_data = $query->orderBy('u.fullname', 'asc')->paginate(10)->withQueryString();
 
+        // [PERBAIKAN] Gunakan variabel $perPage di sini
+        $list_data = $query->orderBy('u.fullname', 'asc')
+                           ->paginate($perPage)
+                           ->withQueryString(); 
+
+        // 5. Handle AJAX request
         if ($request->ajax()) {
             return view('admin.class_user._student_table', [
                 'list_data' => $list_data,
@@ -76,12 +80,15 @@ class ClassUserController extends Controller
             ]);
         }
 
+        // 6. Tampilkan view utama
         return view('admin.class_user.index', [
             'class_info' => $class_info,
-            'all_years' => $all_years, // [BARU] Dikirim ke view
+            'all_years' => $all_years,
+            'other_classes' => [], // Kosongkan awal (akan diisi via AJAX saat pilih tahun)
             'edit_data' => $edit_data,
             'class_list_id' => $class_list_id,
-            'list_data' => $list_data
+            'list_data' => $list_data,
+            'perPage' => $perPage // [BARU] Kirim nilai perPage ke view agar dropdown sesuai
         ]);
     }
 

@@ -209,18 +209,34 @@ class ClassListController extends Controller
     }
 
     /**
-     * Menghapus data kelas
+     * Menghapus data kelas (HANYA JIKA KELAS KOSONG)
      */
     public function destroy(string $id)
     {
+        // 1. CEK KEAMANAN: Apakah ada siswa di kelas ini?
+        $studentCount = DB::table('sis_class_user')
+                        ->where('class_list_id', $id)
+                        ->count();
+
+        if ($studentCount > 0) {
+            // JIKA ADA SISWA -> TOLAK PENGHAPUSAN
+            return redirect()->route('class_list.index')
+                             ->with('error', 'Gagal menghapus: Kelas ini masih berisi ' . $studentCount . ' siswa. Silakan keluarkan siswa terlebih dahulu.');
+        }
+
+        // 2. Jika kosong, baru lakukan penghapusan
         try {
+            // Kita boleh menghapus setting tagihan kelas (sis_classpayitem) 
+            // karena tidak ada siswa yang terikat lagi.
+            DB::table('sis_classpayitem')->where('class_list_id', $id)->delete();
+
+            // Hapus Kelas
             DB::table('sis_class_list')->where('id', $id)->delete();
+
             return redirect()->route('class_list.index')->with('success', 'Data kelas berhasil dihapus.');
-        } catch (\Illuminate\Database\QueryException $e) {
-            // Tangani foreign key constraint (Error 1451)
-            if ($e->errorInfo[1] == 1451) {
-                return redirect()->route('class_list.index')->with('error', 'Gagal menghapus: Kelas ini sudah berisi siswa.');
-            }
+
+        } catch (\Exception $e) {
+            // Tangani error database lain (misal foreign key constraint)
             return redirect()->route('class_list.index')->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
     }
