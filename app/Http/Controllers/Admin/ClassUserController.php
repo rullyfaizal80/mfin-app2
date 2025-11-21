@@ -353,16 +353,11 @@ class ClassUserController extends Controller
 {
     $keyword = $request->q;
 
-    if (!$keyword || strlen($keyword) < 2) {
-        return '<div class="p-2 text-muted small">Ketik minimal 2 huruf...</div>';
-    }
-
     $students = DB::table('sis_user as u')
         ->join('sis_student as s', 'u.id', '=', 's.id')
         ->where('u.fullname', 'LIKE', "%{$keyword}%")
-        ->where('u.is_active', 'yes')
         ->limit(10)
-        ->select('u.id', 'u.fullname')
+        ->select('u.id', 'u.fullname', 's.nis')
         ->get();
 
     if ($students->isEmpty()) {
@@ -374,14 +369,18 @@ class ClassUserController extends Controller
     foreach ($students as $s) {
         $html .= '
             <div class="list-group-item list-group-item-action res-item"
-                data-id="'.$s->id.'" data-name="'.$s->fullname.'">
-                '.$s->fullname.'
+                data-id="'.$s->id.'"
+                data-name="'.$s->fullname.'"
+                data-nis="'.$s->nis.'">
+
+                '.$s->fullname.' — NIS: '.$s->nis.'
             </div>
         ';
     }
 
     return $html;
 }
+
 
 public function store(Request $request, $class_list_id)
 {

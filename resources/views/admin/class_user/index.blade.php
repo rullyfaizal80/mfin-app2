@@ -133,11 +133,14 @@
 
             {{-- Informasi siswa terpilih --}}
             <div id="selected-student-box" class="mt-2" style="display:none;">
-                <div class="alert alert-info py-1 px-2 mb-2">
-                    <strong id="selected-student-name"></strong>
-                    <button type="button" class="btn-close float-end" id="clear-selected"></button>
-                </div>
-            </div>
+    <div class="alert alert-info py-1 px-2 mb-2">
+        <strong id="selected-student-name"></strong>
+        <br>
+        <span class="text-muted small">NIS: <span id="selected-student-nis"></span></span>
+
+        <button type="button" class="btn-close float-end" id="clear-selected"></button>
+    </div>
+</div>
 
             <div class="d-grid mb-1">
                 <button type="submit" class="btn btn-outline-success btn-sm" id="btn-add-student" disabled>
@@ -346,21 +349,25 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Klik salah satu hasil → set student_id
     document.addEventListener("click", function(e) {
-        if (e.target.classList.contains("res-item")) {
+    if (e.target.classList.contains("res-item")) {
 
-            let id = e.target.dataset.id;
-            let name = e.target.dataset.name;
+        let id = e.target.dataset.id;
+        let name = e.target.dataset.name;
+        let nis = e.target.dataset.nis;   // <--- BARU
 
-            studentIdField.value = id;
-            selectedName.textContent = name;
-            selectedBox.style.display = "block";
+        studentIdField.value = id;
+        selectedName.textContent = name;
+        document.getElementById("selected-student-nis").textContent = nis; // <--- BARU
 
-            resultsBox.style.display = "none";
-            searchInput.value = "";
+        selectedBox.style.display = "block";
 
-            btnAdd.disabled = false; // aktifkan tombol tambah
-        }
-    });
+        resultsBox.style.display = "none";
+        searchInput.value = "";
+
+        btnAdd.disabled = false;
+    }
+});
+
 
     // Tombol X → hapus pilihan
     clearBtn.addEventListener("click", function() {
@@ -368,6 +375,19 @@ document.addEventListener("DOMContentLoaded", function() {
         selectedBox.style.display = "none";
         btnAdd.disabled = true;
     });
+
+    $("#student-search-results").on("click", ".res-item", function () {
+    let id   = $(this).data("id");
+    let name = $(this).data("name");
+    let nis  = $(this).data("nis");
+
+    $("#student_id").val(id);
+    $("#student_name").text(name);
+    $("#student_nis").text(nis);
+
+    $("#student-search-results").hide();
+});
+
 
 });
 </script>
