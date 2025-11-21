@@ -107,6 +107,47 @@
 
         {{-- KOLOM KANAN (1/4): Form Edit Status & Form Salin --}}
         <div class="col-lg-3">                     
+            {{-- CARD 1: Tambah Siswa --}}
+<form action="{{ route('class_user.store', $class_list_id) }}" method="POST" id="add-student-form">
+    @csrf
+
+    <div class="card mb-3">
+        <div class="card-header bg-success text-white">
+            <i class="bi bi-person-plus"></i> Tambah Siswa
+        </div>
+
+        <div class="card-body">
+
+            {{-- Input pencarian --}}
+            <label class="form-label small">Cari Siswa</label>
+            <input type="text" id="search-student" class="form-control form-control-sm" 
+                   placeholder="Ketik minimal 2 huruf...">
+
+            {{-- Hasil pencarian (dropdown) --}}
+            <div id="search-results" 
+                 class="list-group position-absolute w-100 shadow" 
+                 style="z-index: 99; display:none;"></div>
+
+            {{-- ID siswa yang dipilih --}}
+            <input type="hidden" name="student_id" id="student_id">
+
+            {{-- Informasi siswa terpilih --}}
+            <div id="selected-student-box" class="mt-2" style="display:none;">
+                <div class="alert alert-info py-1 px-2 mb-2">
+                    <strong id="selected-student-name"></strong>
+                    <button type="button" class="btn-close float-end" id="clear-selected"></button>
+                </div>
+            </div>
+
+            <div class="d-grid mb-1">
+                <button type="submit" class="btn btn-outline-success btn-sm" id="btn-add-student" disabled>
+                    <i class="bi bi-plus-lg"></i> Tambah ke Kelas
+                </button>
+            </div>
+
+        </div>
+    </div>
+</form>
 
             {{-- CARD 2: Salin Siswa (Copy) --}}
             <form action="{{ route('class_user.copy', $class_list_id) }}" method="POST" id="copy-form">
@@ -275,4 +316,59 @@
             });
         });
     </script>
+    <script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    const searchInput = document.getElementById("search-student");
+    const resultsBox = document.getElementById("search-results");
+    const studentIdField = document.getElementById("student_id");
+    const selectedBox = document.getElementById("selected-student-box");
+    const selectedName = document.getElementById("selected-student-name");
+    const clearBtn = document.getElementById("clear-selected");
+    const btnAdd = document.getElementById("btn-add-student");
+
+    // Ketik minimal 2 huruf → AJAX
+    searchInput.addEventListener("keyup", function() {
+        let q = this.value.trim();
+
+        if (q.length < 2) {
+            resultsBox.style.display = "none";
+            return;
+        }
+
+        fetch("{{ route('class_user.ajax_search') }}?q=" + q)
+            .then(res => res.text())
+            .then(html => {
+                resultsBox.innerHTML = html;
+                resultsBox.style.display = "block";
+            });
+    });
+
+    // Klik salah satu hasil → set student_id
+    document.addEventListener("click", function(e) {
+        if (e.target.classList.contains("res-item")) {
+
+            let id = e.target.dataset.id;
+            let name = e.target.dataset.name;
+
+            studentIdField.value = id;
+            selectedName.textContent = name;
+            selectedBox.style.display = "block";
+
+            resultsBox.style.display = "none";
+            searchInput.value = "";
+
+            btnAdd.disabled = false; // aktifkan tombol tambah
+        }
+    });
+
+    // Tombol X → hapus pilihan
+    clearBtn.addEventListener("click", function() {
+        studentIdField.value = "";
+        selectedBox.style.display = "none";
+        btnAdd.disabled = true;
+    });
+
+});
+</script>
 @endpush

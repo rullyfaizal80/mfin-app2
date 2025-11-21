@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -347,4 +348,87 @@ class ClassUserController extends Controller
             "Expires" => "0"
         ]);
     }
+
+    public function ajaxSearchStudents(Request $request)
+{
+    $keyword = $request->q;
+
+    if (!$keyword || strlen($keyword) < 2) {
+        return '<div class="p-2 text-muted small">Ketik minimal 2 huruf...</div>';
+    }
+
+    $students = DB::table('sis_user as u')
+        ->join('sis_student as s', 'u.id', '=', 's.id')
+        ->where('u.fullname', 'LIKE', "%{$keyword}%")
+        ->where('u.is_active', 'yes')
+        ->limit(10)
+        ->select('u.id', 'u.fullname')
+        ->get();
+
+    if ($students->isEmpty()) {
+        return '<div class="p-2 text-muted small">Tidak ada siswa ditemukan.</div>';
+    }
+
+    $html = '';
+
+    foreach ($students as $s) {
+        $html .= '
+            <div class="list-group-item list-group-item-action res-item"
+                data-id="'.$s->id.'" data-name="'.$s->fullname.'">
+                '.$s->fullname.'
+            </div>
+        ';
+    }
+
+    return $html;
+}
+
+public function store(Request $request, $class_list_id)
+{
+    // Validasi hanya siswa
+    $request->validate([
+        'student_id' => 'required|exists:sis_user,id'
+    ]);
+
+    // Ambil tahun ajaran kelas
+    $class_info = DB::table('sis_class_list as cl')
+        ->join('sis_cyear as cy', 'cl.cyear_id', '=', 'cy.id')
+        ->where('cl.id', $class_list_id)
+        ->select('cy.date_start', 'cy.date_end')
+        ->first();
+
+    if (!$class_info) {
+        return back()->with('error', 'Data tahun ajaran tidak ditemukan.');
+    }
+
+    // Cek duplikat siswa
+    $exists = DB::table('sis_class_user')
+        ->where('class_list_id', $class_list_id)
+        ->where('user_id', $request->student_id)
+        ->exists();
+
+    if ($exists) {
+        return back()->withErrors([
+            'student_id' => 'Siswa ini sudah terdaftar di kelas.'
+        ]);
+    }
+
+    // Insert data siswa ke kelas
+    DB::table('sis_class_user')->insert([
+        'class_list_id' => $class_list_id,
+        'user_id'       => $request->student_id,
+        'join_start'    => $class_info->date_start,   // otomatis
+        'join_end'      => $class_info->date_end,     // otomatis
+        'is_active'     => 'yes',
+         'custom_field'  => '',
+        'update_by'     => session('user_id'),
+        'created'       => now(),
+        'updated'       => now(),
+    ]);
+
+    return redirect()
+        ->route('class_user.index', $class_list_id)
+        ->with('success', 'Siswa berhasil ditambahkan ke kelas.');
+}
+
 }
