@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 class ClassUserController extends Controller
 {
     /**
-     * Menampilkan halaman utama (daftar siswa, form tambah/edit).
+     * Menampilkan halaman utama (daftar siswa, form edit).
      * [PERBAIKAN]: Method ini sekarang juga menangani load data awal & AJAX.
      */
     public function index(Request $request, $class_list_id, $class_user_id = 0)
@@ -93,108 +93,6 @@ class ClassUserController extends Controller
     }
 
     /**
-     * [DIHAPUS] Method ajaxGetStudents() dihapus karena logikanya 
-     * telah digabung ke dalam method index()
-     */
-
-    /**
-     * Menambah siswa baru ke kelas (DAN SINKRONISASI PEMBAYARAN)
-     */
-    public function store(Request $request, $class_list_id)
-    {
-        $validator = Validator::make($request->all(), [
-            'user_id' => 'required|integer|gt:0',
-        ], [
-            'user_id.gt' => 'Siswa wajib dipilih.'
-        ]);
-
-        $existing = DB::table('sis_class_user')
-                        ->where('class_list_id', $class_list_id)
-                        ->where('user_id', $request->user_id)
-                        ->first();
-
-        if ($existing) {
-            $validator->after(function ($validator) {
-                $validator->errors()->add('user_id', 'Siswa ini sudah ada di dalam kelas.');
-            });
-        }
-
-        if ($validator->fails()) {
-            return redirect()->route('class_user.index', $class_list_id)->withErrors($validator)->withInput();
-        }
-
-        $classInfo = $this->getClassInfo($class_list_id);
-
-        try {
-            DB::transaction(function () use ($request, $class_list_id, $classInfo) {
-                $user_id = $request->user_id;
-
-                DB::table('sis_class_user')->insert([
-                    'user_id' => $user_id,
-                    'class_list_id' => $class_list_id,
-                    'join_start' => $request->join_start ?? $classInfo->year_date_start,
-                    'join_end' => $request->join_end ?? $classInfo->year_date_end,
-                    'is_active' => $request->is_active ?? 'yes',
-                    'custom_field' => '', 
-                    'update_by' => session('user_id'),
-                    'created' => now(),
-                    'updated' => now(),
-                    // [PERBAIKAN] Semua kolom scholarship DIHAPUS
-                ]);
-
-                // 2. Hapus item bayar siswa yang bentrok
-                DB::table('sis_userpayitem')
-                    ->where('user_id', $user_id)
-                    ->whereIn('payitem_id', function ($query) use ($class_list_id) {
-                        $query->select('payitem_id')
-                            ->from('sis_classpayitem')
-                            ->where('class_list_id', $class_list_id);
-                    })
-                    ->delete();
-
-                // 3. Salin item pembayaran dari KELAS ke SISWA
-                $payitemsToCopy = DB::select(
-                    "SELECT cu.user_id, cp.*
-                     FROM sis_class_user cu, sis_classpayitem cp
-                     WHERE cu.class_list_id = ? AND cu.user_id = ? AND cu.class_list_id = cp.class_list_id
-                     AND cp.payitem_id NOT IN (SELECT payitem_id FROM sis_userpayitem WHERE user_id = ?)",
-                    [$class_list_id, $user_id, $user_id]
-                );
-
-                $userPayItems = [];
-                foreach ($payitemsToCopy as $pay) {
-                    $userPayItems[] = [
-                        'user_id' => $pay->user_id,
-                        'payitem_id' => $pay->payitem_id,
-                        'coa_cash' => $pay->coa_cash,
-                        'coa_cash2' => 0,
-                        'coa_receivable' => $pay->coa_receivable,
-                        'coa_payable' => $pay->coa_payable,
-                        'coa_revenue' => $pay->coa_revenue,
-                        'coa_cost' => $pay->coa_cost,
-                        'payvalue' => $pay->payvalue,
-                        'pay_repeat' => $pay->pay_repeat,
-                        'pay_start' => $pay->pay_start,
-                        'pay_end' => $pay->pay_end,
-                        'note' => $pay->note,
-                        'custom_field' => null,
-                        'is_active' => 'yes',
-                    ];
-                }
-                if (!empty($userPayItems)) {
-                    DB::table('sis_userpayitem')->insert($userPayItems);
-                }
-            });
-
-        } catch (\Exception $e) {
-            Log::error('Gagal tambah siswa: ' . $e->getMessage());
-            return redirect()->route('class_user.index', $class_list_id)->with('error', 'Gagal: ' . $e->getMessage());
-        }
-
-        return redirect()->route('class_user.index', $class_list_id)->with('success', 'Siswa berhasil ditambahkan.');
-    }
-
-    /**
      * Memperbarui data join siswa di kelas
      */
     public function update(Request $request, $class_list_id, $class_user_id)
@@ -254,9 +152,9 @@ class ClassUserController extends Controller
         $student_ids = $request->student_ids; 
         
         $class_users_to_copy = DB::table('sis_class_user')
-                                ->where('class_list_id', $class_list_id)
-                                ->whereIn('user_id', $student_ids)
-                                ->get();
+                                 ->where('class_list_id', $class_list_id)
+                                 ->whereIn('user_id', $student_ids)
+                                 ->get();
 
         $newEntries = [];
         foreach ($class_users_to_copy as $cu) {
@@ -299,8 +197,7 @@ class ClassUserController extends Controller
     }
 
     /**
-     * [HELPER BARU] Sinkronisasi PayItem (Agar kode tidak berulang)
-     * Tambahkan method ini di paling bawah controller, sebelum 'getClassInfo'
+     * [HELPER] Sinkronisasi PayItem 
      */
     private function syncPayItemsForStudent($user_id, $class_list_id)
     {
@@ -360,7 +257,7 @@ class ClassUserController extends Controller
             ->leftJoin('sis_cschool as school', 'cl.cschool_id', '=', 'school.id')
             ->leftJoin('sis_cyear as year', 'cl.cyear_id', '=', 'year.id')
             ->leftJoin('sis_csubject as subject', 'cl.csubject_id', '=', 'subject.id')
-            ->leftJoin('sis_cgrade as grade', 'cl.cgrade_id', '=', 'grade.id') // <-- [PERBAIKAN] 'g' dihapus
+            ->leftJoin('sis_cgrade as grade', 'cl.cgrade_id', '=', 'grade.id') 
             ->leftJoin('sis_cgroup as grp', 'cl.cgroup_id', '=', 'grp.id')
             ->leftJoin('sis_ctype as type', 'cl.ctype_id', '=', 'type.id')
             ->leftJoin('sis_user as parent1', 'cl.parent1_id', '=', 'parent1.id')
@@ -372,7 +269,7 @@ class ClassUserController extends Controller
                 'year.title as year_title',
                 'year.date_start as year_date_start',
                 'year.date_end as year_date_end',
-                'cl.cyear_id', // Dibutuhkan untuk "copy"
+                'cl.cyear_id', 
                 'subject.title as subject_title',
                 'grade.title as grade_title',
                 'grp.title as group_title',
@@ -381,54 +278,6 @@ class ClassUserController extends Controller
                 'parent2.fullname as parent2_name'
             )
             ->first();
-    }
-
-    /**
-     * [AJAX] Menangani pencarian siswa untuk Select2
-     */
-    public function ajaxSearchStudents(Request $request)
-    {
-        $search = $request->query('term');
-        $class_list_id = $request->query('class_list_id', 0);
-
-        $query = DB::table('sis_user as u')
-            ->join('sis_student as s', 'u.id', '=', 's.id')
-            ->where('u.is_student', 'yes')
-            ->where('u.is_active', 'yes');
-
-        // Jika ada kata kunci pencarian
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('u.fullname', 'like', '%' . $search . '%')
-                  ->orWhere('s.nis', 'like', '%' . $search . '%');
-            });
-        }
-
-        // Filter: Jangan tampilkan siswa yang SUDAH ada di kelas ini
-        if ($class_list_id != 0) {
-             $query->whereNotIn('u.id', function ($subQuery) use ($class_list_id) {
-                $subQuery->select('user_id')
-                    ->from('sis_class_user')
-                    ->where('class_list_id', $class_list_id);
-            });
-        }
-           
-        // Ambil 50 data teratas (urut abjad)
-        $students = $query->select('u.id', 'u.fullname', 's.nis')
-                         ->orderBy('u.fullname', 'asc')
-                         ->limit(50) 
-                         ->get();
-
-        // Format data untuk Select2
-        $results = [];
-        foreach ($students as $student) {
-            $results[] = [
-                'id' => $student->id,
-                'text' => $student->fullname . ' (NIS: ' . $student->nis . ')'
-            ];
-        }
-
-        return response()->json(['results' => $results]);
     }
 
     /**

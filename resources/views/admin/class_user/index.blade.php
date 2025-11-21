@@ -92,7 +92,7 @@
                             </div>
                         </form>
 
-                        {{-- Bagian Kanan: Tombol Export [BARU] --}}
+                        {{-- Bagian Kanan: Tombol Export --}}
                         <div>
                             <a href="{{ route('class_user.export', $class_list_id) }}" class="btn btn-sm btn-success text-white" target="_blank">
                                 <i class="bi bi-file-earmark-excel"></i> Export Excel
@@ -106,61 +106,47 @@
             </div>
         </div>
 
-        {{-- KOLOM KANAN (1/4): Form Tambah & Form Salin --}}
+        {{-- KOLOM KANAN (1/4): Form Edit Status & Form Salin --}}
         <div class="col-lg-3">
             
-            {{-- CARD 1: Tambah Siswa (Sederhana) --}}
-            <div class="card mb-3">
-                <div class="card-header bg-success text-white">
-                    <i class="bi bi-person-plus"></i> Tambah Siswa
-                </div>
-                <div class="card-body">
-                    @if ($edit_data->id)
+            {{-- CARD 1: Edit Status Siswa (Jika ada data edit) --}}
+            @if ($edit_data->id)
+                <div class="card mb-3">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-pencil"></i> Edit Status Siswa
+                    </div>
+                    <div class="card-body">
                         <form action="{{ route('class_user.update', ['class_list_id' => $class_list_id, 'class_user_id' => $edit_data->id]) }}" method="POST">
-                        @method('PUT')
-                        
-                        <div class="alert alert-warning py-2 small">
-                            <i class="bi bi-pencil"></i> Mengedit status: <strong>{{ $edit_data->fullname }}</strong>
-                        </div>
-
-                        <div class="mb-2">
-                            <label class="form-label small">Tgl Masuk</label>
-                            <input type="date" class="form-control form-control-sm" name="join_start" value="{{ old('join_start', $edit_data->join_start) }}" required>
-                        </div>
-                        <div class="mb-2">
-                            <label class="form-label small">Tgl Keluar</label>
-                            <input type="date" class="form-control form-control-sm" name="join_end" value="{{ old('join_end', $edit_data->join_end) }}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Status</label>
-                            <select name="is_active" class="form-select form-select-sm">
-                                <option value="yes" {{ old('is_active', $edit_data->is_active) == 'yes' ? 'selected' : '' }}>Aktif</option>
-                                <option value="no" {{ old('is_active', $edit_data->is_active) == 'no' ? 'selected' : '' }}>Non-Aktif</option>
-                            </select>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
-                            <a href="{{ route('class_user.index', $class_list_id) }}" class="btn btn-outline-secondary btn-sm mt-1">Batal</a>
-                        </div>
-
-                    @else
-                        {{-- Mode Tambah: Dropdown Saja --}}
-                        <form action="{{ route('class_user.store', $class_list_id) }}" method="POST">
+                            @method('PUT')
                             @csrf
+                            
+                            <div class="alert alert-warning py-2 small">
+                                <i class="bi bi-pencil"></i> Mengedit status: <strong>{{ $edit_data->fullname }}</strong>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="form-label small">Tgl Masuk</label>
+                                <input type="date" class="form-control form-control-sm" name="join_start" value="{{ old('join_start', $edit_data->join_start) }}" required>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label small">Tgl Keluar</label>
+                                <input type="date" class="form-control form-control-sm" name="join_end" value="{{ old('join_end', $edit_data->join_end) }}" required>
+                            </div>
                             <div class="mb-3">
-                                <label for="user_id" class="form-label small fw-bold">Nama Siswa</label>
-                                {{-- Select ini akan diubah otomatis oleh JS menjadi Dropdown Select2 --}}
-                                <select id="user_id" name="user_id" class="form-select" required>
-                                    {{-- Kosong, akan diisi AJAX --}}
+                                <label class="form-label small">Status</label>
+                                <select name="is_active" class="form-select form-select-sm">
+                                    <option value="yes" {{ old('is_active', $edit_data->is_active) == 'yes' ? 'selected' : '' }}>Aktif</option>
+                                    <option value="no" {{ old('is_active', $edit_data->is_active) == 'no' ? 'selected' : '' }}>Non-Aktif</option>
                                 </select>
                             </div>
                             <div class="d-grid">
-                                <button type="submit" class="btn btn-success btn-sm">Tambahkan</button>
+                                <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
+                                <a href="{{ route('class_user.index', $class_list_id) }}" class="btn btn-outline-secondary btn-sm mt-1">Batal</a>
                             </div>
                         </form>
-                    @endif
+                    </div>
                 </div>
-            </div>
+            @endif
 
             {{-- CARD 2: Salin Siswa (Copy) --}}
             <form action="{{ route('class_user.copy', $class_list_id) }}" method="POST" id="copy-form">
@@ -168,7 +154,7 @@
                 {{-- Input tersembunyi untuk menampung ID siswa yang dicentang --}}
                 <div id="selected-students-container"></div>
 
-                <div class="card">
+                <div class="card mb-3">
                     <div class="card-header bg-primary text-white">
                         <i class="bi bi-files"></i> Salin Terpilih
                     </div>
@@ -213,32 +199,7 @@
     
     <script>
         $(document).ready(function() {
-            // 1. Select2 AJAX untuk Tambah Siswa
-            $('#user_id').select2({
-                theme: "bootstrap-5", // Pastikan tema bootstrap 5 aktif
-                width: '100%',
-                placeholder: "- Pilih Siswa -",
-                allowClear: true,
-                minimumInputLength: 0, // [PERBAIKAN] 0 = Langsung tampil saat diklik
-                ajax: {
-                    url: "{{ route('class_user.ajax_search') }}",
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return {
-                            term: params.term, // Kata kunci pencarian (bisa kosong)
-                            class_list_id: "{{ $class_list_id }}" 
-                        };
-                    },
-                    processResults: function (data) {
-                        return { results: data.results };
-                    },
-                    cache: true
-                }
-            });
-
-            // ... (Sisa script Copy Siswa / Tahun Ajaran biarkan sama) ...
-             // 2. Logika AJAX untuk Dropdown Copy (Tahun -> Kelas)
+            // Logika AJAX untuk Dropdown Copy (Tahun -> Kelas)
             const filterYear = document.getElementById('filter_year');
             const classSelect = document.getElementById('class_copy_id');
             const copyBtn = document.getElementById('btn-copy');
@@ -270,7 +231,7 @@
                 });
             }
 
-            // 3. Sinkronisasi Checkbox
+            // Sinkronisasi Checkbox
             const copyForm = document.getElementById('copy-form');
             const hiddenContainer = document.getElementById('selected-students-container');
             
@@ -302,7 +263,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             const tableContainer = document.getElementById('table-container');
             const searchInput = document.getElementById('search-input');
-            const perPageSelect = document.getElementById('perPage'); // [BARU]
+            const perPageSelect = document.getElementById('perPage'); 
             const baseUrl = "{{ route('class_user.index', $class_list_id) }}";
             let debounceTimer;
 
@@ -330,7 +291,7 @@
                 });
             }
 
-            // [BARU] Event: Ganti jumlah baris (perPage)
+            // Event: Ganti jumlah baris (perPage)
             if (perPageSelect) {
                 perPageSelect.addEventListener('change', function() {
                     fetchTableData(baseUrl);
