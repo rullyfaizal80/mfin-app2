@@ -107,46 +107,7 @@
         </div>
 
         {{-- KOLOM KANAN (1/4): Form Edit Status & Form Salin --}}
-        <div class="col-lg-3">
-            
-            {{-- CARD 1: Edit Status Siswa (Jika ada data edit) --}}
-            @if ($edit_data->id)
-                <div class="card mb-3">
-                    <div class="card-header bg-warning text-dark">
-                        <i class="bi bi-pencil"></i> Edit Status Siswa
-                    </div>
-                    <div class="card-body">
-                        <form action="{{ route('class_user.update', ['class_list_id' => $class_list_id, 'class_user_id' => $edit_data->id]) }}" method="POST">
-                            @method('PUT')
-                            @csrf
-                            
-                            <div class="alert alert-warning py-2 small">
-                                <i class="bi bi-pencil"></i> Mengedit status: <strong>{{ $edit_data->fullname }}</strong>
-                            </div>
-
-                            <div class="mb-2">
-                                <label class="form-label small">Tgl Masuk</label>
-                                <input type="date" class="form-control form-control-sm" name="join_start" value="{{ old('join_start', $edit_data->join_start) }}" required>
-                            </div>
-                            <div class="mb-2">
-                                <label class="form-label small">Tgl Keluar</label>
-                                <input type="date" class="form-control form-control-sm" name="join_end" value="{{ old('join_end', $edit_data->join_end) }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Status</label>
-                                <select name="is_active" class="form-select form-select-sm">
-                                    <option value="yes" {{ old('is_active', $edit_data->is_active) == 'yes' ? 'selected' : '' }}>Aktif</option>
-                                    <option value="no" {{ old('is_active', $edit_data->is_active) == 'no' ? 'selected' : '' }}>Non-Aktif</option>
-                                </select>
-                            </div>
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-primary btn-sm">Simpan</button>
-                                <a href="{{ route('class_user.index', $class_list_id) }}" class="btn btn-outline-secondary btn-sm mt-1">Batal</a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            @endif
+        <div class="col-lg-3">                     
 
             {{-- CARD 2: Salin Siswa (Copy) --}}
             <form action="{{ route('class_user.copy', $class_list_id) }}" method="POST" id="copy-form">

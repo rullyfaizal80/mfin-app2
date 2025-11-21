@@ -14,112 +14,65 @@ class ClassUserController extends Controller
      * Menampilkan halaman utama (daftar siswa, form edit).
      * [PERBAIKAN]: Method ini sekarang juga menangani load data awal & AJAX.
      */
-    public function index(Request $request, $class_list_id, $class_user_id = 0)
-    {
-        // 1. Ambil Info Detail Kelas
-        $class_info = $this->getClassInfo($class_list_id);
-        if (!$class_info) {
-            return redirect()->route('class_list.index')->with('error', 'Kelas tidak ditemukan.');
-        }
+    public function index(Request $request, $class_list_id)
+{
+    // 1. Ambil Info Detail Kelas
+    $class_info = $this->getClassInfo($class_list_id);
+    if (!$class_info) {
+        return redirect()->route('class_list.index')->with('error', 'Kelas tidak ditemukan.');
+    }
 
-        // 2. Ambil data dropdown tahun ajaran (untuk fitur copy)
-        $all_years = DB::table('sis_cyear')->orderBy('date_start', 'desc')->get();
+    // 2. Ambil data dropdown tahun ajaran (untuk fitur copy)
+    $all_years = DB::table('sis_cyear')->orderBy('date_start', 'desc')->get();
 
-        // 3. Siapkan data untuk form Edit
-        $edit_data = (object) [
-            'id' => 0,
-            'user_id' => '',
-            'join_start' => $class_info->year_date_start,
-            'join_end' => $class_info->year_date_end,
-            'is_active' => 'yes',
-            'fullname' => '',
-        ];
-        
-        if ($class_user_id != 0) {
-            $data = DB::table('sis_class_user as cu')
-                ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
-                ->where('cu.id', $class_user_id)
-                ->select('cu.*', 'u.fullname')
-                ->first();
-            if ($data) { $edit_data = $data; }
-        }
+    // 3. Default perPage & search
+    $search = $request->query('search');
+    $perPage = $request->query('perPage', 10);
 
-        // 4. Ambil Daftar Siswa di Kelas (Query Utama)
-        $search = $request->query('search');
-        $perPage = $request->query('perPage', 10); // [BARU] Default 10 jika tidak ada input
+    // 4. Query Daftar Siswa
+    $query = DB::table('sis_class_user as cu')
+        ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
+        ->join('sis_student as s', 'u.id', '=', 's.id')
+        ->where('cu.class_list_id', $class_list_id)
+        ->where('u.is_active', 'yes')
+        ->select(
+            'cu.id as class_user_id',
+            'u.id as user_id',
+            'u.fullname',
+            'u.placeofbirth',
+            'u.dateofbirth',
+            'cu.is_active as class_is_active',
+            'u.is_active as user_is_active'
+        );
 
-        $query = DB::table('sis_class_user as cu')
-            ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
-            ->join('sis_student as s', 'u.id', '=', 's.id')
-            ->where('cu.class_list_id', $class_list_id)
-            ->where('u.is_active', 'yes')
-            ->select(
-                'cu.id as class_user_id', 
-                'u.id as user_id', 
-                'u.fullname', 
-                'u.placeofbirth', 
-                'u.dateofbirth', 
-                'cu.is_active as class_is_active',
-                'u.is_active as user_is_active'
-            );
+    if ($search) {
+        $query->where('u.fullname', 'like', '%' . $search . '%');
+    }
 
-        if ($search) {
-            $query->where('u.fullname', 'like', '%' . $search . '%');
-        }
+    $list_data = $query->orderBy('u.fullname', 'asc')
+                       ->paginate($perPage)
+                       ->withQueryString();
 
-        // [PERBAIKAN] Gunakan variabel $perPage di sini
-        $list_data = $query->orderBy('u.fullname', 'asc')
-                           ->paginate($perPage)
-                           ->withQueryString(); 
-
-        // 5. Handle AJAX request
-        if ($request->ajax()) {
-            return view('admin.class_user._student_table', [
-                'list_data' => $list_data,
-                'class_list_id' => $class_list_id
-            ]);
-        }
-
-        // 6. Tampilkan view utama
-        return view('admin.class_user.index', [
-            'class_info' => $class_info,
-            'all_years' => $all_years,
-            'other_classes' => [], // Kosongkan awal (akan diisi via AJAX saat pilih tahun)
-            'edit_data' => $edit_data,
-            'class_list_id' => $class_list_id,
+    // jika request AJAX (untuk pagination/search)
+    if ($request->ajax()) {
+        return view('admin.class_user._student_table', [
             'list_data' => $list_data,
-            'perPage' => $perPage // [BARU] Kirim nilai perPage ke view agar dropdown sesuai
+            'class_list_id' => $class_list_id
         ]);
     }
 
-    /**
-     * Memperbarui data join siswa di kelas
-     */
-    public function update(Request $request, $class_list_id, $class_user_id)
-    {
-        $request->validate([
-            'join_start' => 'required|date',
-            'join_end' => 'required|date',
-        ]);
+    // 6. Tampilkan view utama (tanpa edit_data)
+    return view('admin.class_user.index', [
+        'class_info' => $class_info,
+        'all_years' => $all_years,
+        'other_classes' => [],
+        'class_list_id' => $class_list_id,
+        'list_data' => $list_data,
+        'perPage' => $perPage
+    ]);
+}
 
-        // [LOGIKA KUNCI] Jika non-aktif, set tgl selesai hari ini
-        $join_end = $request->join_end;
-        if ($request->is_active == 'no') {
-            $join_end = now()->toDateString();
-        }
-
-        DB::table('sis_class_user')->where('id', $class_user_id)->update([
-            'join_start' => $request->join_start,
-            'join_end' => $join_end,
-            'is_active' => $request->is_active,
-            'update_by' => session('user_id'),
-            'updated' => now(),
-        ]);
-
-        return redirect()->route('class_user.index', $class_list_id)
-                         ->with('success', 'Data siswa di kelas ini berhasil diperbarui.');
-    }
-
+   
     /**
      * Menghapus siswa dari kelas
      */

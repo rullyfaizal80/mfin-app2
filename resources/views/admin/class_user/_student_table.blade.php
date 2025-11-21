@@ -42,10 +42,7 @@
                             <span class="badge text-bg-secondary">Non-Aktif</span>
                         @endif
                     </td>
-                    <td class="text-center">
-                        <a href="{{ route('class_user.edit', ['class_list_id' => $class_list_id, 'class_user_id' => $student->class_user_id]) }}" class="btn btn-sm btn-outline-warning py-0 px-1" title="Edit">
-                            <i class="bi bi-pencil-square"></i>
-                        </a>
+                    <td class="text-center">                        
                         <form action="{{ route('class_user.destroy', ['class_list_id' => $class_list_id, 'class_user_id' => $student->class_user_id]) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus siswa ini dari kelas?');">
                             @csrf
                             @method('DELETE')
