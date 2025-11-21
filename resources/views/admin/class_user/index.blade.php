@@ -82,7 +82,6 @@
                                     <option value="10" {{ request('perPage') == 10 ? 'selected' : '' }}>10</option>
                                     <option value="25" {{ request('perPage') == 25 ? 'selected' : '' }}>25</option>
                                     <option value="50" {{ request('perPage') == 50 ? 'selected' : '' }}>50</option>
-                                    <option value="100" {{ request('perPage') == 100 ? 'selected' : '' }}>100</option>
                                 </select>
                             </div>
 
