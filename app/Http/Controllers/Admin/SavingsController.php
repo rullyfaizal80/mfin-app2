@@ -9,66 +9,69 @@ use Illuminate\Support\Facades\DB;
 class SavingsController extends Controller
 {
     /**
-     * HALAMAN UTAMA: Daftar Nasabah & Total Saldo
+     * HALAMAN UTAMA: Daftar Nasabah & Total Saldo (Optimized)
      */
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $search = $request->query('search');
         
-        // [PERBAIKAN] Filter tanggal dikosongkan (null) secara default
-        $ffrom = $request->query('ffrom'); 
-        $fto = $request->query('fto');
+        // Default pagination 10 (Sesuai aplikasi lama)
+        $perPage = 10; 
 
-        // Query Utama
+        // LANGKAH 1: Cari Siapa Saja yang Punya Tabungan (Query Ringan)
+        // Kita hanya ambil ID-nya dulu.
         $query = DB::table('sis_receivable as r')
-            ->join('sis_user as u', 'r.user_id', '=', 'u.id')
             ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
-            ->leftJoin('sis_student as s', 'u.id', '=', 's.id')
-            ->leftJoin('sis_teacher as t', 'u.id', '=', 't.iduser')
             ->where('p.payitem_type', 'saving')
-            ->select(
-                'u.id as user_id',
-                'u.fullname',
-                's.nis',
-                't.nik',
-                // Ambil tanggal transaksi paling baru untuk user ini
-                DB::raw('MAX(r.tdate) as last_transaction'), 
-                // Hitung total saldo (Semua waktu)
-                DB::raw('SUM(r.credit) - SUM(r.debit) as total_saldo') 
-            );
+            ->select('r.user_id', DB::raw('MAX(r.tdate) as last_transaction')) // Ambil tgl terakhir
+            ->groupBy('r.user_id'); // Kelompokkan biar 1 orang muncul 1x
 
-        // Filter Pencarian Nama (Jika ada)
+        // Jika ada pencarian nama, kita join ke user sebentar untuk filter
         if ($search) {
-            $query->where('u.fullname', 'like', '%' . $search . '%');
+            $query->join('sis_user as u', 'r.user_id', '=', 'u.id')
+                  ->where('u.fullname', 'like', '%' . $search . '%');
         }
 
-        // Filter Tanggal (Hanya jika user mengisi)
-        if ($ffrom && $fto) {
-            // Catatan: Hati-hati filter tanggal di halaman saldo, 
-            // karena saldo seharusnya akumulasi semua waktu.
-            // Tapi jika diminta filter, kita filter berdasarkan transaksi terakhirnya.
-            $query->having('last_transaction', '>=', $ffrom)
-                  ->having('last_transaction', '<=', $fto);
-        }
-
-        // Grouping
-        $query->groupBy('u.id', 'u.fullname', 's.nis', 't.nik');
-
-        // [PERBAIKAN] Urutkan berdasarkan Transaksi Terakhir (Terbaru di atas)
+        // Urutkan: Yang baru transaksi muncul paling atas
         $query->orderBy('last_transaction', 'desc');
 
-        // Pagination
-        $savings = $query->paginate(20)->withQueryString();
+        // Eksekusi Pagination (Hanya ambil 10 baris data mentah)
+        // INI YANG MEMBUAT LOADING CEPAT
+        $savings = $query->paginate($perPage)->withQueryString();
+
+        // LANGKAH 2: Lengkapi Data (Nama, NIS, Saldo) HANYA untuk 10 orang ini
+        $savings->getCollection()->transform(function ($item) {
+            
+            // A. Ambil Nama & Identitas
+            $user = DB::table('sis_user as u')
+                ->leftJoin('sis_student as s', 'u.id', '=', 's.id')
+                ->leftJoin('sis_teacher as t', 'u.id', '=', 't.iduser')
+                ->where('u.id', $item->user_id)
+                ->select('u.fullname', 's.nis', 't.nik')
+                ->first();
+
+            // B. Hitung Saldo Orang Ini (Query Ringan karena spesifik ID)
+            $balance = DB::table('sis_receivable as r')
+                ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+                ->where('r.user_id', $item->user_id)
+                ->where('p.payitem_type', 'saving')
+                ->sum(DB::raw('r.credit - r.debit'));
+
+            // Gabungkan ke object item untuk dikirim ke View
+            $item->fullname = $user->fullname ?? 'Unknown';
+            $item->identity_number = $user->nis ?? ($user->nik ?? '-');
+            $item->total_saldo = $balance;
+
+            return $item;
+        });
 
         return view('admin.savings.index', [
-            'savings' => $savings,
-            'ffrom' => $ffrom,
-            'fto' => $fto
+            'savings' => $savings
         ]);
     }
 
     /**
-     * HALAMAN RINCIAN: Detail Transaksi Per Siswa
+     * HALAMAN RINCIAN: Detail Transaksi Per Siswa (Dengan Pagination)
      */
     public function show(Request $request, $user_id)
     {
@@ -76,11 +79,10 @@ class SavingsController extends Controller
         $user = DB::table('sis_user')->where('id', $user_id)->first();
         if (!$user) return redirect()->route('savings.index')->with('error', 'Data tidak ditemukan.');
 
-        // 2. Filter Tanggal (Khusus rincian, default kosongkan juga biar tampil semua)
         $ffrom = $request->query('ffrom'); 
         $fto = $request->query('fto');
 
-        // 3. Ambil Transaksi
+        // 2. Query Dasar untuk Transaksi
         $query = DB::table('sis_receivable as r')
             ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
             ->where('r.user_id', $user_id)
@@ -92,17 +94,27 @@ class SavingsController extends Controller
                   ->whereDate('r.tdate', '<=', $fto);
         }
 
+        // [PERUBAHAN] Gunakan paginate(20) bukan get()
+        // withQueryString() penting agar filter tanggal tidak hilang saat pindah halaman
         $transactions = $query->orderBy('r.tdate', 'desc')
                               ->orderBy('r.id', 'desc')
-                              ->get();
+                              ->paginate(20)
+                              ->withQueryString();
 
-        // 4. Hitung Total Saldo User Ini (Semua Waktu)
-        $summary = DB::table('sis_receivable as r')
+        // 3. Hitung Total Saldo Akhir (Tetap hitung dari SEMUA data user ini)
+        // Query ini terpisah agar angkanya tetap Saldo Total, bukan saldo per halaman
+        $summaryQuery = DB::table('sis_receivable as r')
             ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
             ->where('r.user_id', $user_id)
-            ->where('p.payitem_type', 'saving')
-            ->select(DB::raw('SUM(credit) - SUM(debit) as saldo_akhir_total'))
-            ->first();
+            ->where('p.payitem_type', 'saving');
+            
+        // Jika ada filter tanggal, saldo yang tampil menyesuaikan filter atau tetap total semua?
+        // Biasanya saldo adalah "Saldo Akhir" (Semua Waktu). 
+        // Tapi jika ingin melihat mutasi periode ini, filter tanggal di query saldo bisa diaktifkan.
+        // Untuk saat ini kita biarkan hitung total SEMUA waktu (Saldo Real).
+        
+        $summary = $summaryQuery->select(DB::raw('SUM(credit) - SUM(debit) as saldo_akhir_total'))
+                                ->first();
 
         return view('admin.savings.show', [
             'user' => $user,

@@ -3,19 +3,25 @@
 @section('title', 'Rincian Tabungan | MFIN')
 
 @section('content')
+    {{-- LOADING OVERLAY --}}
+    <div id="loading-overlay" style="display:none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:9999; flex-direction:column; justify-content:center; align-items:center;">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+        <div class="mt-2 fw-bold text-dark fs-5">Memuat Data...</div>
+    </div>
+
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
         <div>
             <h1 class="h2">Rincian Tabungan</h1>
             <span class="text-muted">Nasabah: <strong>{{ $user->fullname }}</strong></span>
         </div>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="{{ route('savings.index') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Kembali
+            <a href="{{ route('savings.index') }}" class="btn btn-sm btn-outline-secondary btn-loading">
+                <i class="bi bi-arrow-left"></i> Kembali ke Daftar
             </a>
         </div>
     </div>
 
-    {{-- Info Saldo Header --}}
+    {{-- Info Saldo Header (Penting: Ini Saldo Total Semua Waktu) --}}
     <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
         <span>Total Saldo Saat Ini:</span>
         <span class="fs-5 fw-bold">Rp {{ number_format($saldo_total, 0, ',', '.') }}</span>
@@ -24,7 +30,7 @@
     {{-- Filter Tanggal --}}
     <div class="card mb-3">
         <div class="card-body py-2">
-            <form action="{{ route('savings.show', $user->id) }}" method="GET" class="row g-2 align-items-end">
+            <form action="{{ route('savings.show', $user->id) }}" method="GET" class="row g-2 align-items-end" id="filter-form">
                 <div class="col-auto">
                     <label class="form-label small mb-0">Dari</label>
                     <input type="date" name="ffrom" class="form-control form-control-sm" value="{{ $ffrom }}">
@@ -55,15 +61,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @php 
-                            $total_in = 0; 
-                            $total_out = 0; 
-                        @endphp
                         @forelse ($transactions as $row)
-                            @php
-                                $total_in += $row->credit;
-                                $total_out += $row->debit;
-                            @endphp
                             <tr>
                                 <td>{{ date('d-m-Y', strtotime($row->tdate)) }}</td>
                                 <td>{{ $row->ref_no }}</td>
@@ -81,15 +79,48 @@
                             </tr>
                         @endforelse
                     </tbody>
-                    <tfoot class="fw-bold border-top">
-                        <tr>
-                            <td colspan="3" class="text-end">TOTAL (Periode Ini):</td>
-                            <td class="text-end text-success">{{ number_format($total_in, 0, ',', '.') }}</td>
-                            <td class="text-end text-danger">{{ number_format($total_out, 0, ',', '.') }}</td>
-                        </tr>
-                    </tfoot>
+                    {{-- Footer Total Halaman Ini DIHAPUS --}}
                 </table>
+            </div>
+
+            {{-- Tombol Pagination --}}
+            <div class="mt-3 pagination-links">
+                {{ $transactions->links() }}
             </div>
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const loader = document.getElementById('loading-overlay');
+
+            // 1. Loading saat klik Filter
+            const form = document.getElementById('filter-form');
+            if(form) {
+                form.addEventListener('submit', () => loader.style.display = 'flex');
+            }
+
+            // 2. Loading saat klik tombol Kembali
+            const backBtns = document.querySelectorAll('.btn-loading');
+            backBtns.forEach(btn => {
+                btn.addEventListener('click', () => loader.style.display = 'flex');
+            });
+
+            // 3. Loading saat klik Pagination (Next/Prev Page)
+            const paginations = document.querySelectorAll('.pagination-links a');
+            paginations.forEach(link => {
+                link.addEventListener('click', () => loader.style.display = 'flex');
+            });
+        });
+
+        // Fix Back Button Browser
+        window.addEventListener('pageshow', function(event) {
+            const loader = document.getElementById('loading-overlay');
+            if (event.persisted) {
+                if(loader) loader.style.display = 'none';
+            }
+        });
+    </script>
+@endpush
