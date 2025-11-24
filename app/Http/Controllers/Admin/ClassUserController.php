@@ -419,11 +419,13 @@ public function store(Request $request, $class_list_id)
         'join_start'    => $class_info->date_start,   // otomatis
         'join_end'      => $class_info->date_end,     // otomatis
         'is_active'     => 'yes',
-         'custom_field'  => '',
+        'custom_field'  => '',
         'update_by'     => session('user_id'),
         'created'       => now(),
         'updated'       => now(),
     ]);
+
+    $this->syncPayItemsForStudent($request->student_id, $class_list_id);
 
     return redirect()
         ->route('class_user.index', $class_list_id)
