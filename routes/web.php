@@ -1,5 +1,6 @@
 <?php
-
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\AclController;
 use App\Http\Controllers\Admin\CyearController;
 use App\Http\Controllers\Admin\GroupController;
@@ -8,8 +9,6 @@ use App\Http\Controllers\Admin\ParentController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\TeacherController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\AuthController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\CsubjectController;
 use App\Http\Controllers\Admin\CgradeController;
 use App\Http\Controllers\Admin\CgroupController;
@@ -17,6 +16,7 @@ use App\Http\Controllers\Admin\CtypeController;
 use App\Http\Controllers\Admin\CschoolController;
 use App\Http\Controllers\Admin\ClassListController;
 use App\Http\Controllers\Admin\ClassUserController;
+use App\Http\Controllers\Admin\SavingsController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -141,14 +141,15 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::post('/sclass/class_user/{class_list_id}', [ClassUserController::class, 'store'])->name('class_user.store');    
     Route::delete('/sclass/class_user/{class_list_id}/{class_user_id}', [ClassUserController::class, 'destroy'])->name('class_user.destroy');
     Route::post('/sclass/class_user/{class_list_id}/copy', [ClassUserController::class, 'copyStudents'])->name('class_user.copy');
-    
     Route::get('/sclass/ajax_get_classes', [ClassUserController::class, 'ajaxGetClassesByYear'])->name('class_user.ajax_get_classes');
     Route::get('/sclass/class_user/{class_list_id}/export', [ClassUserController::class, 'exportExcel'])->name('class_user.export');
+    Route::get('/sclass/ajax_search_students', [ClassUserController::class, 'ajaxSearchStudents'])->name('class_user.ajax_search');
 
-    Route::get('/sclass/ajax_search_students', 
-    [ClassUserController::class, 'ajaxSearchStudents']
-    )->name('class_user.ajax_search');
-
-
+    Route::prefix('fincom')->group(function () {
+        // Halaman Utama (Daftar Nasabah)
+        Route::get('/savings', [SavingsController::class, 'index'])->name('savings.index');
+        // Halaman Rincian (Detail Transaksi)
+        Route::get('/savings/{user_id}', [SavingsController::class, 'show'])->name('savings.show');
+    });
     
 });
