@@ -17,7 +17,7 @@
 
 @section('content')
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">{{ $page_title }}</h1> {{-- Judul dinamis: Setoran / Penarikan --}}
+        <h1 class="h2">{{ $page_title }}</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             <a href="{{ route('savings.index') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Kembali
@@ -34,7 +34,6 @@
         <div class="card-body">
             <form action="{{ route('savings.store') }}" method="POST">
                 @csrf
-                {{-- HIDDEN INPUT: Menentukan Setor/Tarik --}}
                 <input type="hidden" name="type" value="{{ $type }}">
 
                 {{-- 1. Cari Nasabah --}}
@@ -53,16 +52,22 @@
                             <span class="badge bg-secondary ms-2" id="selected_type"></span>
                             <button type="button" class="btn btn-sm btn-link text-danger p-0 ms-2 float-end" id="btn_clear_user">[Ganti]</button>
                         </div>
-                        <input type="hidden" name="user_id" id="user_id_hidden" required>
+                        
+                        {{-- INPUT HIDDEN (Penting agar data user tidak hilang saat error) --}}
+                        <input type="hidden" name="user_id" id="user_id_hidden" value="{{ old('user_id') }}" required>
+                        {{-- Simpan Nama & Tipe sementara agar bisa di-restore JS --}}
+                        <input type="hidden" name="user_name_temp" id="user_name_temp" value="{{ old('user_name_temp') }}">
+                        <input type="hidden" name="user_type_temp" id="user_type_temp" value="{{ old('user_type_temp') }}">
                     </div>
                 </div>
 
-                {{-- 2. Jenis Tabungan (Kosong Awalnya) --}}
+                {{-- 2. Jenis Tabungan --}}
                 <div class="mb-3 row">
                     <label class="col-sm-3 col-form-label">Jenis</label>
                     <div class="col-sm-9">
-                        <select name="payitem_id" id="payitem_select" class="form-select" required disabled>
-                            <option value="">-- Pilih User Terlebih Dahulu --</option>
+                        {{-- Tambahkan ID agar bisa dipilih kembali oleh JS --}}
+                        <select name="payitem_id" id="payitem_select" class="form-select" required disabled data-old="{{ old('payitem_id') }}">
+                            <option value="">-- Pilih Nasabah Terlebih Dahulu --</option>
                         </select>
                     </div>
                 </div>
@@ -71,14 +76,16 @@
                 <div class="mb-3 row">
                     <label class="col-sm-3 col-form-label">Tanggal</label>
                     <div class="col-sm-9">
-                        <input type="date" name="tdate" class="form-control" value="{{ date('Y-m-d') }}" required>
+                        {{-- Gunakan old('tdate') --}}
+                        <input type="date" name="tdate" class="form-control" value="{{ old('tdate', date('Y-m-d')) }}" required>
                     </div>
                 </div>
 
                 <div class="mb-3 row">
                     <label class="col-sm-3 col-form-label">Nilai (Rp)</label>
                     <div class="col-sm-9">
-                        <input type="number" name="tvalue" class="form-control form-control-lg fw-bold" placeholder="0" min="100" required>
+                        {{-- Gunakan old('tvalue') --}}
+                        <input type="number" name="tvalue" class="form-control form-control-lg fw-bold" placeholder="0" min="100" value="{{ old('tvalue') }}" required>
                     </div>
                 </div>
 
@@ -86,14 +93,16 @@
                 <div class="mb-3 row">
                     <label class="col-sm-3 col-form-label">Referensi</label>
                     <div class="col-sm-9">
-                        <input type="text" name="ref_no" class="form-control bg-light" value="{{ $ref_no }}" readonly>
+                        {{-- Ref No biasanya digenerate ulang jika gagal, tapi bisa juga di-old kan jika mau konsisten --}}
+                        <input type="text" name="ref_no" class="form-control bg-light" value="{{ old('ref_no', $ref_no) }}" readonly>
                     </div>
                 </div>
 
                 <div class="mb-3 row">
                     <label class="col-sm-3 col-form-label">Catatan</label>
                     <div class="col-sm-9">
-                        <textarea name="note" class="form-control" rows="2" placeholder="Keterangan tambahan..."></textarea>
+                        {{-- Gunakan old('note') di dalam textarea --}}
+                        <textarea name="note" class="form-control" rows="2" placeholder="Keterangan tambahan...">{{ old('note') }}</textarea>
                     </div>
                 </div>
 
@@ -114,19 +123,76 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
-            // 1. SIMPAN DATA PAYITEM DARI PHP KE JS
+            // 1. Setup Variable
             const allPayitems = @json($payitems); 
-
             const inputSearch = $('#user_search');
             const resultsBox = $('#user-search-results');
             const hiddenId = $('#user_id_hidden');
+            const hiddenName = $('#user_name_temp');
+            const hiddenType = $('#user_type_temp');
             const displayBox = $('#selected_user_display');
             const displayName = $('#selected_name');
             const displayType = $('#selected_type');
             const btnClear = $('#btn_clear_user');
             const payitemSelect = $('#payitem_select');
 
-            // Fungsi Cari User
+            // ==========================================
+            // FUNGSI UTAMA: MENGISI DROPDOWN BERDASARKAN TIPE
+            // ==========================================
+            function populateDropdown(userType, selectedValue = null) {
+                payitemSelect.prop('disabled', false);
+                payitemSelect.empty();
+
+                let found = false;
+                allPayitems.forEach(function(item) {
+                    let title = item.title.toUpperCase();
+                    let shouldAdd = false;
+
+                    if (userType === 'teacher') {
+                        if (title.includes('GURU')) shouldAdd = true;
+                    } else {
+                        if (title.includes('TABUNGAN') && !title.includes('GURU')) shouldAdd = true;
+                    }
+
+                    if (shouldAdd) {
+                        let option = new Option(item.title, item.id);
+                        payitemSelect.append(option);
+                        found = true;
+                    }
+                });
+
+                if (!found) {
+                    payitemSelect.append(new Option("-- Tidak ada jenis tabungan yang sesuai --", ""));
+                }
+
+                // Jika ada nilai lama (dari error validasi), pilih kembali
+                if (selectedValue) {
+                    payitemSelect.val(selectedValue);
+                }
+            }
+
+            // ==========================================
+            // LOGIKA RESTORE STATE (JIKA ADA ERROR)
+            // ==========================================
+            // Cek apakah ada old data user_id
+            if (hiddenId.val()) {
+                let oldNameVal = hiddenName.val();
+                let oldTypeVal = hiddenType.val();
+                let oldPayitemVal = payitemSelect.data('old'); // Dari atribut data-old
+
+                // Tampilkan UI Nasabah Terpilih
+                displayName.text(oldNameVal);
+                displayType.text(oldTypeVal.toUpperCase());
+                inputSearch.hide();
+                displayBox.removeClass('d-none');
+
+                // Jalankan logika dropdown
+                populateDropdown(oldTypeVal, oldPayitemVal);
+            }
+
+            // ==========================================
+            // LOGIKA PENCARIAN USER
+            // ==========================================
             function searchUser(term) {
                 if(term.length < 2) { resultsBox.hide(); return; }
                 resultsBox.html('<div class="p-2 text-center">Loading...</div>').show();
@@ -140,7 +206,6 @@
                 });
             }
 
-            // Event Ketik
             let timeout;
             inputSearch.on('keyup', function() {
                 clearTimeout(timeout);
@@ -148,70 +213,42 @@
                 timeout = setTimeout(() => searchUser(val), 300);
             });
 
-            // --- EVENT KLIK USER (LOGIKA FILTER DROPDOWN) ---
+            // Klik User Hasil Pencarian
             $(document).on('click', '.user-item', function() {
                 let id = $(this).data('id');
                 let name = $(this).data('name');
                 let type = $(this).data('type'); // student / teacher
                 
-                // 1. Set Tampilan User Terpilih
+                // Isi ke Input Hidden
                 hiddenId.val(id);
+                hiddenName.val(name); // Simpan nama ke hidden input juga
+                hiddenType.val(type); // Simpan tipe ke hidden input juga
+
+                // Update Tampilan
                 displayName.text(name);
                 displayType.text(type.toUpperCase());
-                
                 inputSearch.hide();
                 resultsBox.hide();
                 displayBox.removeClass('d-none');
 
-                // 2. Buka & Kosongkan Dropdown
-                payitemSelect.prop('disabled', false);
-                payitemSelect.empty();
-
-                // 3. Filter Payitem Sesuai Tipe User
-                let found = false;
-                
-                allPayitems.forEach(function(item) {
-                    let title = item.title.toUpperCase();
-                    let shouldAdd = false;
-
-                    if (type === 'teacher') {
-                        // Jika GURU -> Hanya ambil yang judulnya mengandung "GURU"
-                        if (title.includes('GURU')) {
-                            shouldAdd = true;
-                        }
-                    } else {
-                        // Jika SISWA -> Ambil "TABUNGAN" TAPI JANGAN yang ada kata "GURU"
-                        if (title.includes('TABUNGAN') && !title.includes('GURU')) {
-                            shouldAdd = true;
-                        }
-                    }
-
-                    if (shouldAdd) {
-                        // Tambahkan Option ke Select
-                        payitemSelect.append(new Option(item.title, item.id));
-                        found = true;
-                    }
-                });
-
-                // Jika tidak ada yang cocok (Jaga-jaga)
-                if (!found) {
-                    payitemSelect.append(new Option("-- Tidak ada jenis tabungan yang sesuai --", ""));
-                }
+                // Reset dan Isi Dropdown
+                populateDropdown(type);
             });
 
-            // Event Reset / Ganti User
+            // Tombol Ganti User
             btnClear.click(function() {
                 hiddenId.val('');
+                hiddenName.val('');
+                hiddenType.val('');
+                
                 inputSearch.val('').show().focus();
                 displayBox.addClass('d-none');
                 
-                // Reset Dropdown ke kondisi awal
                 payitemSelect.empty();
                 payitemSelect.append(new Option("-- Pilih Nasabah Terlebih Dahulu --", ""));
                 payitemSelect.prop('disabled', true);
             });
 
-            // Klik luar tutup hasil
             $(document).click(function(e) {
                 if (!$(e.target).closest('#user_search, #user-search-results').length) {
                     resultsBox.hide();
