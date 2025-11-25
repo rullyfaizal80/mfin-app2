@@ -21,6 +21,19 @@
         </div>
     </div>
 
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     {{-- Info Saldo Header (Penting: Ini Saldo Total Semua Waktu) --}}
     <div class="alert alert-info d-flex justify-content-between align-items-center py-2">
         <span>Total Saldo Saat Ini:</span>
@@ -58,6 +71,7 @@
                             <th>Uraian / Catatan</th>
                             <th class="text-end text-success">Masuk (Kredit)</th>
                             <th class="text-end text-danger">Keluar (Debit)</th>
+                            <th class="text-center" width="50">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,6 +85,15 @@
                                 </td>
                                 <td class="text-end">
                                     @if($row->debit > 0) {{ number_format($row->debit, 0, ',', '.') }} @else - @endif
+                                </td>
+                                <td class="text-center">
+                                    <form action="{{ route('savings.destroy', $row->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus transaksi ini? Saldo akan dikembalikan.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-xs btn-outline-danger py-0" title="Hapus">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         @empty

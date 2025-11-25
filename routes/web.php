@@ -145,11 +145,26 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/sclass/class_user/{class_list_id}/export', [ClassUserController::class, 'exportExcel'])->name('class_user.export');
     Route::get('/sclass/ajax_search_students', [ClassUserController::class, 'ajaxSearchStudents'])->name('class_user.ajax_search');
 
-    Route::prefix('fincom')->group(function () {
-        // Halaman Utama (Daftar Nasabah)
+   Route::prefix('fincom')->group(function () {
+        // 1. Halaman Utama (Daftar Transaksi)
         Route::get('/savings', [SavingsController::class, 'index'])->name('savings.index');
-        // Halaman Rincian (Detail Transaksi)
+        
+        // 2. Halaman Form (Sesuai URL Legacy) - WAJIB DI ATAS '{user_id}'
+        // URL: .../fincom/savings/create_new -> Setoran
+        Route::get('/savings/create_new', [SavingsController::class, 'createDeposit'])->name('savings.create_new');
+        
+        // URL: .../fincom/savings/create -> Penarikan
+        Route::get('/savings/create', [SavingsController::class, 'createWithdrawal'])->name('savings.create');
+        
+        // 3. Proses Simpan & AJAX
+        Route::post('/savings', [SavingsController::class, 'store'])->name('savings.store');
+        Route::get('/savings/ajax-user', [SavingsController::class, 'ajaxSearchUser'])->name('savings.ajax_user');
+        
+        Route::delete('/savings/delete/{id}', [SavingsController::class, 'destroy'])->name('savings.destroy');
+        
+        // 4. Halaman Rincian (Parameter {user_id}) - WAJIB PALING BAWAH
         Route::get('/savings/{user_id}', [SavingsController::class, 'show'])->name('savings.show');
     });
+   
     
 });

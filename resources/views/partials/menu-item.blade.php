@@ -87,6 +87,21 @@
     <a class="nav-link collapsed" href="{{ route('class_list.index') }}">
         <i class="bi {{ $menu->icon ?? 'bi-file-earmark' }}"></i>
         <span>{{ $menu->title }}</span>
+    </a>    
+@elseif ($menu->link === 'fincom/savings')
+    <a class="nav-link collapsed" href="{{ route('savings.index') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-cash-coin' }}"></i>
+        <span>{{ $menu->title }}</span>
+    </a>
+@elseif ($menu->link === 'fincom/savings/create_new')
+    <a class="nav-link collapsed" href="{{ route('savings.create_new') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-arrow-down-circle' }}"></i>
+        <span>{{ $menu->title }}</span>
+    </a>
+@elseif ($menu->link === 'fincom/savings/create')
+    <a class="nav-link collapsed" href="{{ route('savings.create') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-arrow-up-circle' }}"></i>
+        <span>{{ $menu->title }}</span>
     </a>
 @else
             {{-- Link lain tetap seperti semula --}}

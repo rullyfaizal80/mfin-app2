@@ -10,10 +10,16 @@
     </div>
 
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Daftar Transaksi</h1>
+        <h1 class="h2">Tabungan Siswa & Guru</h1>
         <div class="btn-toolbar mb-2 mb-md-0">
-            <a href="#" class="btn btn-sm btn-success me-2" onclick="alert('Fitur ini di tahap selanjutnya')">
-                <i class="bi bi-plus-circle"></i> Setoran Baru
+            {{-- Tombol Setoran --}}
+            <a href="{{ route('savings.create_new') }}" class="btn btn-sm btn-success me-2">
+                <i class="bi bi-arrow-down-circle"></i> Setoran
+            </a>
+            
+            {{-- Tombol Penarikan --}}
+            <a href="{{ route('savings.create') }}" class="btn btn-sm btn-danger">
+                <i class="bi bi-arrow-up-circle"></i> Penarikan
             </a>
         </div>
     </div>
