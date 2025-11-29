@@ -309,8 +309,8 @@ class SavingsController extends Controller
                     ]);
                 }
             });
-
-            return redirect()->route('savings.index')->with('success', 'Transaksi berhasil disimpan.');
+            
+            return redirect()->route('savings.show', $request->user_id)->with('success', 'Transaksi berhasil disimpan.');
 
         } catch (\Exception $e) {
             // Tampilkan pesan error detail jika gagal
