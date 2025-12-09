@@ -391,4 +391,84 @@ class SavingsController extends Controller
         }
     }
 
+    /**
+     * CETAK BUKU TABUNGAN (RECAP USER) - FIX PRIORITAS KELAS REGULER
+     */
+    public function printRecap(Request $request, $user_id)
+    {
+        $awal  = $request->query('ffrom') ?? '1970-01-01';
+        $akhir = $request->query('fto') ?? date('Y-m-d');
+
+        // 1. Ambil Data User Utama
+        $user = DB::table('sis_user')->where('id', $user_id)->first();
+        
+        if (!$user) return redirect()->back()->with('error', 'User tidak ditemukan');
+
+        $identity = [];
+        $identity['fullname'] = $user->fullname;
+
+        // 2. Logika Identitas
+        if ($user->is_student == 'yes') {
+            
+            // A. Ambil NIS
+            $studentInfo = DB::table('sis_student')->where('id', $user->id)->first();
+            $nis = $studentInfo->nis ?? '-';
+
+            // B. Ambil Kelas (PRIORITAS: REGULER > LAINNYA)
+            $lastClass = DB::table('sis_class_user as cu')
+                ->join('sis_class_list as cl', 'cu.class_list_id', '=', 'cl.id')
+                ->leftJoin('sis_ctype as ct', 'cl.ctype_id', '=', 'ct.id') // Join ke Tipe Kelas
+                ->where('cu.user_id', $user_id)
+                // [LOGIKA BARU] Urutkan Prioritas:
+                // 1. Jika tipe REGULER, beri nilai 1 (Paling Atas)
+                // 2. Jika bukan REGULER, beri nilai 2 (Bawah)
+                ->orderByRaw("CASE WHEN ct.title = 'REGULER' THEN 1 ELSE 2 END ASC")
+                // 3. Jika sama-sama Reguler, ambil yang paling baru (tahun ajarannya)
+                ->orderBy('cu.join_start', 'desc')
+                ->select('cl.title as class_name', 'ct.title as type_name')
+                ->first();
+
+            $className = $lastClass->class_name ?? '-';
+
+            // Format: Kelas: X / NIS: 123
+            $identity['other'] = sprintf("Kelas: %s / NIS: %s", $className, $nis);
+
+        } else {
+            // Jika Guru
+            $teacherData = DB::table('sis_teacher')->where('iduser', $user_id)->first();
+            $nik = $teacherData->nik ?? '-';
+            
+            // Format: NIK: 123
+            $identity['other'] = sprintf("NIK: %s", $nik);
+        }
+
+        // 3. Hitung Saldo Pindahan
+        $saldoPindahan = DB::table('sis_receivable as r')
+            ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->where('r.user_id', $user_id)
+            ->where('p.payitem_type', 'saving')
+            ->where('r.tdate', '<', $awal)
+            ->sum(DB::raw('credit - debit'));
+
+        // 4. Ambil Daftar Transaksi
+        $transactions = DB::table('sis_receivable as r')
+            ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->where('r.user_id', $user_id)
+            ->where('p.payitem_type', 'saving')
+            ->whereDate('r.tdate', '>=', $awal)
+            ->whereDate('r.tdate', '<=', $akhir)
+            ->select('r.*')
+            ->orderBy('r.tdate', 'asc')
+            ->orderBy('r.id', 'asc')
+            ->get();
+
+        return view('admin.savings.print', [
+            'identity'       => $identity,
+            'transactions'   => $transactions,
+            'saldo_pindahan' => $saldoPindahan,
+            'ffrom'          => $awal,
+            'fto'            => $akhir
+        ]);
+    }
+
 }

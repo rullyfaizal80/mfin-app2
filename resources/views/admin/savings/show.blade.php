@@ -42,18 +42,23 @@
 
     {{-- Filter Tanggal --}}
     <div class="card mb-3">
-        <div class="card-body py-2">
+        <div class="card-body py-2">            
             <form action="{{ route('savings.show', $user->id) }}" method="GET" class="row g-2 align-items-end" id="filter-form">
                 <div class="col-auto">
                     <label class="form-label small mb-0">Dari</label>
-                    <input type="date" name="ffrom" class="form-control form-control-sm" value="{{ $ffrom }}">
+                    <input type="date" name="ffrom" id="input_ffrom" class="form-control form-control-sm" value="{{ $ffrom }}">
                 </div>
                 <div class="col-auto">
                     <label class="form-label small mb-0">Sampai</label>
-                    <input type="date" name="fto" class="form-control form-control-sm" value="{{ $fto }}">
+                    <input type="date" name="fto" id="input_fto" class="form-control form-control-sm" value="{{ $fto }}">
                 </div>
                 <div class="col-auto">
                     <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+                    
+                    {{-- TOMBOL CETAK (Menggunakan Javascript untuk ambil tanggal) --}}
+                    <a href="#" onclick="printRecap()" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-printer"></i> Transaksi
+                    </a>
                 </div>
             </form>
         </div>
@@ -145,5 +150,15 @@
                 if(loader) loader.style.display = 'none';
             }
         });
+
+        // Fungsi Cetak dengan Filter Tanggal
+        function printRecap() {
+            let ffrom = document.getElementById('input_ffrom').value;
+            let fto = document.getElementById('input_fto').value;
+            
+            // Redirect ke halaman cetak dengan parameter tanggal
+            let url = "{{ route('savings.print', $user->id) }}" + "?ffrom=" + ffrom + "&fto=" + fto;
+            window.open(url, '_blank'); // Buka di tab baru
+        }
     </script>
 @endpush

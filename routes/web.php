@@ -162,6 +162,7 @@ Route::middleware(['custom.auth'])->group(function () {
         
         Route::delete('/savings/delete/{id}', [SavingsController::class, 'destroy'])->name('savings.destroy');
         
+        Route::get('/savings/print/{user_id}', [SavingsController::class, 'printRecap'])->name('savings.print');
         // 4. Halaman Rincian (Parameter {user_id}) - WAJIB PALING BAWAH
         Route::get('/savings/{user_id}', [SavingsController::class, 'show'])->name('savings.show');
     });
