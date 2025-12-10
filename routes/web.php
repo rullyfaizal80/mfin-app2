@@ -172,6 +172,14 @@ Route::middleware(['custom.auth'])->group(function () {
         // Laporan Daftar Kelas
         Route::get('/class_list', [App\Http\Controllers\Admin\ReportClassListController::class, 'index'])->name('reports.class_list.index');
         Route::get('/class_list/print', [App\Http\Controllers\Admin\ReportClassListController::class, 'print'])->name('reports.class_list.print');
+        
+        Route::get('/class_user/{class_list_id}', [App\Http\Controllers\Admin\ReportClassUserController::class, 'index'])->name('reports.class_user.index');
+        
+        // [UBAH JADI GET] Agar parameter filter dari URL bisa langsung dibaca
+        Route::get('/class_user/print/{class_list_id}', [App\Http\Controllers\Admin\ReportClassUserController::class, 'print'])->name('reports.class_user.print');
+        
+        Route::get('/class_user/student_print/{student_id}', [App\Http\Controllers\Admin\ReportClassUserController::class, 'printStudent'])->name('reports.class_user.student_print');
+       
     });
    
     

@@ -113,7 +113,7 @@
                                 <td>{{ $row->school_name }}</td>
                                 <td class="text-center">
                                     {{-- Link ke Daftar Siswa (Placeholder link) --}}
-                                    <a href="#" class="btn btn-xs btn-info text-white" title="Lihat Siswa">
+                                    <a href="{{ route('reports.class_user.index', $row->id) }}" class="btn btn-xs btn-info text-white" title="Lihat Siswa">
                                         <i class="bi bi-people"></i> Siswa
                                     </a>
                                 </td>
