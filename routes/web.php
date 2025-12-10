@@ -166,6 +166,13 @@ Route::middleware(['custom.auth'])->group(function () {
         // 4. Halaman Rincian (Parameter {user_id}) - WAJIB PALING BAWAH
         Route::get('/savings/{user_id}', [SavingsController::class, 'show'])->name('savings.show');
     });
+
+    // Group Reports
+    Route::prefix('reports')->group(function () {
+        // Laporan Daftar Kelas
+        Route::get('/class_list', [App\Http\Controllers\Admin\ReportClassListController::class, 'index'])->name('reports.class_list.index');
+        Route::get('/class_list/print', [App\Http\Controllers\Admin\ReportClassListController::class, 'print'])->name('reports.class_list.print');
+    });
    
     
 });

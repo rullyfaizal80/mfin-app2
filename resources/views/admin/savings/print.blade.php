@@ -232,7 +232,7 @@
         </table>
 
         <div style="margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 5px; font-size: 9px; color: #999; text-align: center;">
-            Dokumen ini dicetak secara otomatis oleh sistem komputer dan sah tanpa tanda tangan basah.
+            MIMHa Finance - {{ date('Y') }}
         </div>
 
     </div>

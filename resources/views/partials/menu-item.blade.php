@@ -103,6 +103,11 @@
         <i class="bi {{ $menu->icon ?? 'bi-arrow-up-circle' }}"></i>
         <span>{{ $menu->title }}</span>
     </a>
+    @elseif ($menu->link === 'reports/rep_class_list')
+    <a class="nav-link collapsed" href="{{ route('reports.class_list.index') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-journal-text' }}"></i> {{-- Icon Jurnal/Laporan --}}
+        <span>{{ $menu->title }}</span>
+    </a>
 @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">
