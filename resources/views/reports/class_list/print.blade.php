@@ -87,8 +87,9 @@
             <img src="{{ asset('images/logo.jpg') }}" alt="Logo" class="header-logo" onerror="this.style.display='none'">
             <h2>LAPORAN DATA KELAS</h2>
             <div style="font-size: 10px; color: #777; margin-top: 5px;">
-                Dicetak oleh: {{ session('fullname', 'Admin') }} | Tanggal: {{ date('d-M-Y H:i') }}
-            </div>
+    Dicetak oleh: {{ session('fullname', 'Admin') }} | 
+    Tanggal: {{ \Carbon\Carbon::now('Asia/Jakarta')->translatedFormat('d F Y, H:i') }} WIB
+</div>
         </div>
 
         <div class="filter-box">

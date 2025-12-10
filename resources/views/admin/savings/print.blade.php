@@ -143,7 +143,10 @@
         <div class="header-container">
             <img src="{{ asset('images/logo.jpg') }}" alt="Logo" class="header-logo" onerror="this.style.display='none'">
             <h3>TRANSAKSI TABUNGAN</h3>
-            <div class="header-meta">Dicetak: {{ \Carbon\Carbon::now('Asia/Jakarta')->translatedFormat('d F Y, H:i') }} WIB</div>
+            <div style="font-size: 10px; color: #777; margin-top: 5px;">
+    Dicetak oleh: {{ session('fullname', 'Admin') }} | 
+    Tanggal: {{ \Carbon\Carbon::now('Asia/Jakarta')->translatedFormat('d F Y, H:i') }} WIB
+</div>
         </div>
 
         <table class="info-table">
