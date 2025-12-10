@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\CschoolController;
 use App\Http\Controllers\Admin\ClassListController;
 use App\Http\Controllers\Admin\ClassUserController;
 use App\Http\Controllers\Admin\SavingsController;
+use App\Http\Controllers\Admin\SchoolReportController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -181,6 +182,14 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::get('/class_user/student_print/{student_id}', [App\Http\Controllers\Admin\ReportClassUserController::class, 'printStudent'])->name('reports.class_user.student_print');
        
     });
-   
+
+    Route::prefix('school')->group(function () {
+        // 1. Halaman Utama (Filter & Tabel)
+        Route::get('/report', [SchoolReportController::class, 'index'])->name('school.report.index');    
+        // 2. Proses Cetak PDF (Menggunakan Method yang sama dengan Index untuk menangkap filter)
+        Route::get('/report/print', [SchoolReportController::class, 'print'])->name('school.report.print');    
+        // 3. Detail Biodata Siswa
+        Route::get('/report/detail/{user_id}', [SchoolReportController::class, 'detail'])->name('school.report.detail');
+    });   
     
 });
