@@ -124,7 +124,7 @@
                                 </td>
                                 <td class="text-center">
                                     <a href="{{ route('school.report.detail', $row->user_id) }}" target="_blank" class="btn btn-sm btn-info text-white" title="Lihat Detail">
-                                        <i class="bi bi-file-earmark-person"></i>
+                                        <i class="bi bi-file-earmark-person"></i>Detail
                                     </a>
                                 </td>
                             </tr>
