@@ -152,10 +152,10 @@
             <thead>
                 <tr>
                     <th width="5%">No</th>
-                    <th>Tahun Ajaran</th>
-                    <th>Kelas</th>
+                    <th width="15%">Tahun Ajaran</th>
+                    <th width="30%">Kelas</th>
                     <th>Jurusan / Subjek</th>
-                    <th>Status</th>
+                    {{-- KOLOM STATUS DIHAPUS --}}
                 </tr>
             </thead>
             <tbody>
@@ -165,17 +165,11 @@
                         <td class="text-center">{{ $row->year }}</td>
                         <td class="text-center" style="font-weight: bold;">{{ $row->class_name }}</td>
                         <td class="text-center">{{ $row->subject }}</td>
-                        <td class="text-center">
-                            @if($row->is_active == 'yes')
-                                <span style="font-weight: bold; color: green;">Aktif</span>
-                            @else
-                                <span style="color: #777;">Selesai</span>
-                            @endif
-                        </td>
+                        {{-- KOLOM STATUS DIHAPUS --}}
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="text-center" style="padding: 10px; color: #777;">Belum ada riwayat kelas.</td>
+                        <td colspan="4" class="text-center" style="padding: 10px; color: #777;">Belum ada riwayat kelas.</td>
                     </tr>
                 @endforelse
             </tbody>

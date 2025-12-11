@@ -18,6 +18,8 @@ use App\Http\Controllers\Admin\ClassListController;
 use App\Http\Controllers\Admin\ClassUserController;
 use App\Http\Controllers\Admin\SavingsController;
 use App\Http\Controllers\Admin\SchoolReportController;
+use App\Http\Controllers\Admin\ReportStudentController;
+
 
 /*
  * |--------------------------------------------------------------------------
@@ -191,5 +193,10 @@ Route::middleware(['custom.auth'])->group(function () {
         // 3. Detail Biodata Siswa
         Route::get('/report/detail/{user_id}', [SchoolReportController::class, 'detail'])->name('school.report.detail');
     });   
+
+    Route::prefix('school/reportstudent')->name('school.reportstudent.')->group(function () {
+    Route::get('/', [ReportStudentController::class, 'index'])->name('index');
+    Route::get('/print', [ReportStudentController::class, 'print'])->name('print');
+    });
     
 });
