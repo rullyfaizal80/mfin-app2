@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\SavingsController;
 use App\Http\Controllers\Admin\SchoolReportController;
 use App\Http\Controllers\Admin\ReportStudentController;
 use App\Http\Controllers\Admin\ReportTeacherController;
+use App\Http\Controllers\Fincom\PaymentController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -202,6 +203,12 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::prefix('reports/rep_teacher')->name('reports.rep_teacher.')->group(function () {
         Route::get('/', [ReportTeacherController::class, 'index'])->name('index');
         Route::get('/detail/{id}', [ReportTeacherController::class, 'detail'])->name('detail');
+    });
+
+    Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
+        Route::get('/', [PaymentController::class, 'index'])->name('index');
+        // Route untuk AJAX pencarian siswa
+        Route::get('/ajax-student', [PaymentController::class, 'ajaxStudent'])->name('ajax_student');
     });
     
 });

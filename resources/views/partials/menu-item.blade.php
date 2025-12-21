@@ -108,6 +108,13 @@
         <i class="bi {{ $menu->icon ?? 'bi-journal-text' }}"></i> {{-- Icon Jurnal/Laporan --}}
         <span>{{ $menu->title }}</span>
     </a>
+    @elseif ($menu->link === 'fincom/payment')
+    <a class="nav-link collapsed" href="{{ route('fincom.payment.index') }}">
+        {{-- Icon Dompet/Uang --}}
+        <i class="bi {{ $menu->icon ?? 'bi-wallet2' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>
+    
 @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">
