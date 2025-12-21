@@ -115,37 +115,56 @@
                         <th class="text-center" width="80">Cetak</th>
                     </tr>
                 </thead>
-                <tbody>
-                    @forelse($payments as $row)
-                        <tr>
-                            <td class="text-center">{{ date('d/m/Y', strtotime($row->tdate)) }}</td>
-                            <td>{{ $row->ref_no }}</td>
-                            <td class="fw-bold">{{ $row->student_name }}</td>
-                            <td>
-                                {{ $row->payfor }}
-                                @if($row->note)
-                                    <br><small class="text-muted text-italic">{{ $row->note }}</small>
-                                @endif
-                            </td>
-                            <td class="text-end fw-bold">{{ number_format($row->credit, 0, ',', '.') }}</td>
-                            
-                            {{-- Placeholder Tombol Opsi (Edit/Hapus) --}}
-                            <td class="text-center">
-                                <a href="#" class="btn btn-xs btn-warning" title="Edit"><i class="bi bi-pencil"></i></a>
-                            </td>
-                            {{-- Placeholder Tombol Cetak --}}
-                            <td class="text-center">
-                                <a href="#" class="btn btn-xs btn-secondary" title="Cetak"><i class="bi bi-printer"></i></a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="text-center py-5 text-muted">
-                                Tidak ada data pembayaran ditemukan.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
+               <tbody>
+    @forelse($payments as $row)
+        <tr>
+            {{-- TANGGAL --}}
+            <td class="text-center">{{ date('d/m/Y', strtotime($row->tdate)) }}</td>
+            
+            {{-- REFERENSI & KASIR --}}
+            <td>
+                <span class="fw-bold d-block">{{ $row->ref_no }}</span>
+                {{-- Tampilkan Nama Kasir --}}
+                <small class="text-muted" style="font-size: 0.75rem;">
+                    <i class="bi bi-person"></i> {{ $row->cashier_name ?? 'Sistem' }}
+                </small>
+            </td>
+            
+            {{-- NAMA SISWA --}}
+            <td>{{ $row->student_name }}</td>
+            
+            {{-- KETERANGAN (Note dari Header Transaksi) --}}
+            <td>
+                {{ $row->note }}
+            </td>
+            
+            {{-- TOTAL NOMINAL (Dari tr.nominal / Total Transaksi) --}}
+            <td class="text-end fw-bold">{{ number_format($row->credit, 0, ',', '.') }}</td>
+            
+            {{-- TOMBOL EDIT --}}
+            <td class="text-center">
+                {{-- Menggunakan item_id (ID Transaksi) --}}
+                <a href="{{ url('payment/edit/'.$row->item_id) }}" class="btn btn-xs btn-warning" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </a>
+            </td>
+
+            {{-- TOMBOL CETAK --}}
+            <td class="text-center">
+                {{-- Menggunakan item_id (ID Transaksi) --}}
+                <a href="{{ url('payment/print/'.$row->item_id) }}" target="_blank" class="btn btn-xs btn-secondary" title="Cetak">
+                    <i class="bi bi-printer"></i>
+                </a>
+            </td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+                Tidak ada data pembayaran ditemukan.
+            </td>
+        </tr>
+    @endforelse
+</tbody>
             </table>
         </div>
         

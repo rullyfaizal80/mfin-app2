@@ -13,37 +13,47 @@ class PaymentController extends Controller
         // Filter Default
         $month = $request->input('month', date('m'));
         $year  = $request->input('year', date('Y'));
-        $userId = $request->input('user_id'); // Hidden ID dari hasil pencarian
-        $fnis   = $request->input('fnis');    // Text yang diketik (untuk display)
+        $userId = $request->input('user_id'); 
+        $fnis   = $request->input('fnis');    
 
-        // Query Dasar Pembayaran (Join Table)
-        $query = DB::table('sis_receivable as r')
-            ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
-            ->join('sis_user as u', 'r.user_id', '=', 'u.id') // Join User untuk ambil Nama
+        $query = DB::table('sis_treceivable as tr')
+            // Join ke detail & user
+            ->join('sis_receivable as r', 'tr.id', '=', 'r.treceivable_id') 
+            ->join('sis_user as u', 'r.user_id', '=', 'u.id') 
+            ->leftJoin('sis_user as cashier', 'tr.mdate_by', '=', 'cashier.id')
+            
             ->select(
+                'tr.id as item_id',
                 'tr.tdate',
                 'tr.ref_no',
-                'u.fullname as student_name', // Nama Siswa
-                'r.payfor',
-                'r.credit',
-                'r.note',
-                'r.id as item_id',
-                'tr.id as trans_id'
+                'u.fullname as student_name',
+                'cashier.fullname as cashier_name',
+                'tr.note',
+                'tr.tvalue as credit'  // [PERBAIKAN] Ganti tr.nominal menjadi tr.tvalue
             )
-            ->where('r.credit', '>', 0) // Hanya pembayaran masuk
-            ->orderBy('tr.tdate', 'desc');
+            ->where('tr.ref_no', 'like', 'PYM%')
+            
+            // [PERBAIKAN] Update groupBy sesuai kolom yang di-select
+            ->groupBy(
+                'tr.id', 
+                'tr.tdate', 
+                'tr.ref_no', 
+                'u.fullname', 
+                'cashier.fullname', 
+                'tr.note', 
+                'tr.tvalue'
+            )
+            
+            ->orderBy('tr.tdate', 'desc')
+            ->orderBy('tr.id', 'desc');
 
-        // Filter User ID (Jika ada yang dipilih)
+        // Filter Tambahan
         if ($userId) {
             $query->where('r.user_id', $userId);
         }
-
-        // Filter Bulan (Jika dipilih)
         if ($month) {
             $query->whereMonth('tr.tdate', $month);
         }
-
-        // Filter Tahun
         if ($year) {
             $query->whereYear('tr.tdate', $year);
         }
