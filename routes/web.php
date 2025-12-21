@@ -149,7 +149,7 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::get('/sclass/class_user/{class_list_id}/export', [ClassUserController::class, 'exportExcel'])->name('class_user.export');
     Route::get('/sclass/ajax_search_students', [ClassUserController::class, 'ajaxSearchStudents'])->name('class_user.ajax_search');
 
-   Route::prefix('fincom')->group(function () {
+    Route::prefix('fincom')->group(function () {
         // 1. Halaman Utama (Daftar Transaksi)
         Route::get('/savings', [SavingsController::class, 'index'])->name('savings.index');
         
