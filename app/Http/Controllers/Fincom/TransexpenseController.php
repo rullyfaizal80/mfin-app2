@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Http\Controllers\Fincom;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class TransexpenseController extends Controller
+{
+    /**
+     * HALAMAN UTAMA - DAFTAR PENGELUARAN
+     */
+    public function index(Request $request)
+    {
+        // 1. Ambil data Kasir / User untuk filter dropdown
+        // (Meniru query di CI2: INNER JOIN sis_usergroup dan sis_group)
+        $cashiers = DB::table('sis_user')
+            ->join('sis_usergroup', 'sis_user.id', '=', 'sis_usergroup.user_id')
+            ->join('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
+            ->select('sis_user.id', 'sis_user.fullname', 'sis_group.group_name')
+            // Di CI2 ada GROUP BY sis_user.id untuk menghindari duplikat
+            ->groupBy('sis_user.id', 'sis_user.fullname', 'sis_group.group_name')
+            ->orderBy('sis_user.fullname', 'asc')
+            ->get();
+
+        // 2. Query Utama Data Pengeluaran (Menggantikan ax_get_expense)
+        $query = DB::table('sis_expense as e')
+            ->leftJoin('sis_user as u', 'e.user_id', '=', 'u.id')          // User yang mengajukan
+            ->leftJoin('sis_user as cas', 'e.mdate_by', '=', 'cas.id')     // Kasir yang memproses
+            ->select(
+                'e.id', 'e.tdate', 'e.ref_no', 'e.payto', 'e.note', 'e.credit',
+                'u.fullname as user_name',
+                'cas.fullname as cashier_name'
+            )
+            ->where('e.parent_id', 0)          // Hanya ambil header transaksi
+            ->where('e.ref_no', 'like', '%EXP%'); // Hanya tipe Pengeluaran
+
+        // 3. Logika Filter Pencarian
+        
+        // Filter Pencarian Teks (No Referensi)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('e.ref_no', 'like', "%{$search}%")
+                  ->orWhere('e.note', 'like', "%{$search}%")
+                  ->orWhere('e.payto', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter Tanggal Awal
+        if ($request->filled('awal')) {
+            $query->whereDate('e.tdate', '>=', $request->awal);
+        }
+
+        // Filter Tanggal Akhir
+        if ($request->filled('akhir')) {
+            $query->whereDate('e.tdate', '<=', $request->akhir);
+        }
+
+        // Filter Kasir / User
+        if ($request->filled('cas_id') && $request->cas_id != '0') {
+            $query->where('e.user_id', $request->cas_id);
+        }
+
+        // 4. Eksekusi Query dengan Pagination
+        $perPage = $request->input('per_page', 10);
+        $expenses = $query->orderBy('e.tdate', 'desc')
+                          ->orderBy('e.id', 'desc')
+                          ->paginate($perPage)
+                          ->withQueryString();
+
+        return view('fincom.transexpense.index', [
+            'cashiers' => $cashiers,
+            'expenses' => $expenses,
+            'req' => $request
+        ]);
+    }
+}
