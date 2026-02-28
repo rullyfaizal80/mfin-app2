@@ -114,6 +114,13 @@
         <i class="bi {{ $menu->icon ?? 'bi-wallet2' }}"></i> 
         <span>{{ $menu->title }}</span>
     </a>
+    {{-- TAMBAHKAN KODE INI UNTUK DAFTAR PENGELUARAN --}}
+    @elseif ($menu->link === 'fincom/transexpense')
+    <a class="nav-link collapsed" href="{{ route('fincom.transexpense.index') }}">
+        {{-- Icon Pengeluaran/Kasir --}}
+        <i class="bi {{ $menu->icon ?? 'bi-cash-coin' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>
     
 @else
             {{-- Link lain tetap seperti semula --}}
@@ -123,4 +130,5 @@
             </a>
         @endif
     </li>
+
 @endif
