@@ -21,7 +21,6 @@ use App\Http\Controllers\Admin\SchoolReportController;
 use App\Http\Controllers\Admin\ReportStudentController;
 use App\Http\Controllers\Admin\ReportTeacherController;
 use App\Http\Controllers\Fincom\PaymentController;
-use App\Http\Controllers\Fincom\TransexpenseController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -211,10 +210,5 @@ Route::middleware(['custom.auth'])->group(function () {
         // Route untuk AJAX pencarian siswa
         Route::get('/ajax-student', [PaymentController::class, 'ajaxStudent'])->name('ajax_student');
     });
-
-    Route::prefix('fincom/transexpense')->name('fincom.transexpense.')->group(function () {
-    Route::get('/', [TransexpenseController::class, 'index'])->name('index');
-    // Nanti kita akan tambahkan route create, edit, dll di sini
-});
-    
+       
 });
