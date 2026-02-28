@@ -4,9 +4,9 @@
 
 @section('content')
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h3">Daftar Pengeluaran (Expense)</h1>
+        <h1 class="h3">Daftar Pengeluaran</h1>       
     </div>
-
+    
     {{-- BARIS FILTER & AKSI (Meniru Layout Tabel Header CI2 Lama) --}}
     <form action="{{ route('fincom.transexpense.index') }}" method="GET" class="mb-3">
         <div class="card border-start border-4 border-primary shadow-sm">
@@ -25,16 +25,16 @@
                     <div class="col-md-4">
                         <label class="form-label fw-bold mb-1">Tanggal</label>
                         <div class="input-group input-group-sm">
-                            <input type="date" name="awal" class="form-control" value="{{ $req->awal }}" placeholder="Awal">
+                            <input type="date" name="awal" id="awal" class="form-control" value="{{ $req->awal }}" placeholder="Awal">
                             <span class="input-group-text bg-light">s.d</span>
-                            <input type="date" name="akhir" class="form-control" value="{{ $req->akhir }}" placeholder="Akhir">
+                            <input type="date" name="akhir" id="akhir" class="form-control" value="{{ $req->akhir }}" placeholder="Akhir">
                         </div>
                     </div>
 
                     {{-- 3. Filter Kasir --}}
                     <div class="col-md-3">
                         <label class="form-label fw-bold mb-1">Kasir</label>
-                        <select name="cas_id" class="form-select form-select-sm">
+                        <select name="cas_id" id="cas_id" class="form-select form-select-sm">
                             <option value="0" {{ $req->cas_id == '0' ? 'selected' : '' }}>-- Semua Kasir --</option>
                             @foreach($cashiers as $cas)
                                 <option value="{{ $cas->id }}" {{ $req->cas_id == $cas->id ? 'selected' : '' }}>
@@ -49,13 +49,9 @@
                         <button type="submit" name="filter_btn" value="1" class="btn btn-primary btn-sm flex-fill">
                             <i class="bi bi-funnel"></i> Filter
                         </button>
-                        
-                        {{-- Tombol Print Laporan --}}
-                        {{-- Catatan: Route print disesuaikan nanti, ini mengambil nilai dari filter saat ini --}}
-                        <a href="{{ url('fincom/transexpense/p_expense/' . ($req->cas_id ?? 0) . '/' . ($req->awal ?? 'all') . '/' . ($req->akhir ?? 'all')) }}" 
-                           target="_blank" class="btn btn-outline-danger btn-sm flex-fill">
+                        <button type="button" class="btn btn-secondary" onclick="cetakLaporan()">
                             <i class="bi bi-printer"></i> Print
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -125,4 +121,46 @@
             </div>
         </div>
     </div>
+
+    <script>
+function cetakLaporan() {
+    // 1. Ambil nilai dari input filter
+    // Sesuaikan ID ini dengan ID input form filter Anda
+    let casId = document.getElementById('cas_id').value;
+    let awal = document.getElementById('awal').value;
+    let akhir = document.getElementById('akhir').value;
+
+    // 2. Validasi: Apakah tanggal sudah diisi?
+    if (!awal || !akhir) {
+        alert('Silakan pilih rentang Tanggal Awal dan Akhir terlebih dahulu sebelum mencetak laporan.');
+        return; // Hentikan proses, tab baru tidak akan dibuka
+    }
+
+    // 3. Validasi: Apakah rentang waktu lebih dari 1 tahun (366 hari)?
+    let startDate = new Date(awal);
+    let endDate = new Date(akhir);
+    
+    // Hitung selisih waktu dalam milidetik, lalu ubah ke hari
+    let diffTime = endDate.getTime() - startDate.getTime();
+    let diffDays = diffTime / (1000 * 3600 * 24);
+
+    // Cek jika tanggal akhir lebih kecil dari tanggal awal (mundur)
+    if (diffDays < 0) {
+        alert('Tanggal Akhir tidak boleh lebih kecil dari Tanggal Awal!');
+        return;
+    }
+
+    // Cek batasan 1 tahun
+    if (diffDays > 366) {
+        alert('Rentang waktu cetak laporan maksimal adalah 1 Tahun (365 Hari). Silakan persempit filter tanggal Anda.');
+        return; // Hentikan proses
+    }
+
+    // 4. Jika semua validasi lolos, buka tab baru untuk Print!
+    let baseUrl = "{{ url('fincom/transexpense/p_expense') }}";
+    let printUrl = `${baseUrl}/${casId}/${awal}/${akhir}`;
+    
+    window.open(printUrl, '_blank');
+}
+</script>
 @endsection

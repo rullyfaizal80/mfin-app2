@@ -105,4 +105,54 @@ class TransexpenseController extends Controller
             'items' => $items
         ]);
     }
+
+    /**
+     * HALAMAN PRINT SEMUA PENGELUARAN (LAPORAN)
+     */
+    public function p_expense($cas_id = '0', $awal = 'all', $akhir = 'all')
+    {
+        // 1. CEK VALIDASI TANGGAL
+        if ($awal === 'all' || $akhir === 'all') {
+            return back()->with('error', 'Silakan pilih rentang Tanggal Awal dan Akhir terlebih dahulu sebelum mencetak laporan.');
+        }
+
+        // 2. CEK BATASAN 1 TAHUN UNTUK MENCEGAH ERROR MEMORI
+        $startDate = \Carbon\Carbon::parse($awal);
+        $endDate = \Carbon\Carbon::parse($akhir);
+        
+        if ($startDate->diffInDays($endDate) > 366) {
+            return back()->with('error', 'Rentang waktu cetak laporan maksimal adalah 1 Tahun. Silakan persempit filter tanggal Anda.');
+        }
+
+        // 3. AMBIL NAMA KASIR (Untuk Header Laporan)
+        $cashierName = 'Semua Kasir';
+        if ($cas_id !== '0') {
+            $kasir = DB::table('sis_user')->where('id', $cas_id)->first();
+            if ($kasir) $cashierName = $kasir->fullname;
+        }
+
+        // 4. QUERY MENGGUNAKAN CURSOR (SANGAT HEMAT MEMORI)
+        $query = DB::table('sis_expense as e')
+            ->leftJoin('sis_user as cas', 'e.mdate_by', '=', 'cas.id')
+            ->select('e.tdate', 'e.ref_no', 'e.payto', 'e.note', 'e.credit', 'cas.fullname as cashier_name')
+            ->where('e.parent_id', 0)
+            ->where('e.ref_no', 'like', '%EXP%')
+            ->whereDate('e.tdate', '>=', $awal)
+            ->whereDate('e.tdate', '<=', $akhir);
+
+        if ($cas_id !== '0') {
+            $query->where('e.user_id', $cas_id);
+        }
+
+        // Menggunakan cursor() sebagai pengganti get() agar RAM tidak penuh
+        $expenses = $query->orderBy('e.tdate', 'asc')->cursor(); 
+
+        return view('fincom.transexpense.p_expense', [
+            'page_title' => 'Laporan Pengeluaran Kasir',
+            'expenses' => $expenses,
+            'awal' => $awal,
+            'akhir' => $akhir,
+            'cashierName' => $cashierName
+        ]);
+    }
 }
