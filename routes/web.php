@@ -214,6 +214,8 @@ Route::middleware(['custom.auth'])->group(function () {
 
     Route::prefix('fincom/transexpense')->name('fincom.transexpense.')->group(function () {
         Route::get('/', [TransexpenseController::class, 'index'])->name('index');
+
+        Route::get('/receipt/{id}', [TransexpenseController::class, 'receipt'])->name('receipt');
         // Nanti kita akan tambahkan route create, edit, dll di sini
     });
     

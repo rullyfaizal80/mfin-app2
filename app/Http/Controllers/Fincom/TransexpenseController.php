@@ -76,4 +76,33 @@ class TransexpenseController extends Controller
             'req' => $request
         ]);
     }
+
+    /**
+     * HALAMAN PRINT KWITANSI (RECEIPT)
+     */
+    public function receipt($id)
+    {
+        // 1. Ambil Data Transaksi Utama (Header)
+        $exp = DB::table('sis_expense as e')
+            ->leftJoin('sis_user as u', 'e.mdate_by', '=', 'u.id') // Mengambil nama kasir yang memproses
+            ->select('e.*', 'u.fullname')
+            ->where('e.id', $id)
+            ->first();
+
+        if (!$exp) abort(404, 'Data transaksi tidak ditemukan.');
+
+        // 2. Ambil Data Detail Item (Rincian Transaksi)
+        // Di aplikasi lama, rincian pengeluaran biasanya disimpan sebagai anak dari ID transaksi (parent_id)
+        $items = DB::table('sis_expense as e')
+            ->leftJoin('sis_payitem as p', 'e.payitem_id', '=', 'p.id')
+            ->select('p.title', 'e.note', 'e.debit')
+            ->where('e.parent_id', $id)
+            ->get();
+
+        return view('fincom.transexpense.receipt', [
+            'page_title' => 'TANDA TERIMA PENGELUARAN',
+            'exp' => $exp,
+            'items' => $items
+        ]);
+    }
 }
