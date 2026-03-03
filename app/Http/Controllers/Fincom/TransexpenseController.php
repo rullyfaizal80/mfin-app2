@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Fincom;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class TransexpenseController extends Controller
 {
@@ -154,5 +155,105 @@ class TransexpenseController extends Controller
             'akhir' => $akhir,
             'cashierName' => $cashierName
         ]);
+    }
+
+    /**
+     * TAMPILAN FORM ENTRY PENGELUARAN
+     */
+    public function create()
+{
+    // 1. Ambil data Kasir (sis_user)
+    $cass = DB::table('sis_user')
+        ->join('sis_usergroup', 'sis_user.id', '=', 'sis_usergroup.user_id')
+        ->join('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
+        ->select('sis_user.id', 'sis_user.fullname')
+        ->where('sis_group.group_name', 'like', '%Cashier%')
+        ->groupBy('sis_user.id', 'sis_user.fullname')
+        ->orderBy('sis_user.fullname', 'asc')
+        ->get();
+
+    // 2. Data Dropdown Tabel
+    $payitems = DB::table('sis_payitem')->where('payitem_type', 'expense')->get();
+    $schools = DB::table('sis_cschool')->get();
+    $grades = DB::table('sis_cgrade')->get();
+
+    // 3. Auto Ref No
+    $today = now()->format('Ymd');
+    $last = DB::table('sis_expense')->where('ref_no', 'like', "EXP-$today%")->orderBy('id', 'desc')->first();
+    $next = $last ? (int)substr($last->ref_no, -3) + 1 : 1;
+    $autoRef = "EXP-$today-" . str_pad($next, 3, '0', STR_PAD_LEFT);
+
+    return view('fincom.transexpense.create', compact('cass', 'payitems', 'schools', 'grades', 'autoRef'));
+}
+
+    /**
+     * PROSES SIMPAN KE DATABASE (sis_expense)
+     */
+    public function store(Request $request)
+    {
+        // Validasi Dasar
+        $request->validate([
+            'tdate' => 'required|date',
+            'payto' => 'required|string|max:255',
+            'items' => 'required|array|min:1',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $userId = Auth::id() ?? 1; // Fallback ke ID 1 jika belum ada session
+            $now = now()->toDateTimeString();
+
+            // 1. Simpan Header (parent_id = 0)
+            // Header biasanya menampung total atau informasi utama transaksi
+            $headerId = DB::table('sis_expense')->insertGetId([
+                'parent_id' => 0,
+                'ref_no'    => $request->ref_no,
+                'tdate'     => $request->tdate,
+                'payto'     => $request->payto,
+                'note'      => $request->header_note ?? '',
+                'debit'     => 0, // Akan diupdate setelah detail terjumlah
+                'credit'    => 0,
+                'user_id'   => $userId,
+                'mdate'     => $now,
+                'mdate_by'  => $userId,
+            ]);
+
+            $totalAmount = 0;
+
+            // 2. Simpan Detail (looping dari input dynamic row)
+            foreach ($request->items as $item) {
+                $amount = (float) str_replace(['.', ','], ['', '.'], $item['amount']);
+                $totalAmount += $amount;
+
+                DB::table('sis_expense')->insert([
+                    'parent_id'  => $headerId,
+                    'ref_no'     => $request->ref_no,
+                    'tdate'      => $request->tdate,
+                    'payto'      => $request->payto,
+                    'payitem_id' => $item['payitem_id'],
+                    'note'       => $item['note'] ?? '',
+                    'debit'      => $amount,
+                    'credit'     => 0,
+                    'school_id'  => $item['school_id'] ?? 0,
+                    'grade_id'   => $item['grade_id'] ?? 0,
+                    'user_id'    => $userId,
+                    'mdate'      => $now,
+                    'mdate_by'   => $userId,
+                ]);
+            }
+
+            // 3. Update Total di Header
+            DB::table('sis_expense')->where('id', $headerId)->update([
+                'debit' => $totalAmount
+            ]);
+
+            DB::commit();
+            return redirect()->route('fincom.transexpense.index')->with('success', 'Data pengeluaran berhasil disimpan.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage())->withInput();
+        }
     }
 }
