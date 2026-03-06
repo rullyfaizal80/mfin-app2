@@ -56,15 +56,18 @@
             </select>
         </div>
 
-        <div class="col-md-4">
-            <label class="small fw-bold text-muted mb-1">Dengan</label>
-            <div class="input-group input-group-sm">
-                <input type="text" name="payto" id="payto" class="form-control border-primary" placeholder="Nama penerima..." required>
-                <button type="button" class="btn btn-secondary px-3" id="btnSearchUser" title="Cari Data">
-                    <i class="bi bi-search"></i>
-                </button>
-            </div>
-        </div>
+        <div class="col-md-4 position-relative">
+    <label class="small fw-bold text-muted mb-1">Dengan</label>
+    <div class="input-group input-group-sm">
+        <input type="text" name="payto" id="payto" class="form-control border-primary" placeholder="Ketik nama lalu cari..." required autocomplete="off">
+        <button type="button" class="btn btn-secondary px-3" id="btnSearchUser" title="Cari Data">
+            <i class="bi bi-search"></i>
+        </button>
+    </div>
+    
+    <ul class="list-group position-absolute w-100 shadow" id="payto-results" style="display:none; z-index: 1050; max-height: 200px; overflow-y: auto; margin-top: 2px;">
+        </ul>
+</div>
 
         <div class="col-md-4">
             <label class="small fw-bold text-muted mb-1">Keterangan</label>
@@ -219,6 +222,84 @@
                 document.getElementById('admin_username').value = "";
                 document.getElementById('admin_password').value = "";
             });
+        });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const paytoInput = document.getElementById('payto');
+        const btnSearchUser = document.getElementById('btnSearchUser');
+        const resultsContainer = document.getElementById('payto-results');
+
+        function performSearch() {
+            const keyword = paytoInput.value.trim();
+            
+            if (keyword.length < 2) {
+                alert("Masukkan minimal 2 huruf nama sebelum menekan tombol cari.");
+                return;
+            }
+
+            // Ubah icon tombol jadi loading
+            const originalIcon = btnSearchUser.innerHTML;
+            btnSearchUser.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            btnSearchUser.disabled = true;
+            
+            // Hit AJAX GET Request
+            fetch(`{{ route('fincom.transexpense.searchPayto') }}?keyword=${encodeURIComponent(keyword)}`, {
+                headers: { "Accept": "application/json" }
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultsContainer.innerHTML = ''; // Kosongkan hasil lama
+                
+                if (data.length > 0) {
+                    data.forEach(user => {
+                        const li = document.createElement('li');
+                        // Gunakan class bootstrap agar rapi & ada efek hover
+                        li.className = 'list-group-item list-group-item-action py-1 px-2 small';
+                        li.style.cursor = 'pointer';
+                        li.textContent = user.fullname;
+                        
+                        // Jika nama diklik, masukkan ke input dan tutup dropdown
+                        li.onclick = function() {
+                            paytoInput.value = user.fullname;
+                            resultsContainer.style.display = 'none';
+                        };
+                        
+                        resultsContainer.appendChild(li);
+                    });
+                    resultsContainer.style.display = 'block';
+                } else {
+                    // Jika data tidak ditemukan
+                    resultsContainer.innerHTML = '<li class="list-group-item py-1 px-2 small text-muted fst-italic">Data tidak ditemukan</li>';
+                    resultsContainer.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching data:", error);
+            })
+            .finally(() => {
+                // Kembalikan icon tombol
+                btnSearchUser.innerHTML = originalIcon;
+                btnSearchUser.disabled = false;
+            });
+        }
+
+        // Panggil fungsi saat tombol di klik
+        btnSearchUser.addEventListener('click', performSearch);
+        
+        // (Opsional) Panggil fungsi saat user menekan 'Enter' di dalam input form
+        paytoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Mencegah form tersubmit langsung
+                performSearch();
+            }
+        });
+
+        // Sembunyikan hasil pencarian jika user mengklik area lain di luar form
+        document.addEventListener('click', function(e) {
+            if (!paytoInput.contains(e.target) && !resultsContainer.contains(e.target) && !btnSearchUser.contains(e.target)) {
+                resultsContainer.style.display = 'none';
+            }
         });
     });
 </script>

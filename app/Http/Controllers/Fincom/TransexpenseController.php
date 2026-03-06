@@ -306,4 +306,26 @@ public function verifyAdmin(Request $request)
 
     return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
 }
+/**
+ * PENCARIAN PENERIMA (PAY TO)
+ */
+public function searchPayto(Request $request)
+{
+    $keyword = $request->query('keyword');
+    
+    // Jika keyword kosong, kembalikan array kosong
+    if (empty($keyword)) {
+        return response()->json([]);
+    }
+
+    // Cari maksimal 10 data user dari tabel sis_user yang namanya mirip
+    $users = DB::table('sis_user')
+        ->where('fullname', 'like', "%{$keyword}%")
+        ->select('id', 'fullname')
+        ->limit(10)
+        ->get();
+
+    return response()->json($users);
+}
+
 }

@@ -219,6 +219,7 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::get('/create', [TransexpenseController::class, 'create'])->name('create');
         Route::post('/store', [TransexpenseController::class, 'store'])->name('store');
         Route::post('/verify-admin', [TransexpenseController::class, 'verifyAdmin'])->name('verifyAdmin');
+        Route::get('/search-payto', [TransexpenseController::class, 'searchPayto'])->name('searchPayto');
     });
 
     
