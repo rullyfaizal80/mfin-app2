@@ -11,41 +11,69 @@
             </div>
             <div class="card-body bg-light">
                 
-                {{-- HEADER MOCKUP LAYOUT --}}
-                <div class="row g-3 align-items-center mb-4 p-3 border rounded bg-white shadow-sm">
-                    <div class="col-md-3 border-end">
-                        <label class="small fw-bold text-muted d-block mb-1 text-uppercase">Dari (Kasir)</label>
-                        <select name="user_id" class="form-select form-select-sm border-primary" required>
-                            <option value="">-- Pilih Kasir --</option>
-                            @foreach($cass as $cas)
-                                <option value="{{ $cas->id }}" {{ Auth::id() == $cas->id ? 'selected' : '' }}>
-                                    {{ $cas->fullname }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
+                {{-- BAGIAN ATAS (HEADER BARU) --}}
+<div class="p-3 mb-4 bg-white border rounded shadow-sm">
+    
+    {{-- Baris 1: Petugas, Referensi, Tanggal --}}
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+    <label class="small fw-bold text-muted mb-1">Petugas</label>
+    
+    {{-- Memanggil variabel dari Controller --}}
+    <input type="text" class="form-control form-control-sm bg-light fw-bold text-primary" 
+           value="{{ $petugasName }}" readonly>
+           
+    {{-- Hidden input untuk menyimpan user_id ke database --}}
+    <input type="hidden" name="user_id" value="{{ $petugasId }}">
+</div>
+        <div class="col-md-4">
+            <label class="small fw-bold text-muted mb-1">Referensi</label>
+            <input type="text" name="ref_no" class="form-control form-control-sm bg-light fw-bold text-primary" 
+                   value="{{ $autoRef }}" readonly>
+        </div>
 
-                    <div class="col-md-4 border-end">
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted d-block mb-1 text-uppercase">No. Ref</label>
-                                <input type="text" name="ref_no" class="form-control form-control-sm bg-light fw-bold" value="{{ $autoRef }}" readonly>
-                            </div>
-                            <div class="col-6">
-                                <label class="small fw-bold text-muted d-block mb-1 text-uppercase">Tanggal</label>
-                                <input type="date" name="tdate" class="form-control form-control-sm border-primary" value="{{ date('Y-m-d') }}" required>
-                            </div>
-                        </div>
-                    </div>
+        <div class="col-md-4">
+            <label class="small fw-bold text-muted mb-1">Tanggal</label>
+            <div class="input-group input-group-sm">
+                <input type="date" name="tdate" id="tdate" class="form-control bg-light" value="{{ date('Y-m-d') }}" readonly>
+                <button type="button" class="btn btn-warning text-dark px-3" data-bs-toggle="modal" data-bs-target="#modalUnlockDate" title="Unlock Tanggal">
+                    <i class="bi bi-unlock-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
-                    <div class="col-md-5">
-                        <label class="small fw-bold text-muted d-block mb-1 text-uppercase">Diberikan Kepada (Pay To)</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white"><i class="bi bi-person"></i></span>
-                            <input type="text" name="payto" class="form-control form-control-sm border-primary" placeholder="Masukkan nama penerima dana..." required>
-                        </div>
-                    </div>
-                </div>
+    {{-- Baris 2: Akun Kas, Dengan (Pay To), Keterangan --}}
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="small fw-bold text-muted mb-1">Akun Kas</label>
+            <select name="coa_id" class="form-select form-select-sm border-primary" required>
+                <option value="">-- Pilih Akun Kas --</option>
+                @foreach($coas as $coa)
+                    {{-- Sesuaikan nama kolom jika bukan 'title' (bisa 'name' atau 'coa_name') --}}
+                    <option value="{{ $coa->id }}">{{ $coa->title ?? $coa->name }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="col-md-4">
+            <label class="small fw-bold text-muted mb-1">Dengan</label>
+            <div class="input-group input-group-sm">
+                <input type="text" name="payto" id="payto" class="form-control border-primary" placeholder="Nama penerima..." required>
+                <button type="button" class="btn btn-secondary px-3" id="btnSearchUser" title="Cari Data">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <label class="small fw-bold text-muted mb-1">Keterangan</label>
+            <input type="text" name="header_note" class="form-control form-control-sm" placeholder="Catatan transaksi (opsional)...">
+        </div>
+    </div>
+</div>
+
+{{-- TABEL RINCIAN ITEM TETAP DI BAWAH SINI ... --}}
 
                 {{-- TABEL RINCIAN --}}
                 <div class="table-responsive bg-white rounded shadow-sm">
@@ -109,4 +137,89 @@
         </div>
     </form>
 </div>
+
+<div class="modal fade" id="modalUnlockDate" tabindex="-1" aria-labelledby="modalUnlockDateLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning py-2">
+                <h6 class="modal-title text-dark fw-bold" id="modalUnlockDateLabel"><i class="bi bi-shield-lock"></i> Otorisasi Admin</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Masukkan kredensial Admin untuk mengubah tanggal transaksi.</p>
+                <div class="mb-2">
+                    <input type="text" id="admin_username" class="form-control form-control-sm" placeholder="Username Admin">
+                </div>
+                <div class="mb-3">
+                    <input type="password" id="admin_password" class="form-control form-control-sm" placeholder="Password Admin">
+                </div>
+                <button type="button" class="btn btn-primary btn-sm w-100" id="btnConfirmUnlock">Buka Kunci Tanggal</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const btnConfirm = document.getElementById('btnConfirmUnlock');
+        const inputDate = document.getElementById('tdate');
+        
+        btnConfirm.addEventListener('click', function() {
+            let user = document.getElementById('admin_username').value;
+            let pass = document.getElementById('admin_password').value;
+
+            if (user === "" || pass === "") {
+                alert("Username dan Password tidak boleh kosong!");
+                return;
+            }
+
+            // Ubah tombol menjadi loading
+            let originalText = btnConfirm.innerHTML;
+            btnConfirm.innerHTML = "Memverifikasi...";
+            btnConfirm.disabled = true;
+
+            // Kirim request ke server Laravel
+            fetch("{{ route('fincom.transexpense.verifyAdmin') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}" // Wajib di Laravel
+                },
+                body: JSON.stringify({
+                    username: user,
+                    password: pass
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Jika Server menjawab sukses (Admin Valid)
+                    inputDate.removeAttribute('readonly');
+                    inputDate.classList.remove('bg-light');
+                    
+                    // Tutup modal
+                    var myModalEl = document.getElementById('modalUnlockDate');
+                    var modal = bootstrap.Modal.getInstance(myModalEl);
+                    modal.hide();
+                    
+                    alert("Tanggal berhasil dibuka. Silakan ubah tanggal transaksi.");
+                } else {
+                    // Jika Server menjawab gagal (Salah password atau bukan admin)
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("Terjadi kesalahan jaringan.");
+            })
+            .finally(() => {
+                // Kembalikan tombol seperti semula dan kosongkan form
+                btnConfirm.innerHTML = originalText;
+                btnConfirm.disabled = false;
+                document.getElementById('admin_username').value = "";
+                document.getElementById('admin_password').value = "";
+            });
+        });
+    });
+</script>
 @endsection

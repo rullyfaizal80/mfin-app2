@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 
 class TransexpenseController extends Controller
 {
@@ -160,30 +161,43 @@ class TransexpenseController extends Controller
     /**
      * TAMPILAN FORM ENTRY PENGELUARAN
      */
-    public function create()
+  public function create()
 {
-    // 1. Ambil data Kasir (sis_user)
-    $cass = DB::table('sis_user')
-        ->join('sis_usergroup', 'sis_user.id', '=', 'sis_usergroup.user_id')
-        ->join('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
-        ->select('sis_user.id', 'sis_user.fullname')
-        ->where('sis_group.group_name', 'like', '%Cashier%')
-        ->groupBy('sis_user.id', 'sis_user.fullname')
-        ->orderBy('sis_user.fullname', 'asc')
-        ->get();
-
-    // 2. Data Dropdown Tabel
+    $coas = DB::table('sis_coa')->get(); 
     $payitems = DB::table('sis_payitem')->where('payitem_type', 'expense')->get();
     $schools = DB::table('sis_cschool')->get();
     $grades = DB::table('sis_cgrade')->get();
 
-    // 3. Auto Ref No
-    $today = now()->format('Ymd');
-    $last = DB::table('sis_expense')->where('ref_no', 'like', "EXP-$today%")->orderBy('id', 'desc')->first();
-    $next = $last ? (int)substr($last->ref_no, -3) + 1 : 1;
-    $autoRef = "EXP-$today-" . str_pad($next, 3, '0', STR_PAD_LEFT);
+    // -- LOGIKA MENCARI USER AKTIF DARI CUSTOM AUTH --
+    // Sesuaikan 'user_id' dengan nama session yang Anda buat saat proses Login
+    $activeUserId = session('user_id') ?? session('id') ?? 1; 
+    $activeUser = DB::table('sis_user')->where('id', $activeUserId)->first();
+    
+    $petugasName = $activeUser ? $activeUser->fullname : 'Petugas Tidak Diketahui';
+    $petugasId = $activeUser ? $activeUser->id : 1;
 
-    return view('fincom.transexpense.create', compact('cass', 'payitems', 'schools', 'grades', 'autoRef'));
+    // -- LOGIKA AUTO REF NO (SAMA SEPERTI SEBELUMNYA) --
+    $year = date('Y');
+    $mon = date('M'); 
+    $day = date('d');
+    
+    $last = DB::table('sis_expense')
+        ->where('ref_no', 'like', 'EXP/%')
+        ->orderBy('id', 'desc')
+        ->first();
+        
+    if ($last) {
+        $parts = explode('/', $last->ref_no);
+        $lastNumber = (int) end($parts); 
+        $next = $lastNumber + 1; 
+    } else {
+        $next = 1; 
+    }
+    
+    $autoRef = "EXP/$year/$mon/$day/" . str_pad($next, 6, '0', STR_PAD_LEFT);
+
+    // Kirim $petugasName dan $petugasId ke View
+    return view('fincom.transexpense.create', compact('coas', 'payitems', 'schools', 'grades', 'autoRef', 'petugasName', 'petugasId'));
 }
 
     /**
@@ -256,4 +270,40 @@ class TransexpenseController extends Controller
             return back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage())->withInput();
         }
     }
+
+    /**
+ * PROSES VALIDASI UNLOCK TANGGAL VIA AJAX
+ */
+public function verifyAdmin(Request $request)
+{
+    $request->validate([
+        'username' => 'required',
+        'password' => 'required',
+    ]);
+
+    // 1. Cari user berdasarkan username
+    $user = DB::table('sis_user')->where('username', $request->username)->first();
+
+    if ($user) {
+        // 2. Cek Password (mendukung Hash Laravel maupun MD5 bawaan CI2 lama)
+        $isPasswordValid = Hash::check($request->password, $user->password) || md5($request->password) === $user->password;
+
+        if ($isPasswordValid) {
+            // 3. Pastikan user ini masuk ke dalam grup Administrator
+            $isAdmin = DB::table('sis_usergroup')
+                ->join('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
+                ->where('sis_usergroup.user_id', $user->id)
+                ->where('sis_group.group_name', 'like', '%Admin%') // Sesuaikan kata 'Admin' dengan nama grup di DB
+                ->exists();
+
+            if ($isAdmin) {
+                return response()->json(['success' => true, 'message' => 'Otorisasi berhasil.']);
+            } else {
+                return response()->json(['success' => false, 'message' => 'Akses Ditolak: User ini bukan Administrator.']);
+            }
+        }
+    }
+
+    return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
+}
 }
