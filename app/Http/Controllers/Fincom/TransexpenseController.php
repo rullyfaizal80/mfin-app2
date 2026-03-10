@@ -28,10 +28,11 @@ class TransexpenseController extends Controller
 
         // 2. Query Utama Data Pengeluaran (Menggantikan ax_get_expense)
         $query = DB::table('sis_expense as e')
-            ->leftJoin('sis_user as u', 'e.user_id', '=', 'u.id')          // User yang mengajukan
-            ->leftJoin('sis_user as cas', 'e.mdate_by', '=', 'cas.id')     // Kasir yang memproses
+            ->leftJoin('sis_user as u', 'e.user_id', '=', 'u.id')
+            ->leftJoin('sis_user as cas', 'e.mdate_by', '=', 'cas.id')
             ->select(
-                'e.id', 'e.tdate', 'e.ref_no', 'e.payto', 'e.note', 'e.credit',
+                'e.id', 'e.tdate', 'e.ref_no', 'e.payto', 'e.note', 
+                'e.debit', 'e.credit', // <--- PANGGIL KEDUANYA
                 'u.fullname as user_name',
                 'cas.fullname as cashier_name'
             )
@@ -200,8 +201,8 @@ class TransexpenseController extends Controller
     return view('fincom.transexpense.create', compact('coas', 'payitems', 'schools', 'grades', 'autoRef', 'petugasName', 'petugasId'));
 }
 
-    /**
-     * PROSES SIMPAN KE DATABASE (sis_expense)
+   /**
+     * PROSES SIMPAN KE DATABASE LENGKAP (Versi Fix Kolom ucode di sis_expense)
      */
     public function store(Request $request)
     {
@@ -215,31 +216,62 @@ class TransexpenseController extends Controller
         try {
             DB::beginTransaction();
 
-            $userId = Auth::id() ?? 1; // Fallback ke ID 1 jika belum ada session
-            $now = now()->toDateTimeString();
+            $userId = Auth::id() ?? 1;
+            $now = now()->toDateTimeString(); 
+            
+            // Generate Unique Code (ucode) yang akan dipakai di sis_trans dan sis_expense
+            $ucode = date("YmdHis") . mt_rand(10000, 99999); 
+            
+            // Hitung Total Pengeluaran
+            $totalAmount = 0;
+            foreach ($request->items as $item) {
+                $totalAmount += (float) str_replace(['.', ','], ['', '.'], $item['amount']);
+            }
 
-            // 1. Simpan Header (parent_id = 0)
-            // Header biasanya menampung total atau informasi utama transaksi
+            // =========================================================
+            // 1. SIMPAN KE sis_trans
+            // =========================================================
+            $transId = DB::table('sis_trans')->insertGetId([
+                'user_id'   => $userId,
+                'ttype'     => 'CD',
+                'ref_no'    => $request->ref_no,
+                'tdate'     => $request->tdate,
+                'note'      => $request->header_note ?? 'Pengeluaran Kasir',
+                'tvalue'    => $totalAmount,
+                'is_posted' => 'yes',
+                'cdate'     => $now, 
+                'mdate'     => $now,
+                'mdate_by'  => $userId,
+                'ucode'     => $ucode, // <-- ucode dipakai di sini
+            ]);
+
+            // =========================================================
+            // 2. SIMPAN KE sis_expense (Header)
+            // =========================================================
             $headerId = DB::table('sis_expense')->insertGetId([
                 'parent_id' => 0,
                 'ref_no'    => $request->ref_no,
                 'tdate'     => $request->tdate,
                 'payto'     => $request->payto,
                 'note'      => $request->header_note ?? '',
-                'debit'     => 0, // Akan diupdate setelah detail terjumlah
+                'debit'     => $totalAmount, 
                 'credit'    => 0,
                 'user_id'   => $userId,
+                'is_posted' => 'yes',
+                'cdate'     => $now,
                 'mdate'     => $now,
                 'mdate_by'  => $userId,
+                'tid'       => $transId,
+                'ucode'     => $ucode, // <-- FIX: Tambahkan ucode di Header sis_expense
             ]);
 
-            $totalAmount = 0;
-
-            // 2. Simpan Detail (looping dari input dynamic row)
+            // =========================================================
+            // 3. SIMPAN KE sis_expense (Detail) & sis_ledger
+            // =========================================================
             foreach ($request->items as $item) {
                 $amount = (float) str_replace(['.', ','], ['', '.'], $item['amount']);
-                $totalAmount += $amount;
 
+                // Insert Detail Expense
                 DB::table('sis_expense')->insert([
                     'parent_id'  => $headerId,
                     'ref_no'     => $request->ref_no,
@@ -249,63 +281,64 @@ class TransexpenseController extends Controller
                     'note'       => $item['note'] ?? '',
                     'debit'      => $amount,
                     'credit'     => 0,
-                    'school_id'  => $item['school_id'] ?? 0,
-                    'grade_id'   => $item['grade_id'] ?? 0,
                     'user_id'    => $userId,
+                    'is_posted'  => 'yes',
+                    'cdate'      => $now,
                     'mdate'      => $now,
                     'mdate_by'   => $userId,
+                    'tid'        => $transId,
+                    'ucode'      => $ucode, // <-- FIX: Tambahkan ucode juga di Detail sis_expense
+                ]);
+
+                // =========================================================
+                // 3. SIMPAN KE sis_ledger (Buku Besar)
+                // =========================================================
+                $payitem = DB::table('sis_payitem')->where('id', $item['payitem_id'])->first();
+                
+                $coaCash = $payitem ? $payitem->coa_cash : 0; 
+                $coaBiaya = 0;
+                if ($payitem) {
+                    if ($payitem->coa_revenue > 0) $coaBiaya = $payitem->coa_revenue;
+                    else if ($payitem->coa_payable > 0) $coaBiaya = $payitem->coa_payable;
+                }
+
+                // Insert Jurnal 1: Uang Keluar (Kredit)
+                DB::table('sis_ledger')->insert([
+                    'tid'       => $transId,
+                    'tdate'     => $request->tdate,
+                    'ttype'     => 'CD',
+                    'ref_no'    => $request->ref_no,
+                    'note'      => $request->header_note ?? 'Pengeluaran',
+                    'coa_code'  => $coaCash,
+                    'debit'     => $amount, // Untuk pengeluaran, akun kas ada di debit pada array pertama CI2 lama
+                    'credit'    => 0,
+                    'is_posted' => 'yes',
+                    // user_id, cdate, dan mdate DIHAPUS karena tabel ledger tidak memilikinya
+                ]);
+
+                // Insert Jurnal 2: Biaya Bertambah (Debit)
+                DB::table('sis_ledger')->insert([
+                    'tid'       => $transId,
+                    'tdate'     => $request->tdate,
+                    'ttype'     => 'CD',
+                    'ref_no'    => $request->ref_no,
+                    'note'      => $request->header_note ?? 'Pengeluaran',
+                    'coa_code'  => $coaBiaya, 
+                    'debit'     => 0,
+                    'credit'    => $amount, // Dan ini nilai kreditnya
+                    'is_posted' => 'yes',
+                    // user_id, cdate, dan mdate DIHAPUS
                 ]);
             }
 
-            // 3. Update Total di Header
-            DB::table('sis_expense')->where('id', $headerId)->update([
-                'debit' => $totalAmount
-            ]);
-
             DB::commit();
-            return redirect()->route('fincom.transexpense.index')->with('success', 'Data pengeluaran berhasil disimpan.');
+            return redirect()->route('fincom.transexpense.index')->with('success', 'Data pengeluaran berhasil disimpan!');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage())->withInput();
+            throw $e; 
         }
     }
-
-    /**
- * PROSES VALIDASI UNLOCK TANGGAL VIA AJAX
- */
-public function verifyAdmin(Request $request)
-{
-    $request->validate([
-        'username' => 'required',
-        'password' => 'required',
-    ]);
-
-    // 1. Cari user berdasarkan username
-    $user = DB::table('sis_user')->where('username', $request->username)->first();
-
-    if ($user) {
-        // 2. Cek Password (mendukung Hash Laravel maupun MD5 bawaan CI2 lama)
-        $isPasswordValid = Hash::check($request->password, $user->password) || md5($request->password) === $user->password;
-
-        if ($isPasswordValid) {
-            // 3. Pastikan user ini masuk ke dalam grup Administrator
-            $isAdmin = DB::table('sis_usergroup')
-                ->join('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
-                ->where('sis_usergroup.user_id', $user->id)
-                ->where('sis_group.group_name', 'like', '%Admin%') // Sesuaikan kata 'Admin' dengan nama grup di DB
-                ->exists();
-
-            if ($isAdmin) {
-                return response()->json(['success' => true, 'message' => 'Otorisasi berhasil.']);
-            } else {
-                return response()->json(['success' => false, 'message' => 'Akses Ditolak: User ini bukan Administrator.']);
-            }
-        }
-    }
-
-    return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
-}
 /**
  * PENCARIAN PENERIMA (PAY TO)
  */

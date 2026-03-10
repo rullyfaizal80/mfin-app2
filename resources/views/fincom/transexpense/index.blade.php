@@ -85,9 +85,10 @@
                                 <td>
                                     <small class="text-muted">{{ $row->note }}</small>
                                 </td>
-                                <td class="text-end fw-bold">
-                                    {{ number_format($row->credit, 0, ',', '.') }}
-                                </td>
+                               <td class="text-end fw-bold">
+            {{-- Logika Pintar: Ambil nilai yang tidak nol agar data lama CI2 tetap terbaca --}}
+            {{ number_format($row->debit > 0 ? $row->debit : $row->credit, 0, ',', '.') }}
+        </td>
                                 
                                 {{-- Tombol Print Kwitansi Per Baris (Meniru CI2) --}}
                                 <td class="text-center">
