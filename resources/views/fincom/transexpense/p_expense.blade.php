@@ -98,9 +98,9 @@
                         <td align="center"><strong>{{ $row->ref_no }}</strong></td>
                         <td>{{ $row->payto }}</td>
                         <td>{{ $row->note }}</td>
-                        <td align="right">{{ number_format($row->credit, 0, ',', '.') }}</td>
+                        <td align="right">{{ number_format($row->nominal, 0, ',', '.') }}</td>
                     </tr>
-                    @php $grandTotal += $row->credit; @endphp
+                    @php $grandTotal += $row->nominal; @endphp
                 @empty
                     <tr>
                         <td colspan="6" align="center" style="padding: 20px;">Tidak ada data transaksi pengeluaran pada periode ini.</td>

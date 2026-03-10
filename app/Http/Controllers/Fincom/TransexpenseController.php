@@ -137,7 +137,16 @@ class TransexpenseController extends Controller
         // 4. QUERY MENGGUNAKAN CURSOR (SANGAT HEMAT MEMORI)
         $query = DB::table('sis_expense as e')
             ->leftJoin('sis_user as cas', 'e.mdate_by', '=', 'cas.id')
-            ->select('e.tdate', 'e.ref_no', 'e.payto', 'e.note', 'e.credit', 'cas.fullname as cashier_name')
+            // PERBAIKAN: Ambil debit dan credit. 
+            // Kita gabungkan nilainya sebagai "nominal" agar data lama & baru ter-cover
+            ->select(
+                'e.tdate', 
+                'e.ref_no', 
+                'e.payto', 
+                'e.note', 
+                DB::raw('(e.debit + e.credit) as nominal'), // <--- INI KUNCI PERBAIKANNYA
+                'cas.fullname as cashier_name'
+            )
             ->where('e.parent_id', 0)
             ->where('e.ref_no', 'like', '%EXP%')
             ->whereDate('e.tdate', '>=', $awal)
@@ -201,8 +210,8 @@ class TransexpenseController extends Controller
     return view('fincom.transexpense.create', compact('coas', 'payitems', 'schools', 'grades', 'autoRef', 'petugasName', 'petugasId'));
 }
 
-   /**
-     * PROSES SIMPAN KE DATABASE LENGKAP (Versi Fix Kolom ucode di sis_expense)
+  /**
+     * PROSES SIMPAN KE DATABASE LENGKAP (Versi Fix ID Kasir & ucode di sis_expense)
      */
     public function store(Request $request)
     {
@@ -216,7 +225,17 @@ class TransexpenseController extends Controller
         try {
             DB::beginTransaction();
 
-            $userId = Auth::id() ?? 1;
+            // =========================================================
+            // PERBAIKAN: Deteksi ID Kasir yang Sedang Login
+            // =========================================================
+            // Coba ambil dari Auth Laravel, jika kosong, coba ambil dari Session manual (CI2 legacy)
+            $userId = auth()->id() ?? session('user_id') ?? session('id');
+            
+            // Keamanan tambahan: Jika user benar-benar tidak terdeteksi, tolak penyimpanan
+            if (!$userId) {
+                return redirect()->back()->with('error', 'Sesi login tidak valid atau telah habis. Silakan login ulang.');
+            }
+
             $now = now()->toDateTimeString(); 
             
             // Generate Unique Code (ucode) yang akan dipakai di sis_trans dan sis_expense
@@ -232,7 +251,7 @@ class TransexpenseController extends Controller
             // 1. SIMPAN KE sis_trans
             // =========================================================
             $transId = DB::table('sis_trans')->insertGetId([
-                'user_id'   => $userId,
+                'user_id'   => $userId, // <-- Sekarang menggunakan ID Kasir asli
                 'ttype'     => 'CD',
                 'ref_no'    => $request->ref_no,
                 'tdate'     => $request->tdate,
@@ -241,8 +260,8 @@ class TransexpenseController extends Controller
                 'is_posted' => 'yes',
                 'cdate'     => $now, 
                 'mdate'     => $now,
-                'mdate_by'  => $userId,
-                'ucode'     => $ucode, // <-- ucode dipakai di sini
+                'mdate_by'  => $userId, // <-- Sekarang menggunakan ID Kasir asli
+                'ucode'     => $ucode, 
             ]);
 
             // =========================================================
@@ -256,13 +275,13 @@ class TransexpenseController extends Controller
                 'note'      => $request->header_note ?? '',
                 'debit'     => $totalAmount, 
                 'credit'    => 0,
-                'user_id'   => $userId,
+                'user_id'   => $userId, // <-- Sekarang menggunakan ID Kasir asli
                 'is_posted' => 'yes',
                 'cdate'     => $now,
                 'mdate'     => $now,
-                'mdate_by'  => $userId,
+                'mdate_by'  => $userId, // <-- Sekarang menggunakan ID Kasir asli
                 'tid'       => $transId,
-                'ucode'     => $ucode, // <-- FIX: Tambahkan ucode di Header sis_expense
+                'ucode'     => $ucode,
             ]);
 
             // =========================================================
@@ -281,17 +300,17 @@ class TransexpenseController extends Controller
                     'note'       => $item['note'] ?? '',
                     'debit'      => $amount,
                     'credit'     => 0,
-                    'user_id'    => $userId,
+                    'user_id'    => $userId, // <-- Sekarang menggunakan ID Kasir asli
                     'is_posted'  => 'yes',
                     'cdate'      => $now,
                     'mdate'      => $now,
-                    'mdate_by'   => $userId,
+                    'mdate_by'   => $userId, // <-- Sekarang menggunakan ID Kasir asli
                     'tid'        => $transId,
-                    'ucode'      => $ucode, // <-- FIX: Tambahkan ucode juga di Detail sis_expense
+                    'ucode'      => $ucode,
                 ]);
 
                 // =========================================================
-                // 3. SIMPAN KE sis_ledger (Buku Besar)
+                // 4. SIMPAN KE sis_ledger (Buku Besar)
                 // =========================================================
                 $payitem = DB::table('sis_payitem')->where('id', $item['payitem_id'])->first();
                 
@@ -310,10 +329,10 @@ class TransexpenseController extends Controller
                     'ref_no'    => $request->ref_no,
                     'note'      => $request->header_note ?? 'Pengeluaran',
                     'coa_code'  => $coaCash,
-                    'debit'     => $amount, // Untuk pengeluaran, akun kas ada di debit pada array pertama CI2 lama
+                    'debit'     => $amount, 
                     'credit'    => 0,
                     'is_posted' => 'yes',
-                    // user_id, cdate, dan mdate DIHAPUS karena tabel ledger tidak memilikinya
+                    // Tabel ledger tidak menyimpan user_id berdasarkan struktur CI2 lama Anda
                 ]);
 
                 // Insert Jurnal 2: Biaya Bertambah (Debit)
@@ -325,9 +344,8 @@ class TransexpenseController extends Controller
                     'note'      => $request->header_note ?? 'Pengeluaran',
                     'coa_code'  => $coaBiaya, 
                     'debit'     => 0,
-                    'credit'    => $amount, // Dan ini nilai kreditnya
+                    'credit'    => $amount, 
                     'is_posted' => 'yes',
-                    // user_id, cdate, dan mdate DIHAPUS
                 ]);
             }
 
@@ -336,29 +354,84 @@ class TransexpenseController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            throw $e; 
+            // Opsional: Anda bisa mengganti "throw $e" dengan return error jika tidak ingin muncul halaman putih saat error
+            // throw $e; 
+            return redirect()->back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
         }
     }
-/**
- * PENCARIAN PENERIMA (PAY TO)
- */
-public function searchPayto(Request $request)
-{
-    $keyword = $request->query('keyword');
-    
-    // Jika keyword kosong, kembalikan array kosong
-    if (empty($keyword)) {
-        return response()->json([]);
+    /**
+     * AJAX: Pencarian Autocomplete untuk kolom Pay To (Dibayarkan Kepada)
+     */
+    public function searchPayto(Request $request)
+    {
+        $kataKunci = $request->query('q', ''); // Menangkap inputan, default kosong
+
+        // Kita ambil dari tabel sis_user
+        $query = DB::table('sis_user')
+            ->select('id', 'fullname')
+            ->whereNotNull('fullname')
+            ->where('fullname', '!=', '');
+
+        // Jika user mengetik sesuatu, cari berdasarkan nama lengkap
+        if (!empty($kataKunci)) {
+            $query->where('fullname', 'like', '%' . $kataKunci . '%');
+        }
+
+        // Batasi 10 hasil saja agar dropdown tidak kepanjangan, urutkan abjad
+        $users = $query->orderBy('fullname', 'asc')->limit(10)->get();
+
+        return response()->json($users);
     }
 
-    // Cari maksimal 10 data user dari tabel sis_user yang namanya mirip
-    $users = DB::table('sis_user')
-        ->where('fullname', 'like', "%{$keyword}%")
-        ->select('id', 'fullname')
-        ->limit(10)
-        ->get();
+    /**
+     * PROSES VALIDASI UNLOCK TANGGAL VIA AJAX
+     */
+    public function verifyAdmin(Request $request)
+    {
+        $request->validate([
+            'username' => 'required',
+            'password' => 'required',
+        ]);
 
-    return response()->json($users);
-}
+        try {
+            // 1. Cari user berdasarkan username
+            $user = DB::table('sis_user')->where('username', $request->username)->first();
 
+            if ($user) {
+                $dbPassword = $user->password ?? ''; 
+                $inputPassword = $request->password;
+                $isPasswordValid = false;
+
+                // 2. Cek Password: Prioritaskan MD5 (Legacy CI2) terlebih dahulu
+                if (md5($inputPassword) === $dbPassword) {
+                    $isPasswordValid = true;
+                } 
+                // Jika bukan MD5, baru coba cek menggunakan standar Hash Laravel
+                else if (Hash::check($inputPassword, $dbPassword)) {
+                    $isPasswordValid = true;
+                }
+
+                // 3. Jika password cocok, pastikan dia Admin
+                if ($isPasswordValid) {
+                    if (isset($user->is_admin) && $user->is_admin === 'yes') {
+                        return response()->json(['success' => true, 'message' => 'Otorisasi berhasil.']);
+                    } else {
+                        return response()->json(['success' => false, 'message' => 'Akses Ditolak: User ini bukan Administrator.']);
+                    }
+                } else {
+                    // Jika password salah (baik MD5 maupun Hash)
+                    return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
+                }
+            }
+
+            // Jika Username tidak ditemukan
+            return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Sistem Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

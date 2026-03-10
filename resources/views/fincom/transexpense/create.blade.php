@@ -40,38 +40,49 @@
 
     {{-- BAGIAN HEADER TRANSAKSI --}}
     <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light fw-bold">Data Utama Transaksi</div>
+        <div class="card-header fw-bold">Data Utama Transaksi</div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">No Referensi</label>
-                    {{-- Nilai autoRef dari controller --}}
-                    <input type="text" name="ref_no" class="form-control bg-light" value="{{ $autoRef }}" readonly>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Tanggal Transaksi <span class="text-danger">*</span></label>
-                    <input type="date" name="tdate" class="form-control" value="{{ date('Y-m-d') }}" required>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Petugas / Kasir</label>
-                    <input type="text" class="form-control bg-light" value="{{ $petugasName }}" readonly>
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Dibayar Kepada (Pay To) <span class="text-danger">*</span></label>
-                    <input type="text" name="payto" id="payto" class="form-control" placeholder="Nama Penerima" required>
-                    {{-- Note: Nanti kita bisa tambahkan fitur AJAX Autocomplete searchPayto di input ini --}}
-                </div>
-                <div class="col-md-12 mb-3">
-                    <label class="form-label">Keterangan Umum (Note)</label>
-                    <textarea name="header_note" class="form-control" rows="2" placeholder="Catatan transaksi..."></textarea>
-                </div>
-            </div>
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Petugas / Kasir</label>
+        <input type="text" class="form-control" value="{{ $petugasName }}" readonly>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label for="tdate" class="form-label">Tanggal Transaksi</label>
+        <div class="input-group">
+            <input type="date" class="form-control" name="tdate" id="tdate" value="{{ date('Y-m-d') }}" readonly>
+            <button class="btn btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalUnlockDate" id="btn-unlock-date" title="Buka Kunci Tanggal">
+                <i class="fas fa-lock"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label class="form-label">No Referensi</label>
+        <input type="text" name="ref_no" class="form-control" value="{{ $autoRef }}" readonly>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3 position-relative">
+        <label for="payto" class="form-label">Dibayarkan Kepada (Pay To)</label>
+        <input type="text" class="form-control" name="payto" id="payto" autocomplete="off" placeholder="Ketik nama atau klik di sini...">
+        
+        <ul class="list-group position-absolute w-100 shadow-sm" id="payto-suggestions" style="display: none; z-index: 1050; max-height: 250px; overflow-y: auto; top: 100%;"></ul>
+    </div>
+
+    <div class="col-md-4 mb-3">
+        <label class="form-label">Keterangan Umum (Note)</label>
+        <textarea name="header_note" class="form-control" rows="2" placeholder="Catatan transaksi..."></textarea>
+    </div>
+</div>
         </div>
     </div>
 
     {{-- BAGIAN DETAIL ITEM (DINAMIS) --}}
     <div class="card shadow-sm mb-4">
-        <div class="card-header bg-light fw-bold">Rincian Pengeluaran</div>
+        <div class="card-header fw-bold">Rincian Pengeluaran</div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-bordered mb-0" id="detailTable">
@@ -109,7 +120,7 @@
                         <tr class="bg-light fw-bold">
                             <td colspan="2" class="text-end align-middle">TOTAL PENGELUARAN</td>
                             <td>
-                                <input type="text" id="totalAmount" class="form-control text-end bg-white fw-bold" value="0" readonly>
+                                <input type="text" id="totalAmount" class="form-control text-end fw-bold" value="0" readonly>
                             </td>
                             <td class="text-center">
                                 <button type="button" id="addRow" class="btn btn-sm btn-success"><i class="bi bi-plus-circle"></i> Tambah Baris</button>
@@ -125,6 +136,32 @@
         <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="bi bi-save"></i> Simpan Transaksi</button>
     </div>
 </form>
+
+<div class="modal fade" id="modalUnlockDate" tabindex="-1" aria-labelledby="modalUnlockDateLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalUnlockDateLabel"><i class="fas fa-shield-alt text-primary"></i> Otorisasi Admin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">Masukkan kredensial Administrator untuk mengubah tanggal transaksi.</p>
+                <div class="mb-3">
+                    <label class="form-label">Username</label>
+                    <input type="text" id="admin_username" class="form-control" autocomplete="off" placeholder="Username Admin">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" id="admin_password" class="form-control" placeholder="••••••••">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="btnConfirmUnlock">Verifikasi</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- SCRIPT UNTUK TABEL DINAMIS DAN FORMAT RUPIAH --}}
 <script>
@@ -197,6 +234,130 @@
 
         // Format kembali hasil total ke string Rupiah
         document.getElementById('totalAmount').value = new Intl.NumberFormat('id-ID').format(total);
+    } 
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const btnConfirm = document.getElementById('btnConfirmUnlock');
+        const inputDate = document.getElementById('tdate');
+        const btnUnlockTrigger = document.getElementById('btn-unlock-date');
+        
+        btnConfirm.addEventListener('click', function() {
+            let user = document.getElementById('admin_username').value;
+            let pass = document.getElementById('admin_password').value;
+
+            if (user === "" || pass === "") {
+                alert("Username dan Password tidak boleh kosong!");
+                return;
+            }
+
+            // Ubah tombol menjadi loading
+            let originalText = btnConfirm.innerHTML;
+            btnConfirm.innerHTML = "Memverifikasi...";
+            btnConfirm.disabled = true;
+
+            // Kirim request ke server Laravel
+            fetch("{{ route('fincom.transexpense.verifyAdmin') }}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json", // <--- TAMBAHKAN BARIS INI
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify({
+                    username: user,
+                    password: pass
+                })
+            })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok) {
+                    // Melempar pesan error asli dari server ke blok catch
+                    throw new Error(data.message || "Terjadi kesalahan server");
+                }
+                return data;
+            })
+            .then(data => {
+                if (data.success) {
+                    // Jika Sukses
+                    inputDate.removeAttribute('readonly');
+                    inputDate.classList.remove('bg-light');
+                    
+                    var myModalEl = document.getElementById('modalUnlockDate');
+                    var modal = bootstrap.Modal.getInstance(myModalEl);
+                    modal.hide();
+                    
+                    btnUnlockTrigger.classList.remove('btn-secondary');
+                    btnUnlockTrigger.classList.add('btn-success');
+                    btnUnlockTrigger.innerHTML = '<i class="fas fa-lock-open"></i>';
+                } else {
+                    // Jika password salah / bukan admin
+                    alert(data.message);
+                }
+            })
+            .catch(error => {
+                console.error("Error Detail:", error);
+                // Sekarang error aslinya akan muncul di alert, bukan sekadar "Kesalahan jaringan"
+                alert(error.message);
+            })
+            .finally(() => {
+                btnConfirm.innerHTML = originalText;
+                btnConfirm.disabled = false;
+                document.getElementById('admin_username').value = "";
+                document.getElementById('admin_password').value = "";
+            });
+        });
+    });    
+    
+    document.addEventListener('DOMContentLoaded', function () {
+    const paytoInput = document.getElementById('payto');
+    const suggestionBox = document.getElementById('payto-suggestions');
+
+    // SCRIPT UNTUK AUTOCOMPLETE PAY TO
+    if (paytoInput && suggestionBox) {
+        const fetchSuggestions = function(query) {
+            // Pastikan route ini benar dan fungsi searchPayto di Controller sudah ada
+            fetch(`{{ route('fincom.transexpense.searchPayto') }}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    suggestionBox.innerHTML = ''; // Kosongkan list sebelumnya
+                    
+                    if (data.length > 0) {
+                        data.forEach(item => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item list-group-item-action';
+                            li.style.cursor = 'pointer';
+                            li.textContent = item.fullname; 
+                            
+                            // Jika list diklik, masukkan nama ke inputan
+                            li.addEventListener('click', function() {
+                                paytoInput.value = item.fullname;
+                                suggestionBox.style.display = 'none';
+                            });
+                            
+                            suggestionBox.appendChild(li);
+                        });
+                        suggestionBox.style.display = 'block';
+                    } else {
+                        const li = document.createElement('li');
+                        li.className = 'list-group-item text-muted';
+                        li.textContent = 'Nama tidak ditemukan...';
+                        suggestionBox.appendChild(li);
+                        suggestionBox.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching payto:', error);
+                });
+        };
+
+        paytoInput.addEventListener('focus', function() { fetchSuggestions(this.value); });
+        paytoInput.addEventListener('input', function() { fetchSuggestions(this.value); });
+        document.addEventListener('click', function(e) {
+            if (e.target !== paytoInput && !suggestionBox.contains(e.target)) {
+                suggestionBox.style.display = 'none';
+            }
+        });
     }
+});
 </script>
 @endsection
