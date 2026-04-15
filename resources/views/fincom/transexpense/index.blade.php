@@ -98,11 +98,13 @@
                                 </td>
                                 
                                 {{-- Tombol Aksi (Edit) --}}
-                                <td class="text-center">
-                                    <a href="{{ url('fincom/transexpense/edit/' . $row->id) }}" class="btn btn-sm btn-warning" title="Edit Data">
-                                        <i class="bi bi-pencil-square"></i> Edit
-                                    </a>
-                                </td>
+                                <td class="text-center">                                    
+    <a href="javascript:void(0);" 
+       onclick="confirmEdit('{{ route('fincom.transexpense.edit', $row->id) }}')" 
+       class="btn btn-warning btn-sm">
+       <i class="bi bi-pencil-square"></i> Edit
+    </a>
+</td>
                             </tr>
                         @empty
                             <tr>
@@ -162,6 +164,14 @@ function cetakLaporan() {
     let printUrl = `${baseUrl}/${casId}/${awal}/${akhir}`;
     
     window.open(printUrl, '_blank');
+}
+
+// Tambahkan di bawah fungsi cetakLaporan() yang sudah ada
+
+function confirmEdit(url) {
+    if (confirm('Mengedit data akan menghapus data transaksi lama dan menggantinya dengan yang baru, lanjutkan?')) {
+        window.location.href = url;
+    }
 }
 </script>
 @endsection
