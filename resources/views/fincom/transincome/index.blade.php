@@ -31,7 +31,7 @@
                     {{-- 1. Tombol Tambah --}}
                     <div class="col-md-2">
                         <a href="{{ route('fincom.transincome.create') }}" class="btn btn-success btn-sm w-100 fw-bold">
-                            <i class="bi bi-plus-circle"></i> Tambah Pemasukan
+                            <i class="bi bi-plus-circle"></i> Tambah
                         </a>
                     </div>
 
@@ -106,7 +106,7 @@
                                 
                                 {{-- Tombol Print Kwitansi (Akan kita buat fiturnya nanti jika dibutuhkan) --}}
                                 <td class="text-center">
-                                    <a href="javascript:alert('Fitur print kwitansi pemasukan akan segera dibuat!');" class="btn btn-sm btn-info text-white" title="Print Kwitansi">
+                                    <a href="{{ route('fincom.transincome.print_kwitansi', $row->id) }}" target="_blank" class="btn btn-sm btn-info text-white" title="Print Kwitansi">
                                         <i class="bi bi-printer"></i>
                                     </a>
                                 </td>
@@ -179,8 +179,8 @@ function cetakLaporan() {
     let printUrl = `${baseUrl}/${casId}/${awal}/${akhir}`;
     
     // Buka tab baru untuk sementara kita beri alert dulu sebelum fiturnya ada
-    alert('Akan membuka tab baru ke: \n' + printUrl + '\n(Fitur akan dibuat di tahap selanjutnya)');
-    // window.open(printUrl, '_blank'); 
+    // alert('Akan membuka tab baru ke: \n' + printUrl + '\n(Fitur akan dibuat di tahap selanjutnya)');
+    window.open(printUrl, '_blank'); 
 }
 </script>
 @endsection

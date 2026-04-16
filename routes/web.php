@@ -228,6 +228,8 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::prefix('fincom/transincome')->name('fincom.transincome.')->group(function () {
         Route::get('/', [App\Http\Controllers\Fincom\TransincomeController::class, 'index'])->name('index');
         Route::get('/create', [App\Http\Controllers\Fincom\TransincomeController::class, 'create'])->name('create');
+        Route::get('/p_income/{cas_id}/{awal}/{akhir}', [App\Http\Controllers\Fincom\TransincomeController::class, 'p_income'])->name('p_income');
+        Route::get('/print-kwitansi/{id}', [App\Http\Controllers\Fincom\TransincomeController::class, 'print_kwitansi'])->name('print_kwitansi');
     });
 
     

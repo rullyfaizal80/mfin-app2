@@ -82,4 +82,71 @@ class TransincomeController extends Controller
 
         return view('fincom.transincome.create', compact('payitems', 'autoRef', 'petugasName'));
     }
+
+    /**
+     * FUNGSI UNTUK CETAK LAPORAN PEMASUKAN
+     */
+    public function p_income($cas_id, $awal, $akhir)
+    {
+        // 1. Ambil data pemasukan berdasarkan filter
+        $query = DB::table('sis_expense as e')
+            ->where('e.parent_id', 0)
+            ->where('e.ref_no', 'like', '%INC%');
+
+        // Filter Tanggal
+        if ($awal && $akhir) {
+            $query->whereDate('e.tdate', '>=', $awal)
+                  ->whereDate('e.tdate', '<=', $akhir);
+        }
+
+        // Filter Kasir
+        if ($cas_id && $cas_id != '0') {
+            $query->where('e.user_id', $cas_id);
+        }
+
+        // Urutkan berdasarkan tanggal transaksi paling lama ke baru
+        $incomes = $query->orderBy('e.tdate', 'asc')->get();
+
+        // 2. Modifikasi properti nominal agar sesuai dengan debit/kredit
+        foreach ($incomes as $row) {
+            $row->nominal = $row->debit > 0 ? $row->debit : $row->credit;
+        }
+
+        return view('fincom.transincome.p_income', [
+            'page_title' => 'Laporan Transaksi Pemasukan',
+            'incomes'    => $incomes,
+            'awal'       => $awal,
+            'akhir'      => $akhir
+        ]);
+    }
+
+    /**
+     * FUNGSI UNTUK CETAK KWITANSI (PER TRANSAKSI)
+     */
+    public function print_kwitansi($id)
+    {
+        // 1. Ambil Data Header Pemasukan & Nama Kasir
+        $inc = DB::table('sis_expense as e')
+            ->leftJoin('sis_user as u', 'e.user_id', '=', 'u.id')
+            ->select('e.*', 'u.fullname')
+            ->where('e.id', $id)
+            ->first();
+
+        if (!$inc) {
+            return redirect()->back()->with('error', 'Data transaksi tidak ditemukan.');
+        }
+
+        // 2. Ambil Data Rincian Item Pemasukan
+        $items = DB::table('sis_expense as e')
+            ->leftJoin('sis_payitem as p', 'e.payitem_id', '=', 'p.id')
+            ->select('e.*', 'p.title')
+            ->where('e.parent_id', $inc->id)
+            ->get();
+
+        return view('fincom.transincome.print_kwitansi', [
+            'page_title' => 'Bukti Penerimaan Kas',
+            'inc'        => $inc,
+            'items'      => $items
+        ]);
+    }
 }
