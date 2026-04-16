@@ -223,7 +223,12 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::get('/{id}/edit', [TransexpenseController::class, 'edit'])->name('edit');
         Route::put('/{id}', [TransexpenseController::class, 'update'])->name('update');
         Route::delete('/{id}', [TransexpenseController::class, 'destroy'])->name('destroy');
-});
+    });
+
+    Route::prefix('fincom/transincome')->name('fincom.transincome.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Fincom\TransincomeController::class, 'index'])->name('index');
+        Route::get('/create', [App\Http\Controllers\Fincom\TransincomeController::class, 'create'])->name('create');
+    });
 
     
        

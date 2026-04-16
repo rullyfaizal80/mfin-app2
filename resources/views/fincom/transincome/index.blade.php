@@ -1,23 +1,37 @@
 @extends('layouts.app')
 
-@section('title', 'Daftar Pengeluaran | MIMHa Finance')
+@section('title', 'Daftar Pemasukan | MIMHa Finance')
 
 @section('content')
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h3">Daftar Pengeluaran</h1>       
+        <h1 class="h3">Daftar Pemasukan</h1>       
     </div>
     
-    {{-- BARIS FILTER & AKSI (Meniru Layout Tabel Header CI2 Lama) --}}
-    <form action="{{ route('fincom.transexpense.index') }}" method="GET" class="mb-3">
-        <div class="card border-start border-4 border-primary shadow-sm">
+    {{-- Menampilkan pesan error/success --}}
+    @if (session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    {{-- BARIS FILTER & AKSI --}}
+    <form action="{{ route('fincom.transincome.index') }}" method="GET" class="mb-3">
+        <div class="card border-start border-4 border-success shadow-sm">
             <div class="card-body p-3">
                 <div class="row align-items-end g-2 small">
                     
-                    {{-- 1. Tombol Tambah (Sisi Kiri Seperti CI2) --}}
+                    {{-- 1. Tombol Tambah --}}
                     <div class="col-md-2">
-                        {{-- Catatan: Sesuaikan nama route-nya nanti jika sudah dibuat --}}
-                        <a href="{{ url('fincom/transexpense/create') }}" class="btn btn-success btn-sm w-100 fw-bold">
-                            <i class="bi bi-plus-circle"></i> Tambah
+                        <a href="{{ route('fincom.transincome.create') }}" class="btn btn-success btn-sm w-100 fw-bold">
+                            <i class="bi bi-plus-circle"></i> Tambah Pemasukan
                         </a>
                     </div>
 
@@ -44,7 +58,7 @@
                         </select>
                     </div>
 
-                    {{-- 4. Tombol Filter & Print (Sisi Kanan Seperti CI2) --}}
+                    {{-- 4. Tombol Filter & Print --}}
                     <div class="col-md-3 d-flex gap-2">
                         <button type="submit" name="filter_btn" value="1" class="btn btn-primary btn-sm flex-fill">
                             <i class="bi bi-funnel"></i> Filter
@@ -58,7 +72,7 @@
         </div>
     </form>
 
-    {{-- TABEL DATA PENGELUARAN --}}
+    {{-- TABEL DATA PEMASUKAN --}}
     <div class="card shadow-sm">
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -68,49 +82,49 @@
                             <th width="10%" class="text-center">Tanggal</th>
                             <th width="12%">Referensi</th>
                             <th width="15%">Kasir</th>
-                            <th width="15%">Dibayar Kepada</th>
+                            <th width="15%">Diterima Dari</th> {{-- Di CI2 tertulis 'Kepada', kita buat lebih logis --}}
                             <th>Keterangan</th>
-                            <th width="12%" class="text-end">Total</th>
+                            <th width="12%" class="text-end">Nominal</th>
                             <th width="5%" class="text-center">Print</th>
                             <th width="8%" class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($expenses as $row)
+                        @forelse($incomes as $row)
                             <tr>
                                 <td class="text-center">{{ date('d M Y', strtotime($row->tdate)) }}</td>
-                                <td class="fw-bold text-primary">{{ $row->ref_no }}</td>
+                                <td class="fw-bold text-success">{{ $row->ref_no }}</td>
                                 <td>{{ $row->cashier_name ?? '-' }}</td>
                                 <td>{{ $row->payto ?? '-' }}</td>
                                 <td>
                                     <small class="text-muted">{{ $row->note }}</small>
                                 </td>
-                               <td class="text-end fw-bold">
-            {{-- Logika Pintar: Ambil nilai yang tidak nol agar data lama CI2 tetap terbaca --}}
-            {{ number_format($row->debit > 0 ? $row->debit : $row->credit, 0, ',', '.') }}
-        </td>
+                                <td class="text-end fw-bold">
+                                    {{-- Mengambil nilai tertinggi antara debit/credit untuk menghindari error data migrasi --}}
+                                    {{ number_format($row->debit > 0 ? $row->debit : $row->credit, 0, ',', '.') }}
+                                </td>
                                 
-                                {{-- Tombol Print Kwitansi Per Baris (Meniru CI2) --}}
+                                {{-- Tombol Print Kwitansi (Akan kita buat fiturnya nanti jika dibutuhkan) --}}
                                 <td class="text-center">
-                                    <a href="{{ url('fincom/transexpense/receipt/' . $row->id) }}" target="_blank" class="btn btn-sm btn-info text-white" title="Print Kwitansi">
+                                    <a href="javascript:alert('Fitur print kwitansi pemasukan akan segera dibuat!');" class="btn btn-sm btn-info text-white" title="Print Kwitansi">
                                         <i class="bi bi-printer"></i>
                                     </a>
                                 </td>
                                 
                                 {{-- Tombol Aksi (Edit) --}}
                                 <td class="text-center">                                    
-    <a href="javascript:void(0);" 
-       onclick="confirmEdit('{{ route('fincom.transexpense.edit', $row->id) }}')" 
-       class="btn btn-warning btn-sm">
-       <i class="bi bi-pencil-square"></i> Edit
-    </a>
-</td>
+                                    <a href="javascript:void(0);" 
+                                       onclick="confirmEdit('{{-- route('fincom.transincome.edit', $row->id) --}}')" 
+                                       class="btn btn-warning btn-sm" title="Edit Pemasukan">
+                                       <i class="bi bi-pencil-square"></i> Edit
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
                                 <td colspan="8" class="text-center py-5 text-muted">
                                     <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                    Tidak ada data transaksi pengeluaran.
+                                    Tidak ada data transaksi pemasukan.
                                 </td>
                             </tr>
                         @endforelse
@@ -119,59 +133,54 @@
             </div>
             
             {{-- PAGINATION LARAVEL --}}
-            <div class="p-3 d-flex justify-content-end border-top">
-                {{ $expenses->withQueryString()->links() }}
+            <div class="p-3 d-flex justify-content-end border-top">                
+                {{ $incomes->withQueryString()->links() }}
             </div>
         </div>
     </div>
 
-    <script>
+<script>
+// Fungsi Confirm Edit
+function confirmEdit(url) {
+    if (confirm('Mengedit data akan menghapus data transaksi lama dan menggantinya dengan yang baru, lanjutkan?')) {
+        // window.location.href = url; // Diaktifkan nanti jika route edit sudah ada
+        alert('Fitur Form Edit akan kita buat di langkah selanjutnya!');
+    }
+}
+
+// Fungsi Cetak Laporan (Mirip dengan Expense)
 function cetakLaporan() {
-    // 1. Ambil nilai dari input filter
-    // Sesuaikan ID ini dengan ID input form filter Anda
     let casId = document.getElementById('cas_id').value;
     let awal = document.getElementById('awal').value;
     let akhir = document.getElementById('akhir').value;
 
-    // 2. Validasi: Apakah tanggal sudah diisi?
     if (!awal || !akhir) {
         alert('Silakan pilih rentang Tanggal Awal dan Akhir terlebih dahulu sebelum mencetak laporan.');
-        return; // Hentikan proses, tab baru tidak akan dibuka
+        return; 
     }
 
-    // 3. Validasi: Apakah rentang waktu lebih dari 1 tahun (366 hari)?
     let startDate = new Date(awal);
     let endDate = new Date(akhir);
-    
-    // Hitung selisih waktu dalam milidetik, lalu ubah ke hari
     let diffTime = endDate.getTime() - startDate.getTime();
     let diffDays = diffTime / (1000 * 3600 * 24);
 
-    // Cek jika tanggal akhir lebih kecil dari tanggal awal (mundur)
     if (diffDays < 0) {
         alert('Tanggal Akhir tidak boleh lebih kecil dari Tanggal Awal!');
         return;
     }
 
-    // Cek batasan 1 tahun
     if (diffDays > 366) {
         alert('Rentang waktu cetak laporan maksimal adalah 1 Tahun (365 Hari). Silakan persempit filter tanggal Anda.');
-        return; // Hentikan proses
+        return; 
     }
 
-    // 4. Jika semua validasi lolos, buka tab baru untuk Print!
-    let baseUrl = "{{ url('fincom/transexpense/p_expense') }}";
+    // Arahkan ke URL cetak (Nanti akan kita buat controller p_income)
+    let baseUrl = "{{ url('fincom/transincome/p_income') }}";
     let printUrl = `${baseUrl}/${casId}/${awal}/${akhir}`;
     
-    window.open(printUrl, '_blank');
-}
-
-// Tambahkan di bawah fungsi cetakLaporan() yang sudah ada
-
-function confirmEdit(url) {
-    if (confirm('Mengedit data akan menghapus data transaksi lama dan menggantinya dengan yang baru, lanjutkan?')) {
-        window.location.href = url;
-    }
+    // Buka tab baru untuk sementara kita beri alert dulu sebelum fiturnya ada
+    alert('Akan membuka tab baru ke: \n' + printUrl + '\n(Fitur akan dibuat di tahap selanjutnya)');
+    // window.open(printUrl, '_blank'); 
 }
 </script>
 @endsection

@@ -103,25 +103,30 @@
         <i class="bi {{ $menu->icon ?? 'bi-arrow-up-circle' }}"></i>
         <span>{{ $menu->title }}</span>
     </a>
-    @elseif ($menu->link === 'reports/rep_class_list')
+@elseif ($menu->link === 'reports/rep_class_list')
     <a class="nav-link collapsed" href="{{ route('reports.class_list.index') }}">
         <i class="bi {{ $menu->icon ?? 'bi-journal-text' }}"></i> {{-- Icon Jurnal/Laporan --}}
         <span>{{ $menu->title }}</span>
     </a>
-    @elseif ($menu->link === 'fincom/payment')
+@elseif ($menu->link === 'fincom/payment')
     <a class="nav-link collapsed" href="{{ route('fincom.payment.index') }}">
         {{-- Icon Dompet/Uang --}}
         <i class="bi {{ $menu->icon ?? 'bi-wallet2' }}"></i> 
         <span>{{ $menu->title }}</span>
     </a>
-    {{-- TAMBAHKAN KODE INI UNTUK DAFTAR PENGELUARAN --}}
-    @elseif ($menu->link === 'fincom/transexpense')
+@elseif ($menu->link === 'fincom/transexpense')
     <a class="nav-link collapsed" href="{{ route('fincom.transexpense.index') }}">
         {{-- Icon Pengeluaran/Kasir --}}
         <i class="bi {{ $menu->icon ?? 'bi-cash-coin' }}"></i> 
         <span>{{ $menu->title }}</span>
     </a>
-    
+@elseif ($menu->link === 'fincom/transincome' || $menu->link === 'fincom/transexpense/income')
+    <a class="nav-link collapsed" href="{{ route('fincom.transincome.index') }}">
+        {{-- Icon Pemasukan (Wallet atau Graph Up) --}}
+        <i class="bi {{ $menu->icon ?? 'bi-wallet2' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>
+
 @else
             {{-- Link lain tetap seperti semula --}}
             <a class="nav-link collapsed" href="{{ url($menu->link) }}">
