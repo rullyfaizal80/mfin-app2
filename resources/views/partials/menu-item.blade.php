@@ -126,6 +126,12 @@
         <i class="bi {{ $menu->icon ?? 'bi-wallet2' }}"></i> 
         <span>{{ $menu->title }}</span>
     </a>
+@elseif ($menu->link === 'fincom/transincome/create' || $menu->link === 'fincom/transexpense/createin')
+    <a class="nav-link collapsed" href="{{ route('fincom.transincome.create') }}">
+        {{-- Icon Tambah Pemasukan (Plus Circle atau sejenisnya) --}}
+        <i class="bi {{ $menu->icon ?? 'bi-plus-circle' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>    
 
 @else
             {{-- Link lain tetap seperti semula --}}

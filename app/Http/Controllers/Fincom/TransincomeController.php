@@ -149,4 +149,222 @@ class TransincomeController extends Controller
             'items'      => $items
         ]);
     }
+
+    /**
+     * MENYIMPAN DATA PEMASUKAN KE DATABASE
+     */
+    public function store(Request $request)
+    {
+        // Validasi Dasar
+        $request->validate([
+            'tdate'  => 'required|date',
+            'payto'  => 'required|string|max:255',
+            'items'  => 'required|array|min:1',
+            'ref_no' => 'required|string', // Pastikan validasi ref_no masuk
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // =========================================================
+            // Deteksi ID Kasir yang Sedang Login
+            // =========================================================
+            $userId = auth()->id() ?? session('user_id') ?? session('id');
+            
+            if (!$userId) {
+                return redirect()->back()->with('error', 'Sesi login tidak valid atau telah habis. Silakan login ulang.');
+            }
+
+            $now = now()->toDateTimeString(); 
+            $ucode = date("YmdHis") . mt_rand(10000, 99999); 
+
+            // Hitung Total Pemasukan
+            $totalAmount = 0;
+            foreach ($request->items as $item) {
+                $totalAmount += (float) str_replace(['.', ','], ['', '.'], $item['amount']);
+            }
+
+            // =========================================================
+            // 1. SIMPAN KE sis_trans
+            // =========================================================
+            $transId = DB::table('sis_trans')->insertGetId([
+                'user_id'   => $userId,
+                'ttype'     => 'CR', 
+                'ref_no'    => $request->ref_no, // <-- KUNCI PERBAIKAN: Gunakan ref_no dari Form!
+                'tdate'     => $request->tdate,
+                'note'      => $request->header_note ?? 'Pemasukan Kasir',
+                'tvalue'    => $totalAmount,
+                'is_posted' => 'yes',
+                'cdate'     => $now, 
+                'mdate'     => $now,
+                'mdate_by'  => $userId,
+                'ucode'     => $ucode, 
+            ]);
+
+            // =========================================================
+            // 2. SIMPAN KE sis_expense (Header Induk)
+            // =========================================================
+            $headerId = DB::table('sis_expense')->insertGetId([
+                'parent_id' => 0,
+                'ref_no'    => $request->ref_no, // <-- Gunakan ref_no dari Form!
+                'tdate'     => $request->tdate,
+                'payto'     => $request->payto,
+                'note'      => $request->header_note ?? '',
+                'debit'     => 0, 
+                'credit'    => $totalAmount, 
+                'user_id'   => $userId,
+                'is_posted' => 'yes',
+                'cdate'     => $now,
+                'mdate'     => $now,
+                'mdate_by'  => $userId,
+                'tid'       => $transId,
+                'ucode'     => $ucode, 
+            ]);
+
+            // =========================================================
+            // 3. SIMPAN KE sis_expense (Detail) & sis_ledger (Jurnal)
+            // =========================================================
+            foreach ($request->items as $item) {
+                $amount = (float) str_replace(['.', ','], ['', '.'], $item['amount']);
+
+                // Insert Detail Item ke sis_expense
+                DB::table('sis_expense')->insert([
+                    'parent_id'  => $headerId,
+                    'ref_no'     => $request->ref_no, // <-- Gunakan ref_no dari Form!
+                    'tdate'      => $request->tdate,
+                    'payto'      => $request->payto,
+                    'payitem_id' => $item['payitem_id'],
+                    'note'       => $item['note'] ?? '',
+                    'debit'      => 0,
+                    'credit'     => $amount, 
+                    'user_id'    => $userId,
+                    'is_posted'  => 'yes',
+                    'cdate'      => $now,
+                    'mdate'      => $now,
+                    'mdate_by'   => $userId,
+                    'tid'        => $transId,
+                    'ucode'      => $ucode, 
+                ]);
+
+                // =========================================================
+                // 4. SIMPAN KE sis_ledger (Jurnal Akuntansi)
+                // =========================================================
+                $payitem = DB::table('sis_payitem')->where('id', $item['payitem_id'])->first();
+                
+                $coaCash = $payitem ? $payitem->coa_cash : 0; 
+                $coaPendapatan = 0;
+                
+                if ($payitem) {
+                    if ($payitem->coa_revenue > 0) $coaPendapatan = $payitem->coa_revenue;
+                    else if ($payitem->coa_payable > 0) $coaPendapatan = $payitem->coa_payable;
+                }
+
+                // Jurnal 1: Kas Bertambah (Debit)
+                DB::table('sis_ledger')->insert([
+                    'tid'       => $transId,
+                    'tdate'     => $request->tdate,
+                    'ttype'     => 'CR',
+                    'ref_no'    => $request->ref_no, // <-- Gunakan ref_no dari Form!
+                    'note'      => $item['note'] ?? 'Pemasukan',
+                    'coa_code'  => $coaCash,
+                    'debit'     => $amount, 
+                    'credit'    => 0,
+                    'is_posted' => 'yes',
+                ]);
+
+                // Jurnal 2: Pendapatan Bertambah (Kredit)
+                DB::table('sis_ledger')->insert([
+                    'tid'       => $transId,
+                    'tdate'     => $request->tdate,
+                    'ttype'     => 'CR',
+                    'ref_no'    => $request->ref_no, // <-- Gunakan ref_no dari Form!
+                    'note'      => $item['note'] ?? 'Pemasukan',
+                    'coa_code'  => $coaPendapatan, 
+                    'debit'     => 0,
+                    'credit'    => $amount, 
+                    'is_posted' => 'yes',
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('fincom.transincome.index')->with('success', "Data pemasukan berhasil disimpan dengan Referensi: " . $request->ref_no);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * MENCARI NAMA PENYETOR (PAY TO) UNTUK AUTOCOMPLETE
+     */
+    public function searchPayto(Request $request)
+    {
+        $query = $request->get('q');
+        if (empty($query)) return response()->json([]);
+
+        // Mencari dari histori tabel expense atau tabel user/siswa (sesuaikan tabelnya)
+        $results = DB::table('sis_expense')
+            ->select('payto as fullname')
+            ->whereNotNull('payto')
+            ->where('payto', '!=', '')
+            ->where('payto', 'LIKE', "%{$query}%")
+            ->distinct()
+            ->limit(5)
+            ->get();
+
+        return response()->json($results);
+    }
+
+    /**
+     * PROSES VALIDASI UNLOCK TANGGAL VIA AJAX (PEMASUKAN)
+     */
+    public function verifyAdmin(Request $request)
+    {
+        $request->validate([
+            'username' => 'required',
+            'password' => 'required',
+        ]);
+
+        try {
+            // 1. Cari user berdasarkan username
+            $user = DB::table('sis_user')->where('username', $request->username)->first();
+
+            if ($user) {
+                $dbPassword = $user->password ?? ''; 
+                $inputPassword = $request->password;
+                $isPasswordValid = false;
+
+                // 2. Cek Password: Prioritaskan MD5 (Legacy CI2) terlebih dahulu
+                if (md5($inputPassword) === $dbPassword) {
+                    $isPasswordValid = true;
+                } 
+                // Jika bukan MD5, baru coba cek menggunakan standar Hash Laravel
+                else if (\Illuminate\Support\Facades\Hash::check($inputPassword, $dbPassword)) {
+                    $isPasswordValid = true;
+                }
+
+                // 3. Jika password cocok, pastikan dia Admin
+                if ($isPasswordValid) {
+                    if (isset($user->is_admin) && $user->is_admin === 'yes') {
+                        return response()->json(['success' => true, 'message' => 'Otorisasi berhasil.']);
+                    } else {
+                        return response()->json(['success' => false, 'message' => 'Akses Ditolak: User ini bukan Administrator.']);
+                    }
+                } else {
+                    // Jika password salah
+                    return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
+                }
+            }
+
+            // Jika Username tidak ditemukan
+            return response()->json(['success' => false, 'message' => 'Username atau Password salah.']);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Sistem Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
