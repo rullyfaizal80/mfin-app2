@@ -114,7 +114,7 @@
                                 {{-- Tombol Aksi (Edit) --}}
                                 <td class="text-center">                                    
                                     <a href="javascript:void(0);" 
-                                       onclick="confirmEdit('{{-- route('fincom.transincome.edit', $row->id) --}}')" 
+                                       onclick="confirmEdit('{{route('fincom.transincome.edit', $row->id)}}')" 
                                        class="btn btn-warning btn-sm" title="Edit Pemasukan">
                                        <i class="bi bi-pencil-square"></i> Edit
                                     </a>
@@ -143,8 +143,8 @@
 // Fungsi Confirm Edit
 function confirmEdit(url) {
     if (confirm('Mengedit data akan menghapus data transaksi lama dan menggantinya dengan yang baru, lanjutkan?')) {
-        // window.location.href = url; // Diaktifkan nanti jika route edit sudah ada
-        alert('Fitur Form Edit akan kita buat di langkah selanjutnya!');
+        window.location.href = url; // Diaktifkan nanti jika route edit sudah ada
+        //alert('Fitur Form Edit akan kita buat di langkah selanjutnya!');
     }
 }
 

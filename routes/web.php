@@ -233,8 +233,9 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::post('/verify-admin', [App\Http\Controllers\Fincom\TransincomeController::class, 'verifyAdmin'])->name('verifyAdmin');
         Route::get('/p_income/{cas_id}/{awal}/{akhir}', [App\Http\Controllers\Fincom\TransincomeController::class, 'p_income'])->name('p_income');
         Route::get('/print-kwitansi/{id}', [App\Http\Controllers\Fincom\TransincomeController::class, 'print_kwitansi'])->name('print_kwitansi');
-    });
-
-    
+        Route::get('/{id}/edit', [App\Http\Controllers\Fincom\TransincomeController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [App\Http\Controllers\Fincom\TransincomeController::class, 'update'])->name('update');
+        Route::delete('/{id}', [App\Http\Controllers\Fincom\TransincomeController::class, 'destroy'])->name('destroy');
+    });    
        
 });

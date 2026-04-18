@@ -367,4 +367,181 @@ class TransincomeController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * MENAMPILKAN FORM EDIT PEMASUKAN
+     */
+    public function edit($id)
+    {
+        // Ambil Data Header
+        $header = DB::table('sis_expense')->where('id', $id)->where('parent_id', 0)->first();
+        if (!$header) {
+            return redirect()->route('fincom.transincome.index')->with('error', 'Data Pemasukan tidak ditemukan.');
+        }
+
+        // Ambil Rincian Item (Anak)
+        $details = DB::table('sis_expense')->where('parent_id', $header->id)->get();
+
+        // Data pendukung
+        $payitems = DB::table('sis_payitem')
+            ->where('payitem_type', 'income')
+            // ->where('payitem_user', 'cashier') // Aktifkan jika ada filter khusus kasir
+            ->orderBy('title', 'asc')
+            ->get();
+            
+        $kasir = DB::table('sis_user')->where('id', $header->user_id)->first();
+        $petugasName = $kasir ? $kasir->fullname : 'Administrator';
+
+        return view('fincom.transincome.edit', compact('header', 'details', 'payitems', 'petugasName'));
+    }
+
+    /**
+     * MENYIMPAN PERUBAHAN DATA (UPDATE)
+     */
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'tdate'  => 'required|date',
+            'payto'  => 'required|string|max:255',
+            'items'  => 'required|array|min:1',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $userId = auth()->id() ?? session('user_id') ?? session('id');
+            if (!$userId) return redirect()->back()->with('error', 'Sesi login tidak valid.');
+
+            // 1. Ambil Data Master Lama
+            $header = DB::table('sis_expense')->where('id', $id)->first();
+            if (!$header) throw new \Exception("Data tidak ditemukan!");
+            
+            $tid = $header->tid; // ID Transaksi Induk di sis_trans
+            $ucode = $header->ucode;
+            $ref_no = $header->ref_no; // Pertahankan nomor referensi asli
+
+            // 2. Hitung Total Baru
+            $totalAmount = 0;
+            foreach ($request->items as $item) {
+                $totalAmount += (float) str_replace(['.', ','], ['', '.'], $item['amount']);
+            }
+
+            $now = now()->toDateTimeString();
+                       
+            // 3. UPDATE TABEL sis_trans
+            DB::table('sis_trans')->where('id', $tid)->update([
+                'user_id'  => $userId, // <-- TAMBAHKAN BARIS INI
+                'tdate'    => $request->tdate,
+                'note'     => $request->header_note ?? 'Pemasukan Kasir',
+                'tvalue'   => $totalAmount,
+                'mdate'    => $now,
+                'mdate_by' => $userId,
+            ]);
+
+            // 4. UPDATE TABEL sis_expense (Header)
+            DB::table('sis_expense')->where('id', $id)->update([
+                'user_id'  => $userId, // <-- TAMBAHKAN BARIS INI
+                'tdate'    => $request->tdate,
+                'payto'    => $request->payto,
+                'note'     => $request->header_note ?? '',
+                'credit'   => $totalAmount,
+                'mdate'    => $now,
+                'mdate_by' => $userId,
+            ]);
+
+            // =========================================================
+            // 5. RE-INSERT LOGIC (Hapus detail & ledger lama, masukkan yang baru)
+            // =========================================================
+            DB::table('sis_expense')->where('parent_id', $id)->delete();
+            DB::table('sis_ledger')->where('tid', $tid)->delete();
+
+            foreach ($request->items as $item) {
+                $amount = (float) str_replace(['.', ','], ['', '.'], $item['amount']);
+
+                // Insert Ulang Detail Item
+                DB::table('sis_expense')->insert([
+                    'parent_id'  => $id,
+                    'ref_no'     => $ref_no,
+                    'tdate'      => $request->tdate,
+                    'payto'      => $request->payto,
+                    'payitem_id' => $item['payitem_id'],
+                    'note'       => $item['note'] ?? '',
+                    'debit'      => 0,
+                    'credit'     => $amount, 
+                    'user_id'    => $userId,
+                    'is_posted'  => 'yes',
+                    'cdate'      => $header->cdate, // Pertahankan cdate asli
+                    'mdate'      => $now,
+                    'mdate_by'   => $userId,
+                    'tid'        => $tid,
+                    'ucode'      => $ucode,
+                ]);
+
+                // Insert Ulang Jurnal Ledger
+                $payitem = DB::table('sis_payitem')->where('id', $item['payitem_id'])->first();
+                $coaCash = $payitem ? $payitem->coa_cash : 0; 
+                $coaPendapatan = $payitem ? ($payitem->coa_revenue > 0 ? $payitem->coa_revenue : $payitem->coa_payable) : 0;
+
+                // Jurnal 1: Kas Bertambah (Debit)
+                DB::table('sis_ledger')->insert([
+                    'tid'       => $tid,
+                    'tdate'     => $request->tdate,
+                    'ttype'     => 'CR',
+                    'ref_no'    => $ref_no,
+                    'note'      => $item['note'] ?? 'Pemasukan',
+                    'coa_code'  => $coaCash,
+                    'debit'     => $amount, 
+                    'credit'    => 0,
+                    'is_posted' => 'yes',
+                ]);
+
+                // Jurnal 2: Pendapatan Bertambah (Kredit)
+                DB::table('sis_ledger')->insert([
+                    'tid'       => $tid,
+                    'tdate'     => $request->tdate,
+                    'ttype'     => 'CR',
+                    'ref_no'    => $ref_no,
+                    'note'      => $item['note'] ?? 'Pemasukan',
+                    'coa_code'  => $coaPendapatan, 
+                    'debit'     => 0,
+                    'credit'    => $amount, 
+                    'is_posted' => 'yes',
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->route('fincom.transincome.index')->with('success', "Data pemasukan (Ref: $ref_no) berhasil diperbarui!");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal memperbarui data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * MENGHAPUS DATA PEMASUKAN BESERTA JURNALNYA
+     */
+    public function destroy($id)
+    {
+        try {
+            DB::beginTransaction();
+
+            $header = DB::table('sis_expense')->where('id', $id)->first();
+            if (!$header) throw new \Exception("Data tidak ditemukan!");
+            
+            $tid = $header->tid;
+
+            // Hapus Master, Rincian, dan Jurnal Ledger
+            DB::table('sis_trans')->where('id', $tid)->delete();
+            DB::table('sis_expense')->where('tid', $tid)->delete(); // Menghapus header sekaligus child-nya
+            DB::table('sis_ledger')->where('tid', $tid)->delete();
+
+            DB::commit();
+            return redirect()->route('fincom.transincome.index')->with('success', 'Data pemasukan berhasil dihapus permanen!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
+        }
+    }
 }
