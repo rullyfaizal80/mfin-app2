@@ -5,8 +5,8 @@
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h3">Laporan Per Komponen</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="window.print()">
+    <div class="btn-toolbar mb-2 mb-md-0">        
+        <button type="button" class="btn btn-sm btn-outline-primary me-2" onclick="printPreview()">
             <i class="bi bi-printer"></i> Cetak Laporan
         </button>
     </div>
@@ -15,7 +15,7 @@
 {{-- FORM FILTER --}}
 <div class="card shadow-sm mb-4 no-print">
     <div class="card-body">
-        <form action="{{ route('fincom.transexpense.list_expense') }}" method="GET" class="row g-3">
+        <form action="{{ route('fincom.transexpense.list_expense') }}" method="GET" class="row g-3" id="filterForm">
             <div class="col-md-4">
                 <label class="form-label fw-bold">Jenis Komponen</label>
                 <select name="payitem_id" class="form-select select2">
@@ -144,4 +144,55 @@
         .bg-success, .bg-danger { -webkit-print-color-adjust: exact; color: white !important; }
     }
 </style>
+
+<script>
+// Validasi Filter Maksimal 1 Tahun
+document.getElementById('filterForm').addEventListener('submit', function(e) {
+    const awalInput = document.querySelector('input[name="awal"]').value;
+    const akhirInput = document.querySelector('input[name="akhir"]').value;
+
+    if (awalInput && akhirInput) {
+        const dAwal = new Date(awalInput);
+        const dAkhir = new Date(akhirInput);
+
+        // 1. Cek apakah tanggal terbalik
+        if (dAkhir < dAwal) {
+            e.preventDefault(); // Cegah loading
+            alert("⚠️ Peringatan: Tanggal 'Sampai' tidak boleh lebih lampau dari tanggal 'Dari'.");
+            return;
+        }
+
+        // 2. Hitung selisih hari
+        const diffTime = Math.abs(dAkhir - dAwal);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+
+        // 3. Batasi maksimal 366 hari (1 tahun + toleransi tahun kabisat)
+        if (diffDays > 366) {
+            e.preventDefault(); // Cegah loading (mencegah crash)
+            alert("🚨 Peringatan: Rentang waktu filter maksimal adalah 1 Tahun (365 hari).\n\nSilakan perkecil rentang tanggal untuk mencegah aplikasi menjadi berat atau error.");
+        }
+    }
+});
+
+function printPreview() {
+    // Gunakan JavaScript Murni (Vanilla JS) agar tidak bergantung pada urutan load jQuery
+    const payitemSelect = document.querySelector('select[name="payitem_id"]');
+    const awalInput = document.querySelector('input[name="awal"]');
+    const akhirInput = document.querySelector('input[name="akhir"]');
+
+    const payitem_id = payitemSelect ? payitemSelect.value : '0';
+    const awal = (awalInput && awalInput.value) ? awalInput.value : 'all';
+    const akhir = (akhirInput && akhirInput.value) ? akhirInput.value : 'all';
+    
+    // Bangun URL Preview
+    const url = "{{ route('fincom.transexpense.p_list_expense', [':id', ':awal', ':akhir']) }}"
+                .replace(':id', payitem_id)
+                .replace(':awal', awal)
+                .replace(':akhir', akhir);
+                
+    // Buka di Tab Baru
+    window.open(url, '_blank');
+}
+</script>
+
 @endsection

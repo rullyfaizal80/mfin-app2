@@ -561,6 +561,19 @@ class TransincomeController extends Controller
         $awal = $request->get('awal', date('Y-m-01')); // Default awal bulan ini
         $akhir = $request->get('akhir', date('Y-m-d'));
 
+        // Pelindung agar tidak jebol load data bertahun-tahun
+if ($awal != 'all' && $akhir != 'all' && $awal != '' && $akhir != '') {
+    $dateAwal = Carbon::parse($awal);
+    $dateAkhir = Carbon::parse($akhir);
+    
+    // Jika lebih dari 366 hari, paksa tanggal akhir menjadi maksimal 1 tahun dari tanggal awal
+    if ($dateAwal->diffInDays($dateAkhir) > 366) {
+        $akhir = $dateAwal->addYear()->format('Y-m-d');
+        // Notifikasi opsional (jika menggunakan session flash)
+        // session()->flash('warning', 'Rentang waktu dikurangi otomatis menjadi maksimal 1 tahun untuk mencegah beban sistem.');
+    }
+}
+
         // 3. Query utama (Hanya ambil data rincian/child, parent_id > 0)
         $query = DB::table('sis_expense as e')
             ->join('sis_payitem as p', 'e.payitem_id', '=', 'p.id')
@@ -589,5 +602,53 @@ class TransincomeController extends Controller
         $results = $query->orderBy('e.tdate', 'asc')->orderBy('e.id', 'asc')->get();
 
         return view('fincom.transexpense.list_expense', compact('results', 'payitems', 'payitemId', 'awal', 'akhir'));
+    }
+
+    /**
+     * TAMPILAN PRINT PREVIEW PER KOMPONEN
+     */
+    public function pListExpenseComponent($payitem_id, $awal, $akhir)
+    {
+    $query = DB::table('sis_expense as e')
+        ->join('sis_payitem as p', 'e.payitem_id', '=', 'p.id')
+        ->join('sis_user as u', 'e.user_id', '=', 'u.id')
+        ->leftJoin('sis_expense as par', 'e.parent_id', '=', 'par.id') 
+        ->select('e.*', 'p.title as component_name', 'p.payitem_type', 'u.fullname', 'par.payto as parent_payto')
+        ->where('e.parent_id', '>', 0);
+
+    // Filter Tanggal
+    if ($awal !== 'all' && $akhir !== 'all') {
+        $query->whereBetween('e.tdate', [$awal, $akhir]);
+    }
+
+    // ... kode penerimaan $awal dan $akhir ...
+
+// Pelindung agar tidak jebol load data bertahun-tahun
+if ($awal != 'all' && $akhir != 'all' && $awal != '' && $akhir != '') {
+    $dateAwal = Carbon::parse($awal);
+    $dateAkhir = Carbon::parse($akhir);
+    
+    // Jika lebih dari 366 hari, paksa tanggal akhir menjadi maksimal 1 tahun dari tanggal awal
+    if ($dateAwal->diffInDays($dateAkhir) > 366) {
+        $akhir = $dateAwal->addYear()->format('Y-m-d');
+        // Notifikasi opsional (jika menggunakan session flash)
+        // session()->flash('warning', 'Rentang waktu dikurangi otomatis menjadi maksimal 1 tahun untuk mencegah beban sistem.');
+    }
+}
+
+// ... lanjut ke query DB ...
+
+    // Filter Komponen & Ambil Nama Komponen
+    $component_name = "Semua Komponen";
+    if ($payitem_id > 0) {
+        $query->where('e.payitem_id', $payitem_id);
+        $pi = DB::table('sis_payitem')->where('id', $payitem_id)->first();
+        if($pi) $component_name = $pi->title;
+    }
+
+    $results = $query->orderBy('e.tdate', 'asc')->get();
+    $page_title = "Laporan Per Komponen";
+
+    return view('fincom.transexpense.p_list_expense', compact('results', 'awal', 'akhir', 'page_title', 'component_name'));
     }
 }
