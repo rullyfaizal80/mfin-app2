@@ -131,7 +131,13 @@
         {{-- Icon Tambah Pemasukan (Plus Circle atau sejenisnya) --}}
         <i class="bi {{ $menu->icon ?? 'bi-plus-circle' }}"></i> 
         <span>{{ $menu->title }}</span>
-    </a>    
+    </a>
+@elseif ($menu->link === 'fincom/transexpense/list_expense')
+    <a class="nav-link collapsed" href="{{ route('fincom.transexpense.list_expense') }}">
+        {{-- Icon Laporan (Bisa pakai list, file-text, atau pie-chart) --}}
+        <i class="bi {{ $menu->icon ?? 'bi-file-earmark-text' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>
 
 @else
             {{-- Link lain tetap seperti semula --}}

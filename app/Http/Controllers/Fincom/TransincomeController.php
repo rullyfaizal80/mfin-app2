@@ -544,4 +544,50 @@ class TransincomeController extends Controller
             return redirect()->back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
     }
+
+    /**
+     * LAPORAN PER KOMPONEN (PEMASUKAN & PENGELUARAN)
+     */
+    public function listExpenseComponent(Request $request)
+    {
+        // 1. Ambil data untuk filter dropdown
+        $payitems = DB::table('sis_payitem')
+            ->orderBy('payitem_type', 'asc')
+            ->orderBy('title', 'asc')
+            ->get();
+
+        // 2. Default value untuk filter
+        $payitemId = $request->get('payitem_id', 0);
+        $awal = $request->get('awal', date('Y-m-01')); // Default awal bulan ini
+        $akhir = $request->get('akhir', date('Y-m-d'));
+
+        // 3. Query utama (Hanya ambil data rincian/child, parent_id > 0)
+        $query = DB::table('sis_expense as e')
+            ->join('sis_payitem as p', 'e.payitem_id', '=', 'p.id')
+            ->join('sis_user as u', 'e.user_id', '=', 'u.id')
+            // ---> KUNCI PERBAIKAN: Join ke tabel expense itu sendiri (sebagai parent) <---
+            ->leftJoin('sis_expense as par', 'e.parent_id', '=', 'par.id') 
+            ->select(
+                'e.*', 
+                'p.title as component_name', 
+                'p.payitem_type', 
+                'u.fullname', 
+                'par.payto as parent_payto' // <-- Ambil payto dari Induknya
+            )
+            ->where('e.parent_id', '>', 0);
+
+        // Apply Filter Tanggal
+        if ($awal && $akhir) {
+            $query->whereBetween('e.tdate', [$awal, $akhir]);
+        }
+
+        // Apply Filter Komponen
+        if ($payitemId > 0) {
+            $query->where('e.payitem_id', $payitemId);
+        }
+
+        $results = $query->orderBy('e.tdate', 'asc')->orderBy('e.id', 'asc')->get();
+
+        return view('fincom.transexpense.list_expense', compact('results', 'payitems', 'payitemId', 'awal', 'akhir'));
+    }
 }

@@ -213,6 +213,7 @@ Route::middleware(['custom.auth'])->group(function () {
     });
 
     Route::prefix('fincom/transexpense')->name('fincom.transexpense.')->group(function () {
+        Route::get('/list_expense', [App\Http\Controllers\Fincom\TransincomeController::class, 'listExpenseComponent'])->name('list_expense');
         Route::get('/', [TransexpenseController::class, 'index'])->name('index');
         Route::get('/receipt/{id}', [TransexpenseController::class, 'receipt'])->name('receipt');
         Route::get('/p_expense/{cas_id}/{awal}/{akhir}', [TransexpenseController::class, 'p_expense'])->name('p_expense');
