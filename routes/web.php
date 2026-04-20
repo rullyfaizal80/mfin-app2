@@ -238,6 +238,13 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::get('/{id}/edit', [App\Http\Controllers\Fincom\TransincomeController::class, 'edit'])->name('edit');
         Route::put('/{id}', [App\Http\Controllers\Fincom\TransincomeController::class, 'update'])->name('update');
         Route::delete('/{id}', [App\Http\Controllers\Fincom\TransincomeController::class, 'destroy'])->name('destroy');
-    });    
+    });
+
+    Route::prefix('fincom/period')->name('fincom.period.')->group(function () {
+        Route::get('/', [App\Http\Controllers\Fincom\PeriodController::class, 'index'])->name('index');
+        Route::post('/store', [App\Http\Controllers\Fincom\PeriodController::class, 'store'])->name('store');
+        Route::put('/update/{id}', [App\Http\Controllers\Fincom\PeriodController::class, 'update'])->name('update');
+        Route::delete('/delete/{id}', [App\Http\Controllers\Fincom\PeriodController::class, 'destroy'])->name('destroy');
+    });
        
 });

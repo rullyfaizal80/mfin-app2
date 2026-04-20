@@ -138,6 +138,12 @@
         <i class="bi {{ $menu->icon ?? 'bi-file-earmark-text' }}"></i> 
         <span>{{ $menu->title }}</span>
     </a>
+@elseif ($menu->link === 'fincom/period')
+    <a class="nav-link collapsed" href="{{ route('fincom.period.index') }}">
+        {{-- Icon Kalender/Waktu untuk menu Periode --}}
+        <i class="bi {{ $menu->icon ?? 'bi-calendar-check' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>
 
 @else
             {{-- Link lain tetap seperti semula --}}
