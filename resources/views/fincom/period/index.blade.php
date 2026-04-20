@@ -150,66 +150,71 @@
     @method('DELETE')
 </form>
 
-<script>
-    // Inisialisasi DataTables bawaan template Anda
-    $(document).ready(function() {
-        $('.datatable').DataTable({
-            "language": {
-                "search": "Cari Keterangan:",
-                "emptyTable": "Tidak ada data periode di tahun ini"
-            }
+@push('scripts')
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Inisialisasi DataTables bawaan template Anda
+        $(document).ready(function() {
+            $('.datatable').DataTable({
+                "language": {
+                    "search": "Cari Keterangan:",
+                    "emptyTable": "Tidak ada data periode di tahun ini"
+                }
+            });
         });
-    });
 
-    // Fungsi untuk membuka Modal Tambah
-    function addPeriod() {
-        $('#periodForm').attr('action', "{{ route('fincom.period.store') }}");
-        $('#formMethod').val('POST');
-        $('#periodModalLabel').text('Tambah Periode Baru');
-        $('#modalHeader').css('background-color', '#0d6efd'); // Warna Biru
-        $('#btnSubmit').text('Simpan Periode');
-        
-        // Sembunyikan tombol hapus saat tambah data
-        $('#btnDelete').addClass('d-none');
-        
-        // Kosongkan form
-        $('#period_start').val("{{ date('Y-m-01') }}");
-        $('#period_end').val("{{ date('Y-m-t') }}");
-        $('#ttype').val('student');
-        $('#note').val('');
-        
-        $('#periodModal').modal('show');
-    }
-
-    // Fungsi untuk membuka Modal Edit
-    function editPeriod(id, start, end, type, note) {
-        let updateUrl = "{{ route('fincom.period.update', ':id') }}".replace(':id', id);
-        let deleteUrl = "{{ route('fincom.period.destroy', ':id') }}".replace(':id', id);
-        
-        $('#periodForm').attr('action', updateUrl);
-        $('#formMethod').val('PUT'); 
-        $('#periodModalLabel').text('Edit Periode');
-        $('#modalHeader').css('background-color', '#ffc107'); // Warna Kuning
-        $('#btnSubmit').text('Update Periode');
-        
-        // Tampilkan tombol hapus dan set URL delete-nya
-        $('#btnDelete').removeClass('d-none');
-        $('#deleteForm').attr('action', deleteUrl);
-        
-        // Isi form dengan data lama
-        $('#period_start').val(start);
-        $('#period_end').val(end);
-        $('#ttype').val(type);
-        $('#note').val(note);
-        
-        $('#periodModal').modal('show');
-    }
-
-    // Fungsi eksekusi hapus data
-    function confirmDelete() {
-        if (confirm('Yakin ingin menghapus periode ini? Tindakan ini tidak dapat dibatalkan.')) {
-            $('#deleteForm').submit();
+        // Fungsi untuk membuka Modal Tambah
+        function addPeriod() {
+            $('#periodForm').attr('action', "{{ route('fincom.period.store') }}");
+            $('#formMethod').val('POST');
+            $('#periodModalLabel').text('Tambah Periode Baru');
+            $('#modalHeader').css('background-color', '#0d6efd'); // Warna Biru
+            $('#btnSubmit').text('Simpan Periode');
+            
+            // Sembunyikan tombol hapus saat tambah data
+            $('#btnDelete').addClass('d-none');
+            
+            // Kosongkan form
+            $('#period_start').val("{{ date('Y-m-01') }}");
+            $('#period_end').val("{{ date('Y-m-t') }}");
+            $('#ttype').val('student');
+            $('#note').val('');
+            
+            $('#periodModal').modal('show');
         }
-    }
-</script>
+
+        // Fungsi untuk membuka Modal Edit
+        function editPeriod(id, start, end, type, note) {
+            let updateUrl = "{{ route('fincom.period.update', ':id') }}".replace(':id', id);
+            let deleteUrl = "{{ route('fincom.period.destroy', ':id') }}".replace(':id', id);
+            
+            $('#periodForm').attr('action', updateUrl);
+            $('#formMethod').val('PUT'); 
+            $('#periodModalLabel').text('Edit Periode');
+            $('#modalHeader').css('background-color', '#ffc107'); // Warna Kuning
+            $('#btnSubmit').text('Update Periode');
+            
+            // Tampilkan tombol hapus dan set URL delete-nya
+            $('#btnDelete').removeClass('d-none');
+            $('#deleteForm').attr('action', deleteUrl);
+            
+            // Isi form dengan data lama
+            $('#period_start').val(start);
+            $('#period_end').val(end);
+            $('#ttype').val(type);
+            $('#note').val(note);
+            
+            $('#periodModal').modal('show');
+        }
+
+        // Fungsi eksekusi hapus data
+        function confirmDelete() {
+            if (confirm('Yakin ingin menghapus periode ini? Tindakan ini tidak dapat dibatalkan.')) {
+                $('#deleteForm').submit();
+            }
+        }
+    </script>
+@endpush
 @endsection

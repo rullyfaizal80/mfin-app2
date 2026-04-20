@@ -40,7 +40,7 @@
                     <td class="align-middle fw-bold">Proses SPP Murid</td>
                     <td class="align-middle text-muted">Generate tagihan bulanan (SPP, dll) untuk seluruh siswa aktif pada periode ini.</td>
                     <td class="text-center align-middle">
-                        <a href="#" class="btn btn-primary btn-sm">
+                        <a href="{{ route('fincom.batch.proc_tuition', $period_id) }}" class="btn btn-primary btn-sm">
                             <i class="bi bi-play-circle"></i> Jalankan Proses
                         </a>
                     </td>

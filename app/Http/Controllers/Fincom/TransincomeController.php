@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Fincom;
 
 use App\Http\Controllers\Controller; // Wajib dipanggil karena berada di sub-folder
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
