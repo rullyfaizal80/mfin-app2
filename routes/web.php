@@ -246,5 +246,11 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::put('/update/{id}', [App\Http\Controllers\Fincom\PeriodController::class, 'update'])->name('update');
         Route::delete('/delete/{id}', [App\Http\Controllers\Fincom\PeriodController::class, 'destroy'])->name('destroy');
     });
+
+    Route::prefix('fincom/batch')->name('fincom.batch.')->group(function () {
+        Route::get('/lproc/{period_id}', [App\Http\Controllers\Fincom\BatchController::class, 'lproc'])->name('lproc');
+        
+        // (Rute untuk proses SPP dan Gaji akan kita tambahkan di tahap selanjutnya)
+    });
        
 });

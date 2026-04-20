@@ -72,28 +72,20 @@
                     </td>
                     <td>{{ $row->note }}</td>
                     <td class="text-center">
-                        <div class="btn-group" role="group">
-                            {{-- Daftar Proses (Placeholder URL, sesuaikan jika route batch sudah ada) --}}
-                            <a href="#" class="btn btn-sm btn-outline-primary" title="Daftar Proses">
-                                <i class="bi bi-card-checklist"></i> Proses
-                            </a>
-                            
-                            {{-- Tombol Edit (Kirim data ke Modal) --}}
-                            <button type="button" class="btn btn-sm btn-outline-warning" 
-                                onclick="editPeriod({{ $row->id }}, '{{ $row->period_start }}', '{{ $row->period_end }}', '{{ $row->ttype }}', '{{ addslashes($row->note) }}')">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-
-                            {{-- Tombol Hapus --}}
-                            <form action="{{ route('fincom.period.destroy', $row->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin ingin menghapus periode ini?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
+    <div class="btn-group" role="group">
+        {{-- Daftar Proses --}}
+        <a href="{{ url('fincom/batch/lproc/'.$row->id) }}" class="btn btn-sm btn-outline-primary" title="Daftar Proses">
+            <i class="bi bi-card-checklist"></i> Proses
+        </a>
+        
+        {{-- Tombol Edit (Kirim data ke Modal) --}}
+        <button type="button" class="btn btn-sm btn-outline-warning" 
+            onclick="editPeriod({{ $row->id }}, '{{ $row->period_start }}', '{{ $row->period_end }}', '{{ $row->ttype }}', '{{ addslashes($row->note) }}')">
+            <i class="bi bi-pencil"></i> Edit
+        </button>
+    </div>
+</td>
+                    
                 </tr>
                 @endforeach
             </tbody>
@@ -136,16 +128,27 @@
                             <textarea name="note" id="note" class="form-control" rows="3"></textarea>
                         </div>
                     </div>
-                </div>
+                </div>               
                 
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-primary" id="btnSubmit">Simpan Periode</button>
+                <div class="modal-footer d-flex justify-content-between">
+                    <div>
+                        <button type="button" class="btn btn-danger d-none" id="btnDelete" onclick="confirmDelete()">Hapus Periode</button>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary" id="btnSubmit">Simpan Periode</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+{{-- FORM HIDDEN UNTUK DELETE --}}
+<form id="deleteForm" method="POST" action="">
+    @csrf
+    @method('DELETE')
+</form>
 
 <script>
     // Inisialisasi DataTables bawaan template Anda
@@ -166,9 +169,12 @@
         $('#modalHeader').css('background-color', '#0d6efd'); // Warna Biru
         $('#btnSubmit').text('Simpan Periode');
         
+        // Sembunyikan tombol hapus saat tambah data
+        $('#btnDelete').addClass('d-none');
+        
         // Kosongkan form
-        $('#period_start').val("{{ date('Y-m-01') }}"); // Default awal bulan ini
-        $('#period_end').val("{{ date('Y-m-t') }}");   // Default akhir bulan ini
+        $('#period_start').val("{{ date('Y-m-01') }}");
+        $('#period_end').val("{{ date('Y-m-t') }}");
         $('#ttype').val('student');
         $('#note').val('');
         
@@ -177,13 +183,18 @@
 
     // Fungsi untuk membuka Modal Edit
     function editPeriod(id, start, end, type, note) {
-        let url = "{{ route('fincom.period.update', ':id') }}".replace(':id', id);
+        let updateUrl = "{{ route('fincom.period.update', ':id') }}".replace(':id', id);
+        let deleteUrl = "{{ route('fincom.period.destroy', ':id') }}".replace(':id', id);
         
-        $('#periodForm').attr('action', url);
-        $('#formMethod').val('PUT'); // Wajib PUT untuk update di Laravel
+        $('#periodForm').attr('action', updateUrl);
+        $('#formMethod').val('PUT'); 
         $('#periodModalLabel').text('Edit Periode');
-        $('#modalHeader').css('background-color', '#ffc107'); // Warna Kuning/Warning
+        $('#modalHeader').css('background-color', '#ffc107'); // Warna Kuning
         $('#btnSubmit').text('Update Periode');
+        
+        // Tampilkan tombol hapus dan set URL delete-nya
+        $('#btnDelete').removeClass('d-none');
+        $('#deleteForm').attr('action', deleteUrl);
         
         // Isi form dengan data lama
         $('#period_start').val(start);
@@ -192,6 +203,13 @@
         $('#note').val(note);
         
         $('#periodModal').modal('show');
+    }
+
+    // Fungsi eksekusi hapus data
+    function confirmDelete() {
+        if (confirm('Yakin ingin menghapus periode ini? Tindakan ini tidak dapat dibatalkan.')) {
+            $('#deleteForm').submit();
+        }
     }
 </script>
 @endsection
