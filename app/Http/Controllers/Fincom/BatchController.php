@@ -170,7 +170,8 @@ class BatchController extends Controller
                 'period_id' => $period_id,
                 'user_id'   => $user_id,
                 'cdate'     => now(),
-                'note'      => 'Sukses diproses'
+                'note'      => 'Sukses diproses',
+                'proc_type' => 'SPP'
             ]);
 
             DB::commit();
