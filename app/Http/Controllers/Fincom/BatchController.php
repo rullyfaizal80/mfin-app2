@@ -144,7 +144,8 @@ class BatchController extends Controller
                             'tstat'          => 'unpaid',
                             'cdate'          => now(),
                             'mdate'          => now(),
-                            'mdate_by'       => auth()->id() ?? 1
+                            'mdate_by'       => auth()->id() ?? 1,
+                            'tid'            => 0
                         ]);
 
                         $tot_val += $upitem->payvalue;
@@ -168,7 +169,8 @@ class BatchController extends Controller
             DB::table('sis_logprocess')->insert([
                 'period_id' => $period_id,
                 'user_id'   => $user_id,
-                'cdate'     => now()
+                'cdate'     => now(),
+                'note'      => 'Sukses diproses'
             ]);
 
             DB::commit();
