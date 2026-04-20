@@ -40,13 +40,22 @@
         </div>
     </div>
 
+    
     <div class="col-md-8">
         {{-- TERMINAL LOG --}}
         <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white d-flex justify-content-between">
-                <h5 class="card-title mb-0"><i class="bi bi-terminal"></i> Log Aktivitas</h5>
-                <span class="badge bg-primary" id="counter">0 Siswa Diproses</span>
-            </div>
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+    <h5 class="card-title mb-0"><i class="bi bi-terminal"></i> Log Aktivitas</h5>
+    <div>
+        <span class="badge bg-secondary me-1">Total: <span id="count_total">{{ $total_siswa }}</span></span>
+        
+        <span class="badge bg-success me-1">Sudah: <span id="count_sudah">{{ $sudah_proses }}</span></span>
+        
+        <span class="badge bg-warning text-dark me-1">Belum: <span id="count_belum">{{ $belum_proses }}</span></span>
+        
+        <span class="badge bg-primary">Sesi Ini: <span id="count_sesi">0</span></span>
+    </div>
+</div>
             <div class="card-body bg-black text-success" style="height: 350px; overflow-y: auto; font-family: monospace; font-size: 13px;" id="consoleLog">
                 > Sistem siap.<br>
                 > Menunggu perintah proses...<br>
@@ -107,12 +116,22 @@ $(document).ready(function() {
                         type: "POST",
                         data: { _token: "{{ csrf_token() }}" },
                         dataType: "json",
-                        success: function(resProcess) {
-                            counter++;
-                            $('#counter').text(counter + " Siswa Diproses");
+                       success: function(resProcess) {
+                            counter++; // Tetap pertahankan ini
+                            
+                            // 1. Ambil angka saat ini dari badge (Statis)
+                            let sudah = parseInt($('#count_sudah').text()) || 0;
+                            let belum = parseInt($('#count_belum').text()) || 0;
+                            
+                            // 2. Update angkanya di layar
+                            $('#count_sudah').text(sudah + 1);
+                            if(belum > 0) $('#count_belum').text(belum - 1);
+                            $('#count_sesi').text(counter); // Gunakan nilai counter ke badge Sesi Ini
+
+                            // 3. Tambahkan teks ke terminal
                             addLog(`   -- Berhasil!`);
                             
-                            // Lanjut rekursif ke siswa berikutnya
+                            // 4. Lanjut rekursif ke siswa berikutnya
                             timer = setTimeout(runProcess, 200); 
                         },
                         error: function(xhr) {

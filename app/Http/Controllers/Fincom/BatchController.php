@@ -33,7 +33,27 @@ class BatchController extends Controller
         }
 
         $page_title = "Proses Tagihan SPP Bulanan";
-        return view('fincom.batch.proc_tuition', compact('period_id', 'period', 'page_title'));
+        // 1. Hitung total siswa aktif (Sesuaikan nama tabel 'users' jika di DB Anda namanya lain, misal 'siswa' atau 'students')
+$total_siswa = DB::table('sis_user')
+                ->where('is_student', 'yes') // Menggunakan kolom is_student
+                ->where('is_active', 'yes')  // Menggunakan kolom is_active
+                ->count();
+
+// 2. Hitung siswa yang sudah berhasil diproses di bulan/periode ini
+$sudah_proses = DB::table('sis_logprocess')
+                ->where('period_id', $period_id)
+                ->where('proc_type', 'SPP')
+                ->count();
+
+// 3. Hitung sisa yang belum
+$belum_proses = $total_siswa - $sudah_proses;
+if ($belum_proses < 0) { $belum_proses = 0; } // Jaga-jaga agar tidak minus
+
+// 4. Kirim semua datanya ke halaman View
+return view('fincom.batch.proc_tuition', compact(
+    'period_id', 'period', 'page_title', 
+    'total_siswa', 'sudah_proses', 'belum_proses'
+));
     }
 
     // ===========================================================================
