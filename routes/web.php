@@ -253,5 +253,24 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::post('/get-student/{period_id}', [App\Http\Controllers\Fincom\BatchController::class, 'getStudent'])->name('get_student');
         Route::post('/process-tuition/{period_id}/{user_id}', [App\Http\Controllers\Fincom\BatchController::class, 'processTuition'])->name('process_tuition');
     });
+    
+        // Group Route Fincom Payitem
+Route::prefix('fincom/payitem')->name('fincom.payitem.')->group(function () {
+    // Halaman Utama & AJAX Data
+    Route::get('/student', [App\Http\Controllers\Fincom\PayitemController::class, 'index'])->name('student.index');
+    Route::post('/student/data', [App\Http\Controllers\Fincom\PayitemController::class, 'data'])->name('student.data');
+    
+    // Create
+    Route::get('/student/create', [App\Http\Controllers\Fincom\PayitemController::class, 'create'])->name('student.create');
+    Route::post('/student/store', [App\Http\Controllers\Fincom\PayitemController::class, 'store'])->name('student.store');
+    
+    // Edit
+    Route::get('/student/{id}/edit', [App\Http\Controllers\Fincom\PayitemController::class, 'edit'])->name('student.edit');
+    Route::post('/student/{id}/update', [App\Http\Controllers\Fincom\PayitemController::class, 'update'])->name('student.update');
+    
+    // Delete & Sync
+    Route::delete('/student/{id}', [App\Http\Controllers\Fincom\PayitemController::class, 'destroy'])->name('student.destroy');
+    Route::post('/student/{id}/sync', [App\Http\Controllers\Fincom\PayitemController::class, 'sync'])->name('student.sync');
+});
        
 });

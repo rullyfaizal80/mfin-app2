@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    {{-- Bagian head Anda dari kode yang diberikan sudah benar, tidak perlu diubah --}}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Aplikasi Keuangan')</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
+    
+    {{-- [TAMBAHAN] CSS Bootstrap & FontAwesome --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    
+    {{-- [PERBAIKAN] CSS DataTables (Wajib agar tabelnya rapi) --}}
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+
     <script>
         (function() {
             const theme = localStorage.getItem('theme') || 'light';
@@ -16,7 +21,6 @@
         })();
     </script>
     <style>
-        /* Semua CSS Anda dari kode yang diberikan sudah benar, tidak perlu diubah */
         html, body { height: 100%; }
         body { display: flex; flex-direction: column; background-color: var(--bs-secondary-bg); }
         .main-container { display: flex; flex: 1; overflow: hidden; }
@@ -36,49 +40,31 @@
         .navbar-toggler { padding: 0.25rem 0.5rem; font-size: 0.875rem; }
         .navbar-toggler-icon { width: 1.2em; height: 1.2em; }
 
-        /* --- Sidebar tampil normal di desktop --- */
-/* --- Pastikan tinggi header konstan di semua perangkat --- */
-header.navbar {
-  min-height: 56px;
-}
-        .sidebar {
-  width: 200px;
-}
+        header.navbar { min-height: 56px; }
+        .sidebar { width: 200px; }
 
-@media (max-width: 767.98px) {
-  #sidebarMenu {
-    position: fixed;
-    top: 56px; /* pakai nilai konstan sesuai tinggi header */
-    left: -200px;
-    width: 200px;
-    height: calc(100vh - 56px);
-    background-color: var(--bs-body-bg);
-    z-index: 1045;
-    transition: left 0.3s ease;
-    overflow-y: auto;
-    border-top: 1px solid var(--bs-border-color);
-  }
-
-  #sidebarMenu.show {
-    left: 0;
-  }
-
-  body.sidebar-open::after {
-    content: "";
-    position: fixed;
-    top: 56px;
-    left: 0;
-    width: 100%;
-    height: calc(100vh - 56px);
-    background: rgba(0, 0, 0, 0.25);
-    z-index: 1040;
-  }
-}
+        @media (max-width: 767.98px) {
+            #sidebarMenu {
+                position: fixed;
+                top: 56px; 
+                left: -200px;
+                width: 200px;
+                height: calc(100vh - 56px);
+                background-color: var(--bs-body-bg);
+                z-index: 1045;
+                transition: left 0.3s ease;
+                overflow-y: auto;
+                border-top: 1px solid var(--bs-border-color);
+            }
+            #sidebarMenu.show { left: 0; }
+            body.sidebar-open::after {
+                content: ""; position: fixed; top: 56px; left: 0; width: 100%; height: calc(100vh - 56px); background: rgba(0, 0, 0, 0.25); z-index: 1040;
+            }
+        }
     </style>
 </head>
 <body>
     
-    {{-- [PERUBAHAN 1] Seluruh struktur visual sekarang berada di sini --}}
     <header class="navbar sticky-top bg-body-tertiary flex-md-nowrap p-0 shadow-sm align-items-center">
         <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-4 d-flex align-items-center" href="{{ route('dashboard') }}">
             <img src="{{ asset('favicon.ico') }}" alt="Logo" width="24" height="24" class="me-2">MIMHa Finance
@@ -110,21 +96,23 @@ header.navbar {
         </nav>
 
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            {{-- [PERUBAHAN 2] Di sinilah konten unik setiap halaman (dashboard, user, dll) akan ditampilkan --}}
             @yield('content')
         </main>
     </div>
 
-    {{-- File: resources/views/layouts/app.blade.php (bagian paling bawah) --}}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
+
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
 <script src="{{ asset('assets/js/main.js') }}"></script>
 
 @stack('scripts')
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- LOGIKA TOMBOL TEMA (Tetap sama) ---
         const themeToggleBtn = document.getElementById('theme-toggle'); 
         if (themeToggleBtn) {
             const htmlTag = document.documentElement;
@@ -140,7 +128,6 @@ header.navbar {
             });
         }
 
-        // --- [PERBAIKAN] LOGIKA JAM REAL-TIME DIPINDAHKAN KE SINI ---
         const clockElement = document.getElementById('realtime-clock');
         function updateClock() {
             if (clockElement) {
@@ -149,16 +136,14 @@ header.navbar {
                 clockElement.textContent = now.toLocaleDateString('id-ID', options).replace(/pukul/g, '');
             }
         }
-        updateClock(); // Panggil sekali agar tidak kosong saat awal
-        setInterval(updateClock, 1000); // Update setiap detik
+        updateClock(); 
+        setInterval(updateClock, 1000); 
 
-        // Efek backdrop saat sidebar dibuka
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebarMenu = document.getElementById('sidebarMenu');
-    sidebarMenu.addEventListener('shown.bs.collapse', () => document.body.classList.add('sidebar-open'));
-    sidebarMenu.addEventListener('hidden.bs.collapse', () => document.body.classList.remove('sidebar-open'));
-});
-
+        const sidebarMenu = document.getElementById('sidebarMenu');
+        if(sidebarMenu) {
+            sidebarMenu.addEventListener('shown.bs.collapse', () => document.body.classList.add('sidebar-open'));
+            sidebarMenu.addEventListener('hidden.bs.collapse', () => document.body.classList.remove('sidebar-open'));
+        }
     });
 </script>
 </body>

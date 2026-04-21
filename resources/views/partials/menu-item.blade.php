@@ -144,6 +144,11 @@
         <i class="bi {{ $menu->icon ?? 'bi-calendar-check' }}"></i> 
         <span>{{ $menu->title }}</span>
     </a>
+@elseif ($menu->link === 'fincom/payitem/student')
+    <a class="nav-link collapsed" href="{{ route('fincom.payitem.student.index') }}">
+        <i class="bi {{ $menu->icon ?? 'bi-wallet2' }}"></i> 
+        <span>{{ $menu->title }}</span>
+    </a>
 
 @else
             {{-- Link lain tetap seperti semula --}}
