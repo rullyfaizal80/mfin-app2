@@ -22,6 +22,7 @@ use App\Http\Controllers\Admin\ReportStudentController;
 use App\Http\Controllers\Admin\ReportTeacherController;
 use App\Http\Controllers\Fincom\PaymentController;
 use App\Http\Controllers\Fincom\TransexpenseController;
+use App\Http\Controllers\Reports\PayitemController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -271,6 +272,12 @@ Route::prefix('fincom/payitem')->name('fincom.payitem.')->group(function () {
     // Delete & Sync
     Route::delete('/student/{id}', [App\Http\Controllers\Fincom\PayitemController::class, 'destroy'])->name('student.destroy');
     Route::post('/student/{id}/sync', [App\Http\Controllers\Fincom\PayitemController::class, 'sync'])->name('student.sync');
+});
+
+Route::prefix('reports')->name('reports.')->group(function () {
+    // URL: http://localhost:8000/reports/payitems
+    Route::get('/payitems', [PayitemController::class, 'index'])->name('payitems');
+    Route::post('/payitems', [PayitemController::class, 'index'])->name('payitems.search');
 });
        
 });
