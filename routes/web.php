@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\ReportTeacherController;
 use App\Http\Controllers\Fincom\PaymentController;
 use App\Http\Controllers\Fincom\TransexpenseController;
 use App\Http\Controllers\Reports\PayitemController;
+use App\Http\Controllers\Fincom\StudentListController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -274,10 +275,25 @@ Route::prefix('fincom/payitem')->name('fincom.payitem.')->group(function () {
     Route::post('/student/{id}/sync', [App\Http\Controllers\Fincom\PayitemController::class, 'sync'])->name('student.sync');
 });
 
+// Group untuk Reports
 Route::prefix('reports')->name('reports.')->group(function () {
-    // URL: http://localhost:8000/reports/payitems
+    // URL: /reports/payitems
     Route::get('/payitems', [PayitemController::class, 'index'])->name('payitems');
     Route::post('/payitems', [PayitemController::class, 'index'])->name('payitems.search');
+});
+
+// Group untuk Fincom (Keuangan)
+Route::prefix('fincom')->name('fincom.')->group(function () {
+    
+    // Group untuk Student List
+    Route::prefix('student_list')->name('student_list.')->group(function () {
+        // URL: /fincom/student_list/{class_list_id?}
+        Route::get('/{class_list_id?}', [StudentListController::class, 'index'])->name('index');
+        
+        // URL: /fincom/student_list/ax_get_student_list/{class_list_id?}
+        Route::post('/ax_get_student_list/{class_list_id?}', [StudentListController::class, 'ax_get_student_list'])->name('ajax');
+    });
+    
 });
        
 });
