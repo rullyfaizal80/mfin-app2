@@ -11,115 +11,135 @@ class StudentListController extends Controller
     /**
      * Menampilkan halaman utama daftar siswa
      */
-    public function index(Request $request, $class_list_id = 0)
+   public function index(Request $request, $class_list_id = 0)
     {
-        // 1. Ambil data untuk dropdown filter (Sesuai tpl asli)
+        // 1. Ambil flash data message
+        $message = session('message');
+
+        // 2. Ambil data grades dan types
         $grades = DB::table('sis_cgrade')
-            ->orderByRaw('CAST(title AS UNSIGNED) ASC')
+            ->orderByRaw('CAST(title AS unsigned)')
+            ->select('title') // Opsional, sesuaikan kebutuhan view
             ->get();
 
         $types = DB::table('sis_ctype')
-            ->orderBy('title', 'ASC')
+            ->select('title')
             ->get();
 
-        $classes = DB::table('sis_class_list')
-            ->join('sis_cyear', 'sis_cyear.id', '=', 'sis_class_list.cyear_id')
-            ->where('sis_cyear.is_active', 'yes')
-            ->select('sis_class_list.*')
-            ->orderBy('sis_class_list.title', 'ASC')
+        // 3. Logika Filter (Sesuai dengan if($this->input->post('filter_btn')) di CI2)
+        if ($request->has('filter_btn')) {
+            if ($request->filled('fclass_list') && $request->input('fclass_list') !== 'pilih') {
+                // Di Laravel, gunakan routing. Asumsi rute bernama 'fincom.student_list.index'
+                return redirect()->route('fincom.student_list.index', ['class_list_id' => $request->input('fclass_list')]);
+            }
+            $filters['fgrade'] = $request->input('fgrade');
+        } else {
+            // Default filter
+            $filters['ffrom'] = date("Y");
+            $filters['fto'] = date("Y") + 1;
+            $filters['fgrade'] = "-";
+        }
+
+        // 4. Query Dropdown Kelas ($dk) - PERSIS seperti query CI2
+        $dk = DB::table('sis_class_list as m')
+            ->join('sis_csubject as s', 'm.csubject_id', '=', 's.id')
+            ->join('sis_cyear as a', 'm.cyear_id', '=', 'a.id')
+            ->where('a.is_active', 'yes')
+            ->select('m.id', 'm.title as kelas', 'a.title as tahun', 's.title as subject')
+            ->orderBy('m.title', 'asc')
             ->get();
 
+        // 5. Susun data untuk dikirim ke view
         $data = [
-            'page_title'    => 'Daftar Siswa',
             'class_list_id' => $class_list_id,
             'grades'        => $grades,
             'types'         => $types,
-            'classes'       => $classes,
+            'filters'       => $filters,
+            'message'       => $message,
+            'dk'            => $dk, // Tetap gunakan 'dk' agar view lama tidak perlu banyak ubah jika disalin
+            'page_title'    => 'Komponen Per Siswa', // Disamakan dengan CI2
         ];
 
+        // Pastikan Anda sudah membuat view 'fincom.student_list.index'
         return view('fincom.student_list.index', $data);
     }
 
-    /**
-     * Fungsi Ajax DataTable (Sudah diperbaiki untuk mencegah Ajax Error)
-     */
     public function ax_get_student_list(Request $request, $class_list_id = 0)
-{
-    $draw   = $request->input('draw');
-    $start  = $request->input('start', 0);
-    $length = $request->input('length', 10);
-    $search = $request->input('search.value');
+    {
+        $draw   = $request->input('draw');
+        $start  = $request->input('start', 0);
+        $length = $request->input('length', 10);
+        $search = $request->input('search.value');
 
-    // 1. Query Dasar - Tambahkan join ke sis_cyear untuk mengunci tahun ajaran aktif
-    $query = DB::table('sis_user as su')
-        ->join('sis_class_user as scu', 'scu.user_id', '=', 'su.id')
-        ->join('sis_class_list as scl', 'scl.id', '=', 'scu.class_list_id')
-        ->join('sis_cyear as scy', 'scy.id', '=', 'scl.cyear_id') // Join ke tahun ajaran
-        ->select(
-            'su.id as student_id', 
-            'su.username', 
-            'su.fullname', 
-            'su.dateofbirth', 
-            'su.gender', 
-            'su.home_phone', 
-            'su.mobile_phone', 
-            'scl.title as class_name'
-        );
+        // 1. Menggunakan nama tabel utuh persis CI2.
+        $baseQuery = DB::table('sis_student')
+            ->leftJoin('sis_user', 'sis_student.id', '=', 'sis_user.id')
+            ->leftJoin('sis_class_user', 'sis_student.id', '=', 'sis_class_user.user_id')
+            ->join('sis_class_list', 'sis_class_user.class_list_id', '=', 'sis_class_list.id')
+            ->join('sis_cyear', 'sis_class_list.cyear_id', '=', 'sis_cyear.id')
+            ->where('sis_user.is_active', 'yes')
+            ->where('is_student', 'yes') // Tanpa alias agar DB mencari sendiri
+            ->where('sis_cyear.is_active', 'yes');
 
-    // KUNCI UTAMA: Hanya ambil kelas siswa di tahun ajaran yang sedang aktif ('yes')
-    // Ini otomatis membuang riwayat kelas lama siswa sehingga nama tidak duplikat
-    $query->where('scy.is_active', 'yes');
+        // Filter Dropdown
+        if ($class_list_id > 0) {
+            $baseQuery->where('sis_class_user.class_list_id', $class_list_id);
+        }
 
-    // 2. Filter Pilihan Dropdown Kelas
-    if ($class_list_id > 0) {
-        $query->where('scu.class_list_id', $class_list_id);
+        $recordsTotal = $baseQuery->count();
+
+        // 2. Filter Pencarian (Tanpa alias seperti CI2)
+        $filteredQuery = clone $baseQuery;
+        if (!empty($search)) {
+            $filteredQuery->whereRaw('(nis like ? OR fullname like ?)', ["%{$search}%", "%{$search}%"]);
+        }
+
+        $recordsFiltered = $filteredQuery->count();
+
+        // 3. Select persis bawaan CI2
+        $students = $filteredQuery->select(
+                'sis_user.id as user_id', 
+                'nis', 
+                'fullname', 
+                'dateofbirth', 
+                'gender', 
+                'mobile_phone', 
+                'home_phone', 
+                'sis_class_list.title as class_name'
+            )
+            ->offset($start)
+            ->limit($length)
+            ->orderBy('fullname', 'asc') // Urut berdasarkan nama
+            ->get();
+
+        // 4. Susun JSON DataTables
+        $data = [];
+        $no = $start + 1;
+        foreach ($students as $row) {
+            $col = [];
+            $col[] = $no++;
+            $col[] = $row->nis; 
+            $col[] = $row->fullname;
+            $col[] = $row->class_name;
+            $col[] = $row->dateofbirth ? date('d M Y', strtotime($row->dateofbirth)) : '-';
+            $col[] = ($row->gender == 'M') ? 'L' : 'P';
+            $col[] = ($row->home_phone ?: '-') . ' / ' . ($row->mobile_phone ?: '-');
+            
+            $action = '<div class="btn-group">';
+            $action .= '<a href="'.url('fincom/userpayitem/student_list/'.$row->user_id).'" class="btn btn-sm btn-primary">Komp Persiswa</a>';
+            $action .= '<a href="'.url('fincom/student/delete/'.$row->user_id).'" class="btn btn-sm btn-danger del-confirm" title="Delete" onclick="return confirm(\'Apakah Anda yakin ingin menghapus siswa ini?\')"><i class="bi bi-trash"></i></a>';
+            $action .= '</div>';
+            
+            $col[] = $action;
+            $data[] = $col;
+        }
+
+        return response()->json([
+            "draw"            => intval($draw),
+            "recordsTotal"    => intval($recordsTotal),
+            "recordsFiltered" => intval($recordsFiltered),
+            "data"            => $data
+        ]);
     }
-
-    $recordsTotal = $query->count();
-
-    // 3. Filter Search Pencarian
-    if (!empty($search)) {
-        $query->where(function($q) use ($search) {
-            $q->where('su.username', 'like', "%{$search}%")
-              ->orWhere('su.fullname', 'like', "%{$search}%");
-        });
-    }
-
-    $recordsFiltered = $query->count();
-
-    $students = $query->offset($start)
-        ->limit($length)
-        ->orderBy('su.fullname', 'asc')
-        ->get();
-
-    $data = [];
-    $no = $start + 1;
-    foreach ($students as $row) {
-        $col = [];
-        $col[] = $no++;
-        $col[] = $row->username; 
-        $col[] = $row->fullname;
-        $col[] = $row->class_name;
-        $col[] = $row->dateofbirth ? date('d M Y', strtotime($row->dateofbirth)) : '-';
-        $col[] = ($row->gender == 'M') ? 'L' : 'P';
-        $col[] = ($row->home_phone ?: '-') . ' / ' . ($row->mobile_phone ?: '-');
-        
-        // Tombol Aksi Komponen
-        $action = '<div class="btn-group">';
-        $action .= '<a href="'.url('fincom/userpayitem/student_list/'.$row->student_id).'" class="btn btn-sm btn-primary">Komp Persiswa</a>';
-        $action .= '<a href="'.url('fincom/student/edit/'.$row->student_id).'" class="btn btn-sm btn-info text-white"><i class="bi bi-pencil"></i></a>';
-        $action .= '</div>';
-        
-        $col[] = $action;
-        $data[] = $col;
-    }
-
-    return response()->json([
-        "draw"            => intval($draw),
-        "recordsTotal"    => intval($recordsTotal),
-        "recordsFiltered" => intval($recordsFiltered),
-        "data"            => $data
-    ]);
-}
 
 }

@@ -13,14 +13,17 @@
                     <form action="{{ route('fincom.student_list.index') }}" method="GET" class="row g-3 align-items-end mb-4">
                         <div class="col-md-4">
                             <label for="fclass_list" class="form-label small fw-bold">Pilih Kelas</label>
-                            <select name="f_class_list" id="f_class_list" onchange="window.location.href='{{ url('fincom/student_list') }}/'+this.value">
-    <option value="0">- Semua Kelas -</option>
-    <?php foreach($classes as $class): ?>
-        <option value="<?php echo $class->id; ?>" <?php if($class_list_id == $class->id) echo 'selected'; ?>>
-            <?php echo $class->title; ?>
-        </option>
-    <?php endforeach; ?>
-</select>
+                            <select name="f_class_list" id="f_class_list" class="form-control" data-url="{{ url('fincom/student_list') }}">
+                                <option value="0">- Semua Kelas -</option>
+                                
+                                {{-- Gunakan $dk dari Controller dan sintaks Blade @foreach --}}
+                                @foreach($dk as $p)
+                                    <option value="{{ $p->id }}" {{ $class_list_id == $p->id ? 'selected' : '' }}>
+                                        {{ $p->kelas }} / {{ $p->tahun }}
+                                    </option>
+                                @endforeach
+                                
+                            </select>
                         </div>
                         
                     </form>
@@ -74,11 +77,24 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script type="text/javascript">
+// Tunggu sampai elemen HTML dimuat semua
+    document.addEventListener('DOMContentLoaded', function() {
+        
+        const selectClass = document.getElementById('f_class_list');
+        
+        if (selectClass) {
+            selectClass.addEventListener('change', function() {
+                // Ambil base url dari atribut data-url
+                const baseUrl = this.getAttribute('data-url');
+                // Lakukan redirect
+                window.location.href = baseUrl + '/' + this.value;
+            });
+        }
+        
+    });
+
+
 $(document).ready(function() {
-    var class_id = "{{ $class_list_id }}";
-    
-    $(document).ready(function() {
-    // Ambil class_id dari variable yang dilempar controller
     var class_id = "{{ $class_list_id }}";
     
     // Pastikan URL terbentuk dengan benar (menangani jika class_id adalah 0)
@@ -117,7 +133,6 @@ $(document).ready(function() {
             "processing": "<div class='spinner-border text-primary' role='status'><span class='visually-hidden'>Loading...</span></div>"
         }
     });
-});
 });
 </script>
 @endpush
