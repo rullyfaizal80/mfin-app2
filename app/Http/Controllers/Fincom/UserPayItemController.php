@@ -67,4 +67,24 @@ class UserPayItemController extends Controller
 
         return view('fincom.userpayitem.student_list', $data);
     }
+
+    /**
+     * Menghapus komponen tagihan dari siswa
+     */
+    public function del_item($student_id, $id)
+    {
+        try {
+            // Hapus data dari tabel sis_userpayitem berdasarkan ID
+            DB::table('sis_userpayitem')->where('id', $id)->delete();
+
+            // Kembali ke halaman daftar komponen siswa dengan pesan sukses
+            return redirect()->route('fincom.userpayitem.student_list', $student_id)
+                             ->with('success', 'Komponen tagihan berhasil dihapus dari siswa.');
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Jika gagal (biasanya karena sudah ada riwayat transaksi yang terkait dengan ID ini)
+            return redirect()->route('fincom.userpayitem.student_list', $student_id)
+                             ->with('error', 'Gagal: Komponen ini tidak bisa dihapus karena sudah memiliki riwayat transaksi/pembayaran.');
+        }
+    }
 }

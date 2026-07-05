@@ -300,6 +300,8 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     Route::prefix('userpayitem')->name('userpayitem.')->group(function () {
         // URL: /fincom/userpayitem/student_list/{id}
         Route::get('/student_list/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'student_list'])->name('student_list');
+        // URL: /fincom/userpayitem/del_item/{student_id}/{id}
+        Route::get('/del_item/{student_id}/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'del_item'])->name('del_item');
     });
 
 });
