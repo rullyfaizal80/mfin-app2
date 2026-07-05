@@ -293,7 +293,15 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         // URL: /fincom/student_list/ax_get_student_list/{class_list_id?}
         Route::post('/ax_get_student_list/{class_list_id?}', [StudentListController::class, 'ax_get_student_list'])->name('ajax');
     });
-    
+
+    // ---------------------------------------------------
+    // Group untuk Modul User Pay Item (Komponen Persiswa)
+    // ---------------------------------------------------
+    Route::prefix('userpayitem')->name('userpayitem.')->group(function () {
+        // URL: /fincom/userpayitem/student_list/{id}
+        Route::get('/student_list/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'student_list'])->name('student_list');
+    });
+
 });
        
 });

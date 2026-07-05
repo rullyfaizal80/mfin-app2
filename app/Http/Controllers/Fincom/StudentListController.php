@@ -125,10 +125,13 @@ class StudentListController extends Controller
             $col[] = ($row->gender == 'M') ? 'L' : 'P';
             $col[] = ($row->home_phone ?: '-') . ' / ' . ($row->mobile_phone ?: '-');
             
-            $action = '<div class="btn-group">';
-            $action .= '<a href="'.url('fincom/userpayitem/student_list/'.$row->user_id).'" class="btn btn-sm btn-primary">Komp Persiswa</a>';
-            $action .= '<a href="'.url('fincom/student/delete/'.$row->user_id).'" class="btn btn-sm btn-danger del-confirm" title="Delete" onclick="return confirm(\'Apakah Anda yakin ingin menghapus siswa ini?\')"><i class="bi bi-trash"></i></a>';
-            $action .= '</div>';
+            // Tombol Aksi Komponen & Hapus (Hanya Notif)
+$action = '<div class="btn-group">';
+$action .= '<a href="'.url('fincom/userpayitem/student_list/'.$row->user_id).'" class="btn btn-sm btn-primary">Komp Persiswa</a>';
+
+// Tombol hapus tidak mengarah ke URL, melainkan langsung memicu alert javascript
+$action .= '<button type="button" class="btn btn-sm btn-danger" title="Delete" onclick="alert(\'Aksi Ditolak: Fitur hapus siswa dinonaktifkan secara sistem untuk menjaga integritas riwayat transaksi keuangan.\')"><i class="bi bi-trash"></i></button>';
+$action .= '</div>';
             
             $col[] = $action;
             $data[] = $col;
@@ -140,6 +143,16 @@ class StudentListController extends Controller
             "recordsFiltered" => intval($recordsFiltered),
             "data"            => $data
         ]);
+    }
+
+    /**
+     * Fitur Hapus Dinonaktifkan (Sesuai Logika CI2 Asli)
+     */
+    public function delete($id)
+    {
+        // Sistem langsung menghentikan proses dan melempar notifikasi error
+        return redirect()->route('fincom.student_list.index')
+                         ->with('error', 'Aksi Ditolak: Fitur hapus siswa dinonaktifkan secara sistem untuk menjaga integritas riwayat transaksi keuangan.');
     }
 
 }
