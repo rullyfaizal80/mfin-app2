@@ -13,10 +13,17 @@ class UserPayItemController extends Controller
         // 1. Ambil biodata siswa
         $student = DB::table('sis_student')
             ->leftJoin('sis_user', 'sis_student.id', '=', 'sis_user.id')
-            ->leftJoin('sis_class_user', 'sis_student.id', '=', 'sis_class_user.user_id')
-            ->leftJoin('sis_class_list', 'sis_class_user.class_list_id', '=', 'sis_class_list.id')
+            ->leftJoin('sis_user as payer', 'sis_user.paid_by', '=', 'payer.id') 
             ->where('sis_user.id', $student_id)
-            ->select('sis_user.id as user_id', 'nis', 'fullname', 'sis_class_list.title as class_name')
+            ->select(
+                'sis_user.id as user_id', 
+                'nis', // Jika nis nanti error ambigu juga, ubah menjadi 'sis_student.nis'
+                'sis_user.fullname', 
+                'sis_user.placeofbirth', // <-- TAMBAHKAN sis_user. DI SINI
+                'sis_user.dateofbirth',  // <-- TAMBAHKAN sis_user. DI SINI
+                'sis_user.paid_by',
+                'payer.fullname as payer_name'
+            )
             ->first();
 
         if (!$student) {
@@ -170,6 +177,43 @@ class UserPayItemController extends Controller
 
         return redirect()->route('fincom.userpayitem.student_list', $student_id)
                          ->with('success', 'Data komponen tagihan siswa berhasil diperbarui.');
+    }
+
+    /**
+     * AJAX: Mencari nama guru/karyawan penanggung jawab
+     */
+    public function search_payer(Request $request)
+    {
+        $keyword = $request->keyword;
+        $users = DB::table('sis_user')
+            ->where('is_active', 'yes')
+            ->where('is_teacher', 'yes') // CI2 memfilter ke data guru/karyawan
+            ->where('fullname', 'like', "%{$keyword}%")
+            ->select('id', 'fullname', 'nickname')
+            ->limit(10)
+            ->get();
+
+        return response()->json($users);
+    }
+
+    /**
+     * Menyimpan/Menimpa ID penanggung jawab ke data siswa
+     */
+    public function set_payer($student_id, $payer_id)
+    {
+        DB::table('sis_user')->where('id', $student_id)->update(['paid_by' => $payer_id]);
+        return redirect()->route('fincom.userpayitem.student_list', $student_id)
+                         ->with('success', 'Data penanggung jawab berhasil disimpan.');
+    }
+
+    /**
+     * Menghapus (Reset) penanggung jawab siswa
+     */
+    public function del_payer($student_id)
+    {
+        DB::table('sis_user')->where('id', $student_id)->update(['paid_by' => 0]);
+        return redirect()->route('fincom.userpayitem.student_list', $student_id)
+                         ->with('success', 'Data penanggung jawab berhasil dihapus.');
     }
 
 }

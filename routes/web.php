@@ -306,6 +306,10 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::post('/add_item/{student_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'add_item'])->name('add_item');
         // Route baru untuk memproses update data dari Modal Edit
         Route::put('/update_item/{student_id}/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'update_item'])->name('update_item');
+        // --- ROUTE BARU UNTUK FITUR "DITANGGUNG OLEH" ---
+        Route::get('/search_payer', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'search_payer'])->name('search_payer');
+        Route::get('/set_payer/{student_id}/{payer_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'set_payer'])->name('set_payer');
+        Route::get('/del_payer/{student_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'del_payer'])->name('del_payer');
     });
 
 });

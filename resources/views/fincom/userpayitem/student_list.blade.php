@@ -33,19 +33,48 @@
     {{-- 1. Informasi Biodata Siswa (Full Width Compact Card) --}}
     <div class="card shadow-sm border-0 mb-4 bg-light">
         <div class="card-body py-3">
-            <div class="row text-center text-md-start">
-                <div class="col-md-3 mb-2 mb-md-0">
+            <div class="row text-center text-md-start align-items-center">
+                
+                {{-- NIS --}}
+                <div class="col-md-2 mb-2 mb-md-0 border-md-end">
                     <small class="text-muted d-block uppercase text-xs fw-bold">NIS</small>
-                    <span class="fw-bold fs-5 text-dark">{{ $student->nis }}</span>
+                    <span class="fw-bold fs-6 text-dark">{{ $student->nis }}</span>
                 </div>
-                <div class="col-md-6 mb-2 mb-md-0 border-md-start ps-md-4">
+                
+                {{-- Nama Lengkap --}}
+                <div class="col-md-3 mb-2 mb-md-0 border-md-end ps-md-3">
                     <small class="text-muted d-block uppercase text-xs fw-bold">Nama Lengkap</small>
-                    <span class="fw-bold fs-5 text-dark">{{ $student->fullname }}</span>
+                    <span class="fw-bold fs-6 text-dark">{{ $student->fullname }}</span>
                 </div>
-                <div class="col-md-3 border-md-start ps-md-4">
-                    <small class="text-muted d-block uppercase text-xs fw-bold">Kelas</small>
-                    <span class="fw-bold fs-5 text-primary">{{ $student->class_name ?? '-' }}</span>
+                
+                {{-- Tempat, Tanggal Lahir (TTL) --}}
+                <div class="col-md-3 mb-2 mb-md-0 border-md-end ps-md-3">
+                    <small class="text-muted d-block uppercase text-xs fw-bold">TTL</small>
+                    <span class="fw-bold fs-6 text-primary">{{ $student->placeofbirth }} / {{ $student->dateofbirth }}</span>
                 </div>
+                
+                {{-- Ditanggung Oleh (Payer) --}}
+                <div class="col-md-4 ps-md-3 position-relative">
+                    <small class="text-muted d-block uppercase text-xs fw-bold">Ditanggung oleh</small>
+                    
+                    @if($student->paid_by && $student->paid_by != 0 && $student->payer_name)
+                        {{-- Jika sudah ada penanggung jawab, tampilkan nama dan tombol X (Hapus) --}}
+                        <div class="d-flex align-items-center mt-1">
+                            <span class="fw-bold text-success me-2 fs-6"><i class="bi bi-person-check-fill me-1"></i> {{ $student->payer_name }}</span>
+                            <a href="{{ route('fincom.userpayitem.del_payer', $student->user_id) }}" class="btn btn-sm btn-outline-danger py-0 px-2" title="Hapus Penanggung Jawab" onclick="return confirm('Hapus penanggung jawab ini?')"><i class="bi bi-x-lg"></i></a>
+                        </div>
+                    @else
+                        {{-- Jika belum ada, tampilkan form pencarian --}}
+                        <div class="input-group input-group-sm mt-1">
+                            <input type="text" id="fpaid" class="form-control" placeholder="Ketik nama penanggung...">
+                            <button class="btn btn-primary px-3" type="button" id="fpaid_btn">Cari</button>
+                        </div>
+                        
+                        {{-- Kontainer Dropdown Hasil Pencarian AJAX --}}
+                        <div id="paid-list" class="list-group position-absolute shadow mt-1" style="z-index: 1050; display: none; width: 90%;"></div>
+                    @endif
+                </div>
+
             </div>
         </div>
     </div>
@@ -420,6 +449,50 @@
 
 {{-- JavaScript Engine Form Dinamis (Auto-Fill & Auto-Select Semisal AJAX di CI2) --}}
 <script>
+// --- SEKTOR SCRIPT UNTUK PENCARIAN PENANGGUNG JAWAB (DITANGGUNG OLEH) ---
+    const fpaidBtn = document.getElementById('fpaid_btn');
+    if (fpaidBtn) {
+        fpaidBtn.addEventListener('click', function() {
+            let keyword = document.getElementById('fpaid').value;
+            let studentId = "{{ $student->user_id }}";
+            let listContainer = document.getElementById('paid-list');
+            
+            if (keyword.length < 2) {
+                alert('Silakan ketik minimal 2 huruf untuk mencari.');
+                return;
+            }
+
+            // Memanggil AJAX via Fetch API
+            fetch(`{{ route('fincom.userpayitem.search_payer') }}?keyword=${keyword}`)
+                .then(response => response.json())
+                .then(data => {
+                    listContainer.innerHTML = '';
+                    
+                    if(data.length > 0) {
+                        data.forEach(user => {
+                            let a = document.createElement('a');
+                            // URL aksi yang otomatis menyimpan (menimpa) data ketika diklik
+                            a.href = `{{ url('fincom/userpayitem/set_payer') }}/${studentId}/${user.id}`;
+                            a.className = 'list-group-item list-group-item-action py-2 text-primary fw-bold';
+                            a.innerHTML = `<i class="bi bi-person-plus-fill me-2"></i> ${user.fullname} <small class="text-muted">(${user.nickname})</small>`;
+                            listContainer.appendChild(a);
+                        });
+                        listContainer.style.display = 'block';
+                    } else {
+                        listContainer.innerHTML = '<div class="list-group-item text-danger small"><i class="bi bi-x-circle me-1"></i> Data tidak ditemukan</div>';
+                        listContainer.style.display = 'block';
+                    }
+                });
+        });
+
+        // Menyembunyikan dropdown hasil pencarian jika user mengklik di luar area
+        document.addEventListener('click', function(e) {
+            if (!document.getElementById('fpaid').contains(e.target) && !fpaidBtn.contains(e.target)) {
+                document.getElementById('paid-list').style.display = 'none';
+            }
+        });
+    }
+
 document.addEventListener('DOMContentLoaded', function () {
     const selectPayitem = document.getElementById('select_payitem');
     const inputPayvalue = document.getElementById('payvalue');
