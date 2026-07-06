@@ -304,6 +304,8 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::get('/del_item/{student_id}/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'del_item'])->name('del_item');
         // Route baru untuk memproses form tambah dari Modal
         Route::post('/add_item/{student_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'add_item'])->name('add_item');
+        // Route baru untuk memproses update data dari Modal Edit
+        Route::put('/update_item/{student_id}/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'update_item'])->name('update_item');
     });
 
 });

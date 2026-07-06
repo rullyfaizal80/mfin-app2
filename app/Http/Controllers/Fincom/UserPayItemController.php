@@ -74,10 +74,13 @@ class UserPayItemController extends Controller
             'coa_cost_list'       => $coa_cost_list,
             'coa_receivable_list' => $coa_receivable_list,
             'coa_revenue_list'    => $coa_revenue_list,
-            'repeat_options'      => ['monthly', 'yearly', 'tuition', 'one time'] // Diambil dari config sis_pay_repeat CI2
+            
+            // Perbaikan opsi perulangan agar cocok 100% dengan database Anda
+            'repeat_options'      => ['monthly', 'yearly', 'once', 'occasionaly'] 
         ];
 
         return view('fincom.userpayitem.student_list', $data);
+
     }
 
     public function add_item(Request $request, $student_id)
@@ -131,6 +134,42 @@ class UserPayItemController extends Controller
             return redirect()->route('fincom.userpayitem.student_list', $student_id)
                              ->with('error', 'Gagal: Komponen ini tidak bisa dihapus karena sudah memiliki riwayat transaksi/pembayaran.');
         }
+    }
+
+    /**
+     * Memproses pembaruan data komponen pembayaran siswa (Edit)
+     */
+    public function update_item(Request $request, $student_id, $id)
+    {
+        // Validasi input item form wajib persis seperti saat input data
+        $request->validate([
+            'coa_receivable' => 'required',
+            'payvalue'       => 'required',
+            'pay_start'      => 'required|date',
+            'pay_end'        => 'required|date',
+        ]);
+
+        // Bersihkan format titik pada nominal
+        $clean_value = str_replace('.', '', $request->payvalue);
+
+        // Update record spesifik berdasarkan ID item di tabel sis_userpayitem
+        DB::table('sis_userpayitem')
+            ->where('id', $id)
+            ->where('user_id', $student_id) // Memastikan kecocokan data siswa
+            ->update([
+                'payvalue'       => $clean_value,
+                'pay_start'      => $request->pay_start,
+                'pay_end'        => $request->pay_end,
+                'pay_repeat'     => $request->pay_repeat ?? 'monthly',
+                'coa_cash'       => $request->coa_cash ?? 0,
+                'coa_receivable' => $request->coa_receivable ?? 0,
+                'coa_revenue'    => $request->coa_revenue ?? 0,
+                'coa_payable'    => $request->coa_payable ?? 0,
+                'coa_cost'       => $request->coa_cost ?? 0,
+            ]);
+
+        return redirect()->route('fincom.userpayitem.student_list', $student_id)
+                         ->with('success', 'Data komponen tagihan siswa berhasil diperbarui.');
     }
 
 }

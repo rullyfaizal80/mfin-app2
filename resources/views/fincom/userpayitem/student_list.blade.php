@@ -121,8 +121,24 @@
                                         {{-- Kolom AKSI --}}
                                         <td class="text-center">
                                             <div class="btn-group shadow-sm">
-                                                <a href="#" class="btn btn-sm btn-outline-warning" title="Edit"><i class="bi bi-pencil-square"></i></a>
-                                                <a href="{{ route('fincom.userpayitem.del_item', ['student_id' => $student->user_id, 'id' => $item->upid]) }}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Yakin ingin menghapus komponen ini?')"><i class="bi bi-trash"></i></a>
+                                                <button type="button" 
+        class="btn btn-warning btn-sm text-white btn-edit-item"
+        data-id="{{ $item->upid }}"
+        data-title="{{ $item->title }}"
+        data-value="{{ $item->payvalue }}"
+        data-cash="{{ $item->coa_cash }}"
+        data-payable="{{ $item->coa_payable }}"
+        data-cost="{{ $item->coa_cost }}"
+        data-receivable="{{ $item->coa_receivable }}"
+        data-revenue="{{ $item->coa_revenue }}"
+        data-repeat="{{ $item->pay_repeat }}"
+        data-start="{{ $item->pay_start }}"
+        data-end="{{ $item->pay_end }}"
+        data-bs-toggle="modal" 
+        data-bs-target="#modalEditKomponen">
+    <i class="bi bi-pencil-square"></i> Edit
+</button>
+                                                <a href="{{ route('fincom.userpayitem.del_item', ['student_id' => $student->user_id, 'id' => $item->upid]) }}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Yakin ingin menghapus komponen ini?')"><i class="bi bi-trash"></i>Hapus</a>
                                             </div>
                                         </td>
                                     </tr>
@@ -279,7 +295,128 @@
         </div>
     </div>
 
+    {{-- 4. Bootstrap 5 Modal Edit (Komponen Pembayaran Siswa) --}}
+    <div class="modal fade" id="modalEditKomponen" tabindex="-1" aria-labelledby="modalEditKomponenLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                {{-- ID Action Form akan diubah dinamis via JavaScript --}}
+                <form id="form_edit_komponen" method="POST">
+                    @csrf
+                    @method('PUT') {{-- Directive Laravel untuk metode PUT --}}
+                    
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title" id="modalEditKomponenLabel">
+                            <i class="bi bi-pencil-square me-2"></i> Edit Komponen: <span id="edit_display_title" class="fw-bold"></span>
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body py-4 px-4">
+                        <div class="row g-3">
+                            
+                            <h6 class="fw-bold text-primary mb-1"><i class="bi bi-journal-check me-1"></i> Konfigurasi Akun Jurnal (COA)</h6>
+
+                            {{-- Akun Kas --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-secondary">Akun Kas</label>
+                                <select name="coa_cash" id="edit_coa_cash" class="form-select form-select-sm">
+                                    <option value="0">- AKUN KAS -</option>
+                                    @foreach($coa_cash_list as $cc)
+                                        <option value="{{ $cc->coa_code }}">{{ $cc->coa_code }} - {{ $cc->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Akun Hutang --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-secondary">Akun Hutang</label>
+                                <select name="coa_payable" id="edit_coa_payable" class="form-select form-select-sm">
+                                    <option value="0">- AKUN HUTANG -</option>
+                                    @foreach($coa_payable_list as $cp)
+                                        <option value="{{ $cp->coa_code }}">{{ $cp->coa_code }} - {{ $cp->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Akun Biaya --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-secondary">Akun Biaya</label>
+                                <select name="coa_cost" id="edit_coa_cost" class="form-select form-select-sm">
+                                    <option value="0">- AKUN BIAYA -</option>
+                                    @foreach($coa_cost_list as $co)
+                                        <option value="{{ $co->coa_code }}">{{ $co->coa_code }} - {{ $co->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Akun Piutang (*) --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-dark">Akun Piutang <span class="text-danger">*</span></label>
+                                <select name="coa_receivable" id="edit_coa_receivable" class="form-select form-select-sm" required>
+                                    <option value="0">- AKUN PIUTANG -</option>
+                                    @foreach($coa_receivable_list as $cr)
+                                        <option value="{{ $cr->coa_code }}">{{ $cr->coa_code }} - {{ $cr->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Akun Pendapatan --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-secondary">Akun Pendapatan</label>
+                                <select name="coa_revenue" id="edit_coa_revenue" class="form-select form-select-sm">
+                                    <option value="0">- AKUN PENDAPATAN -</option>
+                                    @foreach($coa_revenue_list as $cn)
+                                        <option value="{{ $cn->coa_code }}">{{ $cn->coa_code }} - {{ $cn->title }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Nilai Nominal --}}
+                            <div class="col-md-6">
+                                <label class="form-label small fw-bold text-dark">Nilai / Nominal (Rp)</label>
+                                <input type="text" name="payvalue" id="edit_payvalue" class="form-control form-control-sm fw-bold text-primary" placeholder="0" required>
+                            </div>
+
+                            <hr class="text-muted my-2">
+                            <h6 class="fw-bold text-primary mb-1"><i class="bi bi-arrow-repeat me-1"></i> Pengaturan Perulangan & Periode</h6>
+
+                            {{-- Jenis Perulangan --}}
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-secondary">Jenis Perulangan</label>
+                                <select name="pay_repeat" id="edit_pay_repeat" class="form-select form-select-sm">
+                                    @foreach($repeat_options as $ro)
+                                        <option value="{{ $ro }}">{{ $ro }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Mulai Pembayaran (*) --}}
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-dark">Mulai <span class="text-danger">*</span></label>
+                                <input type="date" name="pay_start" id="edit_pay_start" class="form-control form-control-sm" required>
+                            </div>
+
+                            {{-- Sampai Pembayaran (*) --}}
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold text-dark">Sampai <span class="text-danger">*</span></label>
+                                <input type="date" name="pay_end" id="edit_pay_end" class="form-control form-control-sm" required>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-sm btn-warning text-white px-4">
+                            <i class="bi bi-save me-1"></i> Simpan Perubahan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
+
+
 
 {{-- JavaScript Engine Form Dinamis (Auto-Fill & Auto-Select Semisal AJAX di CI2) --}}
 <script>
@@ -347,6 +484,65 @@ document.addEventListener('DOMContentLoaded', function () {
         let clean = this.value.replace(/\D/g, "");
         this.value = clean ? new Intl.NumberFormat('id-ID').format(clean) : "";
     });
+
+    // --- SEKTOR SCRIPT UNTUK MODAL EDIT ---
+    const btnEdits = document.querySelectorAll('.btn-edit-item');
+    const formEdit = document.getElementById('form_edit_komponen');
+    const editDisplayTitle = document.getElementById('edit_display_title');
+    
+    // Elements input Modal Edit
+    const editPayvalue   = document.getElementById('edit_payvalue');
+    const editCoaCash    = document.getElementById('edit_coa_cash');
+    const editCoaPayable = document.getElementById('edit_coa_payable');
+    const editCoaCost    = document.getElementById('edit_coa_cost');
+    const editCoaReceiv  = document.getElementById('edit_coa_receivable');
+    const editCoaRevenue = document.getElementById('edit_coa_revenue');
+    const editPayRepeat  = document.getElementById('edit_pay_repeat');
+    const editPayStart   = document.getElementById('edit_pay_start');
+    const editPayEnd     = document.getElementById('edit_pay_end');
+
+    btnEdits.forEach(btn => {
+        btn.addEventListener('click', function () {
+            // 1. Ambil data baris tabel dari attribute tombol yang diklik
+            const id        = this.getAttribute('data-id');
+            const title     = this.getAttribute('data-title');
+            const val       = this.getAttribute('data-value') || 0;
+            const cash      = this.getAttribute('data-cash') || 0;
+            const payable   = this.getAttribute('data-payable') || 0;
+            const cost      = this.getAttribute('data-cost') || 0;
+            const receiv    = this.getAttribute('data-receivable') || 0;
+            const revenue   = this.getAttribute('data-revenue') || 0;
+            const repeat    = this.getAttribute('data-repeat') || 'monthly';
+            const start     = this.getAttribute('data-start');
+            const end       = this.getAttribute('data-end');
+
+            // 2. Set action URL Form secara dinamis mengarah ke route update_item Laravel
+            let studentId = "{{ $student->user_id }}";
+            let updateUrl = "{{ route('fincom.userpayitem.update_item', ['student_id' => ':student', 'id' => ':id']) }}";
+            updateUrl = updateUrl.replace(':student', studentId).replace(':id', id);
+            formEdit.setAttribute('action', updateUrl);
+
+            // 3. Suntikkan nilai penampung ke dalam field Modal Edit
+            editDisplayTitle.innerText = title;
+            editPayvalue.value   = new Intl.NumberFormat('id-ID').format(val);
+            editCoaCash.value    = cash;
+            editCoaPayable.value = payable;
+            editCoaCost.value    = cost;
+            editCoaReceiv.value  = receiv;
+            editCoaRevenue.value = revenue;
+            editPayRepeat.value  = repeat;
+            editPayStart.value   = start;
+            editPayEnd.value     = end;
+        });
+    });
+
+    // Format Masking Titik Rupiah Real-time saat nominal diedit manual
+    editPayvalue.addEventListener('input', function (e) {
+        let clean = this.value.replace(/\D/g, "");
+        this.value = clean ? new Intl.NumberFormat('id-ID').format(clean) : "";
+    });
 });
+
+
 </script>
 @endsection
