@@ -288,15 +288,31 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     // Group untuk Student List
     Route::prefix('student_list')->name('student_list.')->group(function () {
         // URL: /fincom/student_list/{class_list_id?}
-        Route::get('/{class_list_id?}', [StudentListController::class, 'index'])->name('index');
-        
+        Route::get('/{class_list_id?}', [StudentListController::class, 'index'])->name('index');        
         // URL: /fincom/student_list/ax_get_student_list/{class_list_id?}
         Route::post('/ax_get_student_list/{class_list_id?}', [StudentListController::class, 'ax_get_student_list'])->name('ajax');
     });
 
-    // ---------------------------------------------------
+    // Group untuk Modul Class List (Daftar Kelas Fincom)
+    Route::prefix('class_list')->name('class_list.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Fincom\ClassListController::class, 'index'])->name('index');
+        Route::post('/ajax', [\App\Http\Controllers\Fincom\ClassListController::class, 'ajax'])->name('ajax');
+    });
+
+    // Group untuk Modul Komponen Pembayaran Kelas
+    Route::prefix('classpayitem')->name('classpayitem.')->group(function () {
+        Route::get('/index/{class_list_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'index'])->name('index');
+        Route::post('/store/{class_list_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'store'])->name('store');
+        Route::get('/edit/{id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'edit'])->name('edit');
+        Route::post('/update/{id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'update'])->name('update');
+        Route::delete('/delete/{id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'destroy'])->name('destroy');
+        
+        // Fitur Khusus: Sinkronisasi & Salin Data
+        Route::post('/sync/{class_list_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'sync'])->name('sync');
+        Route::post('/copy/{class_list_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'copy'])->name('copy');
+    });
+
     // Group untuk Modul User Pay Item (Komponen Persiswa)
-    // ---------------------------------------------------
     Route::prefix('userpayitem')->name('userpayitem.')->group(function () {
         // URL: /fincom/userpayitem/student_list/{id}
         Route::get('/student_list/{id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'student_list'])->name('student_list');
