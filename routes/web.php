@@ -310,6 +310,7 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         // Fitur Khusus: Sinkronisasi & Salin Data
         Route::post('/sync/{class_list_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'sync'])->name('sync');
         Route::post('/copy/{class_list_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'copy'])->name('copy');
+        Route::post('/ax_get_classpayitem/{class_id}', [\App\Http\Controllers\Fincom\ClassPayItemController::class, 'ax_get_classpayitem']);
     });
 
     // Group untuk Modul User Pay Item (Komponen Persiswa)

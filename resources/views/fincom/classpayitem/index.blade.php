@@ -17,100 +17,88 @@
         </div>
     @endif
 
-    {{-- Info Header Kelas --}}
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body bg-light rounded border d-flex justify-content-between align-items-center py-3">
-            <div>
-                <nav aria-label="breadcrumb">
-                  <ol class="breadcrumb mb-1 small">
-                    <li class="breadcrumb-item"><a href="{{ route('fincom.class_list.index') }}">Daftar Kelas</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">Komponen Tagihan</li>
-                  </ol>
-                </nav>
-                <h4 class="mb-0 fw-bold text-dark">
-                    Kelas: <span class="text-primary">{{ $class_info->class_title }}</span> 
-                    <span class="badge bg-secondary fs-6 ms-2">{{ $class_info->school_name }} ({{ $class_info->year_title }})</span>
-                </h4>
-            </div>
-            
-            {{-- Tombol-Tombol Aksi Utama --}}
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#modalCopy">
-                    <i class="bi bi-files me-1"></i> Copy Dari Kelas Lain
-                </button>
-                <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm" onclick="confirmSync()">
-                    <i class="bi bi-arrow-repeat me-1"></i> Sinkronisasi ke Siswa
-                </button>
-                <button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="openAddModal()">
-                    <i class="bi bi-plus-circle me-1"></i> Tambah Komponen
-                </button>
+    {{-- BARIS TOMBOL NAVIGASI & AKSI --}}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        {{-- Sisi Kiri: Tombol Kembali --}}
+        <div>
+            <a href="{{ route('fincom.class_list.index') }}" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm px-3 rounded-pill">
+                <i class="bi bi-arrow-left me-1"></i> Kembali ke Daftar Kelas
+            </a>
+        </div>
+        
+        {{-- Sisi Kanan: Kumpulan Tombol Manajerial --}}
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-primary fw-bold shadow-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCopy">
+                <i class="bi bi-files me-1"></i> Copy Dari Kelas Lain
+            </button>
+            <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm px-3 rounded-pill" id="btn-trigger-sync">
+                <i class="bi bi-arrow-repeat me-1"></i> Sinkronisasi ke Siswa
+            </button>
+            <button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm px-3 rounded-pill" id="btn-trigger-add">
+                <i class="bi bi-plus-circle me-1"></i> Tambah Komponen
+            </button>
+        </div>
+    </div>
+
+   {{-- KOTAK IDENTITAS KELAS (Terpisah Sendiri ala Userpayment Student List) --}}
+    <div class="card shadow-sm border-0 mb-4 bg-light border">
+        <div class="card-body py-3 px-4">
+            <div class="row g-3 align-items-center text-center text-md-start">
+                <div class="col-md-5 border-end-md">
+                    <span class="text-muted d-block small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Kelas</span>
+                    <span class="fw-bold text-primary fs-5">
+                        {{-- Output target: E.FUTSAL / NON-JURUSAN / EKSTRA --}}
+                        {{ $class_info->class_title }} / {{ $class_info->subject_title ?? 'NON-JURUSAN' }} / {{ $class_info->type_title ?? 'EKSTRA' }}
+                    </span>
+                </div>
+                <div class="col-md-4 border-end-md ps-md-4">
+                    <span class="text-muted d-block small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Sekolah</span>
+                    <span class="fw-bold text-dark fs-6">{{ $class_info->school_name ?? '-' }}</span>
+                </div>
+                <div class="col-md-3 ps-md-4">
+                    <span class="text-muted d-block small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Tahun Ajaran</span>
+                    <span class="fw-bold text-dark fs-6">{{ $class_info->year_title ?? '-' }}</span>
+                </div>
             </div>
         </div>
     </div>
 
-    {{-- Tabel Utama Data Komponen Kelas --}}
+    {{-- TABEL CRD UTAMA KOMPONEN TAGIHAN --}}
     <div class="card shadow-sm border-0 bg-body">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-striped table-hover align-middle border" id="table-payitem" style="width: 100%">
-                    <thead class="table-light">
-                        <tr>
-                            <th width="5%" class="text-center">No</th>
-                            <th width="25%">Nama Komponen</th>
-                            <th width="15%" class="text-end">Nominal</th>
-                            <th width="15%" class="text-center">Periode Mulai</th>
-                            <th width="15%" class="text-center">Periode Akhir</th>
-                            <th width="15%" class="text-center">Status Akun COA</th>
-                            <th width="10%" class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($payitems as $index => $item)
-                            <tr>
-                                <td class="text-center">{{ $index + 1 }}</td>
-                                <td><strong class="text-primary">{{ $item->item_title }}</strong></td>
-                                <td class="text-end fw-bold text-success">Rp {{ number_format($item->payvalue, 0, ',', '.') }}</td>
-                                <td class="text-center"><span class="badge bg-light text-dark border">{{ date('d M Y', strtotime($item->pay_start)) }}</span></td>
-                                <td class="text-center"><span class="badge bg-light text-dark border">{{ date('d M Y', strtotime($item->pay_end)) }}</span></td>
-                                <td class="text-center">
-                                    <small class="text-muted block">Kas: {{ $item->coa_cash ? '✅' : '❌' }} | Piutang: {{ $item->coa_receivable ? '✅' : '❌' }}</small>
-                                </td>
-                                <td class="text-center">
-                                    <div class="btn-group">
-                                       <div class="btn-group">
-    <button class="btn btn-sm btn-warning py-1 px-2 btn-edit" data-id="{{ $item->id }}" title="Edit">
-        <i class="bi bi-pencil-square"></i>
-    </button>
-    
-    <button class="btn btn-sm btn-danger py-1 px-2 btn-delete" data-id="{{ $item->id }}" title="Hapus">
-        <i class="bi bi-trash"></i>
-    </button>
-</div>
-                                    </div>
-                                    <form id="form-delete-{{ $item->id }}" action="{{ route('fincom.classpayitem.destroy', $item->id) }}" method="POST" style="display:none;">
-                                        @csrf
-                                        @method('DELETE')
-                                    </form>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">Belum ada komponen pembayaran yang diset untuk kelas ini. Klik "Tambah Komponen" untuk memulai.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle table-borderless border-top border-light mb-0" id="table-payitem" style="width: 100%">
+                <thead class="table-light text-secondary text-uppercase fs-7 bg-light">
+                    <tr>
+                        <th width="5%" class="text-center ps-3">No</th>
+                        <th width="25%">Nama Komponen / Jenis</th>
+                        <th width="15%" class="text-center">Periode Tagihan</th>
+                        <th width="25%">Alokasi Akun COA</th>
+                        <th width="12%" class="text-center">Pengulangan</th>
+                        <th width="13%" class="text-end pe-3">Nominal</th>
+                        <th width="5%" class="text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{-- Dikosongkan karena di-load lewat AJAX --}}
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 </div>
 
 {{-- FORM HIDDEN UNTUK PROSES SINKRONISASI --}}
 <form id="form-sync" action="{{ route('fincom.classpayitem.sync', $class_info->id) }}" method="POST" style="display:none;">@csrf</form>
 
+{{-- TAMBAHKAN INI: Form hapus massal/global untuk menangani baris dinamis Datatables --}}
+<form id="form-delete-global" action="" method="POST" style="display:none;">
+    @csrf
+    @method('DELETE')
+</form>
 
 {{-- ========================================== --}}
-{{-- MODAL DIALOG FORM TAMBAH / EDIT KOMPONEN --}}
+{{-- MODAL DIALOG FORM TAMBAH / EDIT KOMPONEN   --}}
 {{-- ========================================== --}}
 <div class="modal fade" id="modalForm" data-bs-backdrop="static" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -134,7 +122,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Nominal Tagihan (Rp) <span class="text-danger">*</span></label>
-                            <input type="number" name="payvalue" id="payvalue" class="form-select form-select-sm form-control" placeholder="Contoh: 250000" required>
+                            <input type="number" name="payvalue" id="payvalue" class="form-control form-control-sm" placeholder="Contoh: 250000" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small fw-bold">Periode Berlaku Mulai <span class="text-danger">*</span></label>
@@ -209,7 +197,7 @@
             <form action="{{ route('fincom.classpayitem.copy', $class_info->id) }}" method="POST">
                 @csrf
                 <div class="modal-body py-4">
-                    <p class="small text-muted">Fitur ini akan menyalin seluruh jenis komponen tagihan beserta nominal & COA dari kelas lain ke kelas <strong>{{ $class_info->class_title }}</strong> saat ini.</p>
+                    <p class="small text-muted">Fitur ini akan menyalin seluruh jenis komponen tagihan beserta nominal & COA dari kelas lain ke kelas rumpun ini.</p>
                     <label class="form-label small fw-bold">Pilih Kelas Sumber Asal:</label>
                     <select name="from_class_list_id" class="form-select form-select-sm" required>
                         <option value="-">- Pilih Kelas Asal -</option>
@@ -234,16 +222,59 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    $('#table-payitem').DataTable({
+    processing: true,
+    serverSide: true,
+    ordering: false,
+    ajax: {
+        url: "{{ url('fincom/classpayitem/ax_get_classpayitem/' . $class_info->id) }}",
+        type: "POST",
+        data: function ( d ) {
+            d.iDisplayLength = d.length;
+            d.iDisplayStart = d.start;
+            d.sSearch = d.search.value;
+            d.sEcho = d.draw;
+            d._token = "{{ csrf_token() }}";
+        }
+    },
+    // Penyelarasan class CSS per kolom agar rapi seperti view student_list
+    columnDefs: [
+        {
+            targets: 0, // Kolom NO
+            className: 'text-center ps-3 text-muted fw-bold',
+            render: function (data, type, row, meta) {
+                // Membuat nomor urut otomatis yang dinamis walaupun ganti halaman pagination
+                return meta.row + meta.settings._iDisplayStart + 1;
+            }
+        },
+        { targets: 1, className: 'fw-semibold text-dark' }, // Kolom Nama Komponen
+        { targets: 2, className: 'text-center text-muted fs-7' }, // Kolom Periode
+        { targets: 3, className: 'text-start text-secondary fs-7' }, // Kolom COA
+        { targets: 4, className: 'text-center text-capitalize' }, // Kolom Pengulangan
+        { targets: 5, className: 'text-end pe-3 fw-bold text-dark' }, // Kolom Nominal
+        { targets: 6, className: 'text-center' } // Kolom Aksi
+    ]
+});
     
-    // 1. Kumpulan Event Listener Klik (Menangkap data-id dari HTML)
+    // --- PENANGKAP EVENT KLIK (ANTI PROBLEM VS CODE) ---
     
-    // Menangkap klik pada tombol edit (class: .btn-edit)
+    // Klik Tambah Komponen
+    $('#btn-trigger-add').on('click', function() {
+        openAddModal();
+    });
+
+    // Klik Sinkronisasi ke Siswa
+    $('#btn-trigger-sync').on('click', function() {
+        confirmSync();
+    });
+
+    // Klik Tombol Edit di Baris Tabel
     $(document).on('click', '.btn-edit', function() {
         let id = $(this).data('id'); 
         openEditModal(id);
     });
 
-    // Menangkap klik pada tombol hapus (class: .btn-delete)
+    // Klik Tombol Hapus di Baris Tabel
     $(document).on('click', '.btn-delete', function() {
         let id = $(this).data('id'); 
         confirmDelete(id);
@@ -251,24 +282,21 @@ $(document).ready(function() {
 
 });
 
-// 2. Kumpulan Fungsi Pendukung Logika Utama
+// --- FUNGSI LOGIKA AKSI MODAL & AJAX ---
 
-// Trigger Modal Tambah Baru
 function openAddModal() {
     $('#modalTitle').text('Tambah Komponen Tagihan Baru');
     $('#formComponent').attr('action', "{{ route('fincom.classpayitem.store', $class_info->id) }}");
-    $('#formComponent')[0].reset(); // Reset isi form
+    $('#formComponent')[0].reset(); 
     $('#modalForm').modal('show');
 }
 
-// Trigger Modal Edit via AJAX (Menarik data satu baris komponen)
 function openEditModal(id) {
     $('#modalTitle').text('Ubah Komponen Tagihan');
     
     let updateUrl = "{{ route('fincom.classpayitem.update', ':id') }}";
     $('#formComponent').attr('action', updateUrl.replace(':id', id));
 
-    // Tarik data komponen dari server via Route Edit JSON
     let editUrl = "{{ route('fincom.classpayitem.edit', ':id') }}";
     $.get(editUrl.replace(':id', id), function(data) {
         $('#payitem_id').val(data.payitem_id);
@@ -287,14 +315,19 @@ function openEditModal(id) {
     });
 }
 
-// Konfirmasi Hapus Data
 function confirmDelete(id) {
     if(confirm('Apakah Anda yakin ingin menghapus komponen tagihan ini dari kelas?')) {
-        $('#form-delete-' + id).submit();
+        // Ambil struktur route delete bawaan Laravel
+        let deleteUrl = "{{ route('fincom.classpayitem.destroy', ':id') }}";
+        
+        // Ganti token :id dengan id data yang sesungguhnya
+        $('#form-delete-global').attr('action', deleteUrl.replace(':id', id));
+        
+        // Jalankan submit form
+        $('#form-delete-global').submit();
     }
 }
 
-// Konfirmasi Sinkronisasi Massal ke Dompet Siswa
 function confirmSync() {
     if(confirm('PENTING! Fitur ini akan mendistribusikan / membuat tagihan riil ke dalam akun masing-masing siswa yang aktif di kelas ini.\n\nApakah Anda yakin ingin melanjutkan sinkronisasi massal?')) {
         $('#form-sync').submit();
