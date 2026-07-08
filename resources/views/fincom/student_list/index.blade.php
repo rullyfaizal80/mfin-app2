@@ -1,10 +1,10 @@
-@extends('layouts.app') {{-- Pastikan layout utama Anda benar --}}
+@extends('layouts.app')
 
 @section('content')
 
 {{-- Bagian Alert Notifikasi --}}
 @if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
         <i class="bi bi-check-circle-fill me-2"></i>
         {{ session('success') }}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -12,7 +12,7 @@
 @endif
 
 @if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         {{ session('error') }}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -22,48 +22,43 @@
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-12">
-            <div class="card shadow-sm border-0 mb-4 bg-body">
-                <div class="card-header bg-primary text-white py-3">
+            <div class="card shadow-sm border-0 mb-4 bg-body-tertiary">
+                
+                {{-- Warna biru diubah menjadi seragam dengan view sebelumnya --}}
+                <div class="card-header bg-primary-subtle text-primary-emphasis border-bottom border-primary-subtle py-3">
                     <h5 class="card-title mb-0"><i class="bi bi-people-fill me-2"></i> {{ $page_title }}</h5>
                 </div>
+
                 <div class="card-body">
                     {{-- Form Filter --}}
                     <form action="{{ route('fincom.student_list.index') }}" method="GET" class="row g-3 align-items-end mb-4">
                         <div class="col-md-4">
-                            <label for="fclass_list" class="form-label small fw-bold">Pilih Kelas</label>
-                            <select name="f_class_list" id="f_class_list" class="form-control" data-url="{{ url('fincom/student_list') }}">
+                            <label for="fclass_list" class="form-label small fw-bold text-body">Pilih Kelas</label>
+                            <select name="f_class_list" id="f_class_list" class="form-select border-secondary-subtle" data-url="{{ url('fincom/student_list') }}">
                                 <option value="0">- Semua Kelas -</option>
-                                
-                                {{-- Gunakan $dk dari Controller dan sintaks Blade @foreach --}}
-                                @foreach($dk as $p)
-                                    <option value="{{ $p->id }}" {{ $class_list_id == $p->id ? 'selected' : '' }}>
-                                        {{ $p->kelas }} / {{ $p->tahun }}
-                                    </option>
-                                @endforeach
-                                
+                                @foreach($dk as $p) <option value="{{ $p->id }}" {{ $class_list_id == $p->id ? 'selected' : '' }}>{{ $p->kelas }} / {{ $p->tahun }}</option> @endforeach
                             </select>
                         </div>
-                        
                     </form>
 
-                    <hr class="my-4 opacity-25">
+                    <hr class="my-4 border-secondary-subtle">
 
                     {{-- Tabel Responsive --}}
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle border" id="table-student" style="width:100%">
-                            <thead class="table-light text-nowrap">
+                        <table class="table table-hover align-middle border-secondary-subtle" id="table-student" style="width:100%">
+                            <thead class="table-group-divider text-nowrap">
                                 <tr>
-                                    <th width="50">No</th>
-                                    <th>NIS</th>
-                                    <th>Nama Lengkap</th>
-                                    <th>Kelas</th>
-                                    <th>Tgl Lahir</th>
-                                    <th width="50">L/P</th>
-                                    <th>Kontak</th>
-                                    <th class="text-center">Aksi</th>
+                                    <th class="bg-body-tertiary" width="50">No</th>
+                                    <th class="bg-body-tertiary">NIS</th>
+                                    <th class="bg-body-tertiary">Nama Lengkap</th>
+                                    <th class="bg-body-tertiary">Kelas</th>
+                                    <th class="bg-body-tertiary">Tgl Lahir</th>
+                                    <th class="bg-body-tertiary" width="50">L/P</th>
+                                    <th class="bg-body-tertiary">Kontak</th>
+                                    <th class="bg-body-tertiary text-center">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody class="small">
+                            <tbody class="small text-body">
                                 {{-- Data akan diisi oleh DataTables --}}
                             </tbody>
                         </table>
@@ -78,11 +73,23 @@
 {{-- DataTables CSS --}}
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 <style>
-    /* Dukungan Mode Gelap untuk DataTables */
-    [data-bs-theme="dark"] .table-light {
-        --bs-table-bg: #2b3035;
-        --bs-table-color: #fff;
+    /* Menggunakan variabel Bootstrap bawaan agar warna pagination DataTables juga menyesuaikan mode gelap */
+    [data-bs-theme="dark"] .page-item .page-link {
+        background-color: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-body-color);
     }
+    [data-bs-theme="dark"] .page-item.active .page-link {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: #fff;
+    }
+    [data-bs-theme="dark"] .page-item.disabled .page-link {
+        background-color: var(--bs-secondary-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-secondary-color);
+    }
+    
     .page-table-col-center { text-align: center; }
     .page-table-col-left { text-align: left; }
 </style>
@@ -95,27 +102,19 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script type="text/javascript">
-// Tunggu sampai elemen HTML dimuat semua
     document.addEventListener('DOMContentLoaded', function() {
-        
         const selectClass = document.getElementById('f_class_list');
-        
         if (selectClass) {
             selectClass.addEventListener('change', function() {
-                // Ambil base url dari atribut data-url
                 const baseUrl = this.getAttribute('data-url');
-                // Lakukan redirect
                 window.location.href = baseUrl + '/' + this.value;
             });
         }
-        
     });
-
 
 $(document).ready(function() {
     var class_id = "{{ $class_list_id }}";
     
-    // Pastikan URL terbentuk dengan benar (menangani jika class_id adalah 0)
     var ajaxUrl = "{{ route('fincom.student_list.ajax', ':id') }}";
     ajaxUrl = ajaxUrl.replace(':id', class_id);
 
@@ -126,10 +125,9 @@ $(document).ready(function() {
             "url": ajaxUrl,
             "type": "POST",
             "data": function (d) {
-                d._token = "{{ csrf_token() }}"; // Proteksi CSRF Laravel
+                d._token = "{{ csrf_token() }}";
             },
             "error": function (xhr, error, thrown) {
-                // Jika error, kita bisa melihat detailnya di console F12
                 console.error("XHR Response: ", xhr.responseText);
                 alert('Gagal mengambil data. Pastikan route dan controller sudah sesuai.');
             }
@@ -144,7 +142,7 @@ $(document).ready(function() {
             { "data": 6 }, // Kontak
             { "data": 7, "className": "text-center", "orderable": false } // Aksi
         ],
-        "order": [[2, 'asc']], // Default urut berdasarkan Nama (Kolom ke-3)
+        "order": [[2, 'asc']], // Default urut berdasarkan Nama
         "language": {
             "search": "Cari NIS / Nama:",
             "lengthMenu": "Tampilkan _MENU_ data",

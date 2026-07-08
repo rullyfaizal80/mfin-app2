@@ -21,7 +21,7 @@ class ClassListController extends Controller
                        ?? DB::table('sis_cyear')->orderBy('date_start', 'desc')->first();
 
         $data = [
-            'page_title'     => 'Daftar Kelas (Manajemen Tagihan)',
+            'page_title'     => 'Komponen Per Kelas',
             'schools'        => DB::table('sis_cschool')->orderBy('name', 'asc')->get(),
             'grades'         => DB::table('sis_cgrade')->orderByRaw('CAST(title AS unsigned) ASC')->get(),
             'types'          => DB::table('sis_ctype')->orderBy('title', 'asc')->get(),
@@ -90,6 +90,9 @@ class ClassListController extends Controller
             });
         }
 
+        // Hitung total records setelah filter diaplikasikan (PENTING: Lakukan count() SEBELUM orderBy agar sorting jalan)
+        $totalRecords = $query->count();
+
         // --- Terapkan Sorting Server-Side Berdasarkan Request ---
         $order_column_idx = $request->input('order.0.column', 0); // Default index 0 (Nama Kelas)
         $order_dir        = $request->input('order.0.dir', 'asc');   // Default urutan asc
@@ -100,32 +103,29 @@ class ClassListController extends Controller
             1 => 'gr.title',       // Kolom index 1: Tingkat
             2 => 'ty.title',       // Kolom index 2: Tipe Kelas
             3 => 'sch.name',       // Kolom index 3: Nama Sekolah / Unit
-            4 => 'cy.date_start',  // Kolom index 4: Tahun Ajaran
+            4 => 'cy.date_start',  // Kolom index 4: Tahun Ajaran (Diurutkan berdasarkan tanggal aktual, bukan sekadar nama)
         ];
 
         // Ambil nama kolom berdasarkan peta index, jika tidak valid arahkan ke Nama Kelas
         $sort_column = $columns_map[$order_column_idx] ?? 'cl.title';
         $query->orderBy($sort_column, $order_dir);
-
-        // Hitung total records setelah filter diaplikasikan
-        $totalRecords = $query->count();
         
         // Tarik data dengan batasan limit dan offset pagination
         $results = $query->offset($start)->limit($limit)->get();
 
         $data = [];
         foreach ($results as $res) {
-            // Merakit Nama Kelas & Subjek sesuai output aplikasi asli
+            // Merakit Nama Kelas & Subjek (Diubah text-muted menjadi text-body-secondary untuk Dark Mode)
             $className = '<strong>' . ($res->class_title ?? '-') . '</strong><br>' . 
-                         '<small class="text-muted">' . ($res->subject_title ?? '') . '</small>';
+                         '<small class="text-body-secondary">' . ($res->subject_title ?? '') . '</small>';
             
             // Merakit Tingkat & Grup Kelas
             $grade = ($res->grade_title ?? '') . ' ' . ($res->group_title ?? '');
             
-            // Merakit Tombol Aksi "Komp. Pembayaran Kelas" (Tanpa tombol hapus/edit akademik)
-            $actionUrl = url('fincom/classpayitem/index/' . $res->id);
-            $btnAction = '<a href="' . $actionUrl . '" class="btn btn-sm btn-primary py-1 px-3 shadow-sm rounded-pill">' .
-                         '<i class="bi bi-wallet2 me-1"></i> Komp. Pembayaran Kelas</a>';
+            // Merakit Tombol Aksi (Diubah menjadi btn-outline-primary agar polos)
+           $actionUrl = url('fincom/classpayitem/index/' . $res->id);
+$btnAction = '<a href="' . $actionUrl . '" class="btn btn-sm btn-outline-primary fw-bold py-1 px-3 shadow-sm">' .
+             'Komp. Pembayaran Kelas</a>';
 
             $data[] = [
                 $className,

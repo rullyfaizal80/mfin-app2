@@ -11,7 +11,7 @@ class StudentListController extends Controller
     /**
      * Menampilkan halaman utama daftar siswa
      */
-   public function index(Request $request, $class_list_id = 0)
+    public function index(Request $request, $class_list_id = 0)
     {
         // 1. Ambil flash data message
         $message = session('message');
@@ -19,28 +19,26 @@ class StudentListController extends Controller
         // 2. Ambil data grades dan types
         $grades = DB::table('sis_cgrade')
             ->orderByRaw('CAST(title AS unsigned)')
-            ->select('title') // Opsional, sesuaikan kebutuhan view
+            ->select('title')
             ->get();
 
         $types = DB::table('sis_ctype')
             ->select('title')
             ->get();
 
-        // 3. Logika Filter (Sesuai dengan if($this->input->post('filter_btn')) di CI2)
+        // 3. Logika Filter
         if ($request->has('filter_btn')) {
             if ($request->filled('fclass_list') && $request->input('fclass_list') !== 'pilih') {
-                // Di Laravel, gunakan routing. Asumsi rute bernama 'fincom.student_list.index'
                 return redirect()->route('fincom.student_list.index', ['class_list_id' => $request->input('fclass_list')]);
             }
             $filters['fgrade'] = $request->input('fgrade');
         } else {
-            // Default filter
             $filters['ffrom'] = date("Y");
             $filters['fto'] = date("Y") + 1;
             $filters['fgrade'] = "-";
         }
 
-        // 4. Query Dropdown Kelas ($dk) - PERSIS seperti query CI2
+        // 4. Query Dropdown Kelas
         $dk = DB::table('sis_class_list as m')
             ->join('sis_csubject as s', 'm.csubject_id', '=', 's.id')
             ->join('sis_cyear as a', 'm.cyear_id', '=', 'a.id')
@@ -56,11 +54,10 @@ class StudentListController extends Controller
             'types'         => $types,
             'filters'       => $filters,
             'message'       => $message,
-            'dk'            => $dk, // Tetap gunakan 'dk' agar view lama tidak perlu banyak ubah jika disalin
-            'page_title'    => 'Komponen Per Siswa', // Disamakan dengan CI2
+            'dk'            => $dk, 
+            'page_title'    => 'Komponen Per Siswa',
         ];
 
-        // Pastikan Anda sudah membuat view 'fincom.student_list.index'
         return view('fincom.student_list.index', $data);
     }
 
@@ -71,24 +68,39 @@ class StudentListController extends Controller
         $length = $request->input('length', 10);
         $search = $request->input('search.value');
 
-        // 1. Menggunakan nama tabel utuh persis CI2.
+        // --- 1. MENANGKAP PARAMETER SORTING DARI DATATABLES ---
+        $orderColumnIndex = $request->input('order.0.column'); // Index kolom yang diklik
+        $orderDir = $request->input('order.0.dir', 'asc');     // Arah asc/desc
+
+        // Mapping index kolom tabel di View ke nama kolom di Database
+        $orderableColumns = [
+            0 => 'sis_user.id',          // No
+            1 => 'nis',                  // NIS
+            2 => 'fullname',             // Nama Lengkap
+            3 => 'sis_class_list.title', // Kelas
+            4 => 'dateofbirth',          // Tgl Lahir
+            5 => 'gender',               // L/P
+            6 => 'mobile_phone',         // Kontak
+        ];
+
+        // 2. Query Utama
         $baseQuery = DB::table('sis_student')
             ->leftJoin('sis_user', 'sis_student.id', '=', 'sis_user.id')
             ->leftJoin('sis_class_user', 'sis_student.id', '=', 'sis_class_user.user_id')
             ->join('sis_class_list', 'sis_class_user.class_list_id', '=', 'sis_class_list.id')
             ->join('sis_cyear', 'sis_class_list.cyear_id', '=', 'sis_cyear.id')
             ->where('sis_user.is_active', 'yes')
-            ->where('is_student', 'yes') // Tanpa alias agar DB mencari sendiri
+            ->where('is_student', 'yes')
             ->where('sis_cyear.is_active', 'yes');
 
-        // Filter Dropdown
+        // Filter Dropdown Kelas
         if ($class_list_id > 0) {
             $baseQuery->where('sis_class_user.class_list_id', $class_list_id);
         }
 
         $recordsTotal = $baseQuery->count();
 
-        // 2. Filter Pencarian (Tanpa alias seperti CI2)
+        // 3. Filter Pencarian
         $filteredQuery = clone $baseQuery;
         if (!empty($search)) {
             $filteredQuery->whereRaw('(nis like ? OR fullname like ?)', ["%{$search}%", "%{$search}%"]);
@@ -96,7 +108,14 @@ class StudentListController extends Controller
 
         $recordsFiltered = $filteredQuery->count();
 
-        // 3. Select persis bawaan CI2
+        // --- 4. TERAPKAN LOGIKA SORTING (Dinamis sesuai klik) ---
+        if (isset($orderableColumns[$orderColumnIndex])) {
+            $filteredQuery->orderBy($orderableColumns[$orderColumnIndex], $orderDir);
+        } else {
+            $filteredQuery->orderBy('fullname', 'asc'); // Default urutan jika baru dimuat
+        }
+
+        // 5. Eksekusi Pengambilan Data
         $students = $filteredQuery->select(
                 'sis_user.id as user_id', 
                 'nis', 
@@ -109,10 +128,10 @@ class StudentListController extends Controller
             )
             ->offset($start)
             ->limit($length)
-            ->orderBy('fullname', 'asc') // Urut berdasarkan nama
+            // (Baris ->orderBy yang kaku sudah dihapus dari sini)
             ->get();
 
-        // 4. Susun JSON DataTables
+        // 6. Susun JSON DataTables
         $data = [];
         $no = $start + 1;
         foreach ($students as $row) {
@@ -125,13 +144,11 @@ class StudentListController extends Controller
             $col[] = ($row->gender == 'M') ? 'L' : 'P';
             $col[] = ($row->home_phone ?: '-') . ' / ' . ($row->mobile_phone ?: '-');
             
-            // Tombol Aksi Komponen & Hapus (Hanya Notif)
-$action = '<div class="btn-group">';
-$action .= '<a href="'.url('fincom/userpayitem/student_list/'.$row->user_id).'" class="btn btn-sm btn-primary">Komp Persiswa</a>';
-
-// Tombol hapus tidak mengarah ke URL, melainkan langsung memicu alert javascript
-$action .= '<button type="button" class="btn btn-sm btn-danger" title="Delete" onclick="alert(\'Aksi Ditolak: Fitur hapus siswa dinonaktifkan secara sistem untuk menjaga integritas riwayat transaksi keuangan.\')"><i class="bi bi-trash"></i></button>';
-$action .= '</div>';
+            // --- MODIFIKASI TOMBOL AKSI ---
+            $action = '<div class="btn-group">';
+            // Mengubah tombol Komp Persiswa menjadi polos (outline) & menghapus tombol Hapus
+            $action .= '<a href="'.url('fincom/userpayitem/student_list/'.$row->user_id).'" class="btn btn-sm btn-outline-primary fw-bold px-3">Komp Persiswa</a>';
+            $action .= '</div>';
             
             $col[] = $action;
             $data[] = $col;
@@ -146,13 +163,11 @@ $action .= '</div>';
     }
 
     /**
-     * Fitur Hapus Dinonaktifkan (Sesuai Logika CI2 Asli)
+     * Fitur Hapus Dinonaktifkan
      */
     public function delete($id)
     {
-        // Sistem langsung menghentikan proses dan melempar notifikasi error
         return redirect()->route('fincom.student_list.index')
                          ->with('error', 'Aksi Ditolak: Fitur hapus siswa dinonaktifkan secara sistem untuk menjaga integritas riwayat transaksi keuangan.');
     }
-
 }
