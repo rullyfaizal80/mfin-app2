@@ -4,16 +4,18 @@
 <div class="container-fluid py-4">
     
     {{-- Baris Navigasi Atas & Tombol Tambah --}}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <a href="{{ route('fincom.student_list.index') }}" class="btn btn-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Kembali ke Daftar Siswa
-        </a>
-        
-        {{-- Tombol Pemicu Modal Tambah Komponen --}}
-        <button type="button" class="btn btn-success shadow-sm" data-bs-toggle="modal" data-bs-target="#modalTambahKomponen">
-            <i class="bi bi-plus-lg me-1"></i> Tambah Komponen Baru
-        </button>
-    </div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <!-- Tombol Kembali disamakan persis dengan style sebelumnya -->
+    <a href="{{ route('fincom.student_list.index') }}" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm px-3 rounded-pill">
+        <i class="bi bi-arrow-left me-1"></i> Kembali ke Daftar Siswa
+    </a>
+    
+    {{-- Tombol Pemicu Modal Tambah Komponen (Dasar polos, hover hijau) --}}
+    <button type="button" class="btn btn-sm btn-outline-success fw-bold shadow-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalTambahKomponen">
+        <i class="bi bi-plus-lg me-1"></i> Tambah Komponen Baru
+    </button>
+</div>
+
 
     {{-- Alert Notifikasi --}}
     @if(session('success'))
@@ -47,12 +49,12 @@
                     <span class="fw-bold fs-6 text-dark">{{ $student->fullname }}</span>
                 </div>
                 
-                {{-- Tempat, Tanggal Lahir (TTL) --}}
-                <div class="col-md-3 mb-2 mb-md-0 border-md-end ps-md-3">
-                    <small class="text-muted d-block uppercase text-xs fw-bold">TTL</small>
-                    <span class="fw-bold fs-6 text-primary">{{ $student->placeofbirth }} / {{ $student->dateofbirth }}</span>
-                </div>
-                
+               {{-- Tempat, Tanggal Lahir (TTL) --}}
+<div class="col-md-3 mb-2 mb-md-0 border-md-end ps-md-3">
+    <small class="text-muted d-block uppercase text-xs fw-bold">TTL</small>
+    <!-- Kelas diubah dari text-primary menjadi text-dark -->
+    <span class="fw-bold fs-6 text-dark">{{ $student->placeofbirth }} / {{ $student->dateofbirth }}</span>
+</div>
                 {{-- Ditanggung Oleh (Payer) --}}
                 <div class="col-md-4 ps-md-3 position-relative">
                     <small class="text-muted d-block uppercase text-xs fw-bold">Ditanggung oleh</small>
@@ -84,20 +86,20 @@
         <div class="col-12">
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-dark text-white py-3">
-                    <h6 class="mb-0"><i class="bi bi-wallet2 me-2"></i> Daftar Komponen (Tagihan) Aktif Siswa</h6>
+                    <h6 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Komponen Pembayaran Siswa</h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover table-bordered table-striped mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="text-center" width="50">No</th>
-                                    <th>JENIS</th>
-                                    <th>PERIODE</th>
-                                    <th>AKUN</th>
-                                    <th>TYPE</th>
-                                    <th class="text-end" width="180">NILAI</th>
-                                    <th class="text-center" width="100">AKSI</th>
+                                    <th class="text-center" width="5%">No</th>
+                                    <th class="text-center" width="25%">JENIS</th>
+                                    <th class="text-center" width="15%">PERIODE</th>
+                                    <th class="text-center" width="25%">AKUN</th>
+                                    <th class="text-center" width="12%">TYPE</th>
+                                    <th class="text-center" width="13%">NILAI</th>
+                                    <th class="text-center" width="5%">AKSI</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -120,56 +122,58 @@
                                         {{-- Kolom AKUN --}}
                                         <td class="small text-secondary">
                                             @if($item->coa_cash && isset($coa_list[$item->coa_cash])) 
-                                                <span class="badge bg-light text-dark border">K</span> {{ $coa_list[$item->coa_cash] }}<br> 
+                                                {{ $coa_list[$item->coa_cash] }}<br> 
                                             @endif
                                             @if($item->coa_receivable && isset($coa_list[$item->coa_receivable])) 
-                                                <span class="badge bg-light text-dark border">P</span> {{ $coa_list[$item->coa_receivable] }}<br> 
+                                               {{ $coa_list[$item->coa_receivable] }}<br> 
                                             @endif
                                             @if($item->coa_cost && isset($coa_list[$item->coa_cost])) 
-                                                <span class="badge bg-light text-dark border">B</span> {{ $coa_list[$item->coa_cost] }}<br> 
+                                               {{ $coa_list[$item->coa_cost] }}<br> 
                                             @endif
                                             @if($item->coa_payable && isset($coa_list[$item->coa_payable])) 
-                                                <span class="badge bg-light text-dark border">U</span> {{ $coa_list[$item->coa_payable] }}<br> 
+                                                {{ $coa_list[$item->coa_payable] }}<br> 
                                             @endif
                                             @if($item->coa_revenue && isset($coa_list[$item->coa_revenue])) 
-                                                <span class="badge bg-light text-dark border">D</span> {{ $coa_list[$item->coa_revenue] }} 
+                                                {{ $coa_list[$item->coa_revenue] }} 
                                             @endif
                                         </td>
 
                                         {{-- Kolom TYPE --}}
                                         <td>
-                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">{{ $item->payitem_type }}</span><br>
+                                            {{ $item->payitem_type }}</span><br>
                                             <small class="text-muted">{{ $item->pay_repeat }}</small>
                                         </td>
                                         
-                                        {{-- Kolom NILAI --}}
-                                        <td class="text-end fw-bold text-primary fs-6">
-                                            Rp {{ number_format($item->payvalue, 0, ',', '.') }}
-                                        </td>
+                                       {{-- Kolom NILAI --}}
+<td class="text-end fw-bold text-dark fs-6">
+    Rp {{ number_format($item->payvalue, 0, ',', '.') }}
+</td>
                                         
                                         {{-- Kolom AKSI --}}
-                                        <td class="text-center">
-                                            <div class="btn-group shadow-sm">
-                                                <button type="button" 
-        class="btn btn-warning btn-sm text-white btn-edit-item"
-        data-id="{{ $item->upid }}"
-        data-title="{{ $item->title }}"
-        data-value="{{ $item->payvalue }}"
-        data-cash="{{ $item->coa_cash }}"
-        data-payable="{{ $item->coa_payable }}"
-        data-cost="{{ $item->coa_cost }}"
-        data-receivable="{{ $item->coa_receivable }}"
-        data-revenue="{{ $item->coa_revenue }}"
-        data-repeat="{{ $item->pay_repeat }}"
-        data-start="{{ $item->pay_start }}"
-        data-end="{{ $item->pay_end }}"
-        data-bs-toggle="modal" 
-        data-bs-target="#modalEditKomponen">
-    <i class="bi bi-pencil-square"></i> Edit
-</button>
-                                                <a href="{{ route('fincom.userpayitem.del_item', ['student_id' => $student->user_id, 'id' => $item->upid]) }}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Yakin ingin menghapus komponen ini?')"><i class="bi bi-trash"></i>Hapus</a>
-                                            </div>
-                                        </td>
+<td class="text-center">
+    <div class="d-grid gap-1 mx-auto" style="width: 80px;">
+        <!-- Kelas diubah menjadi btn-outline-warning (dasar transparan, hover kuning) -->
+        <button type="button" 
+                class="btn btn-outline-warning btn-sm btn-edit-item"
+                data-id="{{ $item->upid }}"
+                data-title="{{ $item->title }}"
+                data-value="{{ $item->payvalue }}"
+                data-cash="{{ $item->coa_cash }}"
+                data-payable="{{ $item->coa_payable }}"
+                data-cost="{{ $item->coa_cost }}"
+                data-receivable="{{ $item->coa_receivable }}"
+                data-revenue="{{ $item->coa_revenue }}"
+                data-repeat="{{ $item->pay_repeat }}"
+                data-start="{{ $item->pay_start }}"
+                data-end="{{ $item->pay_end }}"
+                data-bs-toggle="modal" 
+                data-bs-target="#modalEditKomponen">
+            <i class="bi bi-pencil-square"></i> Edit
+        </button>
+        <a href="{{ route('fincom.userpayitem.del_item', ['student_id' => $student->user_id, 'id' => $item->upid]) }}" class="btn btn-sm btn-outline-danger" title="Delete" onclick="return confirm('Yakin ingin menghapus komponen ini?')"><i class="bi bi-trash"></i>Hapus</a>
+    </div>
+</td>
+
                                     </tr>
                                 @empty
                                     <tr>

@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\DB;
 
 class ClassPayItemController extends Controller
 {
-    /**
-     * Menampilkan daftar komponen pembayaran untuk kelas tertentu
-     */
     public function index($class_list_id)
     {
         // 1. Ambil detail informasi kelas dengan relasi yang benar
@@ -22,6 +19,8 @@ class ClassPayItemController extends Controller
             ->where('cl.id', $class_list_id)
             ->select(
                 'cl.id', 
+                'cl.cschool_id', // WAJIB DISELEKSI untuk filter kelas lain
+                'cl.cyear_id',   // WAJIB DISELEKSI untuk filter kelas lain
                 'cl.title as class_title',
                 'sub.title as subject_title',
                 'ty.title as type_title',
@@ -34,26 +33,41 @@ class ClassPayItemController extends Controller
             return redirect()->route('fincom.class_list.index')->with('error', 'Data kelas tidak ditemukan.');
         }
 
-        // 2. Ambil daftar komponen tagihan kelas (Pengganti query di ax_get_classpayitem)
+        // 2. Ambil daftar komponen tagihan kelas
         $payitems = DB::table('sis_classpayitem as cpi')
             ->leftJoin('sis_payitem as pi', 'cpi.payitem_id', '=', 'pi.id')
             ->where('cpi.class_list_id', $class_list_id)
-            ->select(
-                'cpi.*', 
-                'pi.title as item_title', 
-                'pi.payitem_code' // Diperlukan agar dapat dirender di view
-            )
+            ->select('cpi.*', 'pi.title as item_title', 'pi.payitem_code')
             ->orderBy('cpi.payvalue', 'asc')
             ->get();
 
-        // 3. Kamus COA untuk me-render teks nama akun di dalam tabel Blade
+        // 3. Kamus COA
         $coa_list = DB::table('sis_coa')->pluck('title', 'coa_code')->toArray();
 
         // 4. Siapkan data master untuk Dropdown Modal Form & Copy Data
         $master_payitems = DB::table('sis_payitem')->orderBy('title', 'asc')->get();
-        $all_classes     = DB::table('sis_class_list')->orderBy('title', 'asc')->get();
+        
+        // PERBAIKAN: Query $all_classes disamakan persis dengan logika Mcoa->custom_query di CI2
+        $all_classes = DB::table('sis_class_list as cl')
+            ->leftJoin('sis_csubject as cs', 'cl.csubject_id', '=', 'cs.id')
+            ->leftJoin('sis_cgrade as cg', 'cl.cgrade_id', '=', 'cg.id')
+            ->leftJoin('sis_cgroup as co', 'cl.cgroup_id', '=', 'co.id')
+            ->leftJoin('sis_ctype as ct', 'cl.ctype_id', '=', 'ct.id')
+            ->where('cl.id', '!=', $class_list_id)
+            ->where('cl.cschool_id', $class_info->cschool_id) // Filter by Sekolah
+            ->where('cl.cyear_id', $class_info->cyear_id)     // Filter by Tahun Ajaran
+            ->select(
+                'cl.id', 
+                'cl.title', 
+                'cs.title as kejuruan', 
+                'cg.title as tingkat', 
+                'co.title as grup', 
+                'ct.title as tipe'
+            )
+            ->orderBy('cl.title', 'asc')
+            ->get();
 
-        // 5. Filter List COA disamakan persis dengan logika di UserPayItemController
+        // 5. Filter List COA
         $coa_cash       = DB::table('sis_coa')->where('title', 'like', '%KAS%')->orderBy('title', 'ASC')->get();
         $coa_payable    = DB::table('sis_coa')->where('title', 'like', '%HUTANG%')->orderBy('title', 'ASC')->get();
         $coa_cost       = DB::table('sis_coa')->where('coaclass_id', 15)->orderBy('title', 'ASC')->get();
@@ -197,10 +211,10 @@ class ClassPayItemController extends Controller
      */
     public function sync($class_list_id)
     {
-        // 1. Cari seluruh siswa yang terdaftar di kelas ini
-        $students = DB::table('sis_student')
+        // 1. Cari seluruh siswa yang terdaftar di kelas ini melalui tabel relasi (sis_class_user)
+        $students = DB::table('sis_class_user')
             ->where('class_list_id', $class_list_id) 
-            ->select('id')
+            ->select('user_id')
             ->get();
 
         if ($students->isEmpty()) {
@@ -223,25 +237,25 @@ class ClassPayItemController extends Controller
                     
                     // Cek apakah siswa sudah memiliki tagihan item ini di rentang waktu yang sama
                     $exists = DB::table('sis_userpayitem')
-                        ->where('user_id', $std->id)
+                        ->where('user_id', $std->user_id) // Menggunakan user_id dari sis_class_user
                         ->where('payitem_id', $item->payitem_id)
                         ->where('pay_start', $item->pay_start)
                         ->exists();
 
                     if (!$exists) {
                         DB::table('sis_userpayitem')->insert([
-                            'user_id'        => $std->id,
+                            'user_id'        => $std->user_id, 
                             'payitem_id'     => $item->payitem_id,
                             'payvalue'       => $item->payvalue,
                             'pay_start'      => $item->pay_start,
                             'pay_end'        => $item->pay_end,
-                            'pay_repeat'     => $item->pay_repeat, // Disinkronkan juga
+                            'pay_repeat'     => $item->pay_repeat, 
                             'coa_cash'       => $item->coa_cash,
                             'coa_payable'    => $item->coa_payable,
                             'coa_cost'       => $item->coa_cost,
                             'coa_receivable' => $item->coa_receivable,
-                            'coa_revenue'    => $item->coa_revenue,
-                            'created_at'     => now(), 
+                            'coa_revenue'    => $item->coa_revenue
+                            // Baris 'created_at' => now() SUDAH DIHAPUS
                         ]);
                         $inserted_count++;
                     }
@@ -249,7 +263,7 @@ class ClassPayItemController extends Controller
             }
         });
 
-        return redirect()->back()->with('success', 'Sinkronisasi Berhasil! Tagihan massal berhasil disuntikkan ke seluruh dompet siswa.');
+        return redirect()->back()->with('success', 'Sinkronisasi Berhasil! ' . $inserted_count . ' tagihan berhasil disuntikkan ke dompet siswa.');
     }
 
     /**

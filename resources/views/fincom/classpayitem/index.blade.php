@@ -3,7 +3,36 @@
 @section('content')
 <div class="container-fluid py-4">
     
-    {{-- Notifikasi Sukses/Gagal --}}
+    
+
+    {{-- BARIS TOMBOL NAVIGASI & AKSI --}}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    {{-- Sisi Kiri: Tombol Kembali --}}
+    <div>
+        <a href="{{ route('fincom.class_list.index') }}" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm px-3 rounded-pill">
+            <i class="bi bi-arrow-left me-1"></i> Kembali ke Daftar Kelas
+        </a>
+    </div>
+    
+    {{-- Sisi Kanan: Kumpulan Tombol Manajerial --}}
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-sm btn-outline-primary fw-bold shadow-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCopy">
+            <i class="bi bi-files me-1"></i> Copy Dari Kelas Lain
+        </button>
+        
+        <!-- Diubah ke btn-outline-success (Polos, hover baru jadi hijau) -->
+        <button type="button" class="btn btn-sm btn-outline-success fw-bold shadow-sm px-3 rounded-pill" id="btn-trigger-sync">
+            <i class="bi bi-arrow-repeat me-1"></i> Sinkronisasi ke Siswa
+        </button>
+        
+        <!-- Diubah ke btn-outline-info (Polos, hover baru jadi biru muda/cyan agar beda dengan btn-outline-primary yang biru tua) -->
+        <button type="button" class="btn btn-sm btn-outline-info fw-bold shadow-sm px-3 rounded-pill" id="btn-trigger-add">
+            <i class="bi bi-plus-circle me-1"></i> Tambah Komponen
+        </button>
+    </div>
+</div>
+
+{{-- Notifikasi Sukses/Gagal --}}
     @if(session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i> {{ session('success') }}
@@ -16,37 +45,13 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
-
-    {{-- BARIS TOMBOL NAVIGASI & AKSI --}}
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        {{-- Sisi Kiri: Tombol Kembali --}}
-        <div>
-            <a href="{{ route('fincom.class_list.index') }}" class="btn btn-sm btn-outline-secondary fw-bold shadow-sm px-3 rounded-pill">
-                <i class="bi bi-arrow-left me-1"></i> Kembali ke Daftar Kelas
-            </a>
-        </div>
-        
-        {{-- Sisi Kanan: Kumpulan Tombol Manajerial --}}
-        <div class="d-flex gap-2">
-            <button type="button" class="btn btn-sm btn-outline-primary fw-bold shadow-sm px-3 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalCopy">
-                <i class="bi bi-files me-1"></i> Copy Dari Kelas Lain
-            </button>
-            <button type="button" class="btn btn-sm btn-success fw-bold shadow-sm px-3 rounded-pill" id="btn-trigger-sync">
-                <i class="bi bi-arrow-repeat me-1"></i> Sinkronisasi ke Siswa
-            </button>
-            <button type="button" class="btn btn-sm btn-primary fw-bold shadow-sm px-3 rounded-pill" id="btn-trigger-add">
-                <i class="bi bi-plus-circle me-1"></i> Tambah Komponen
-            </button>
-        </div>
-    </div>
-
    {{-- KOTAK IDENTITAS KELAS --}}
     <div class="card shadow-sm border-0 mb-4 bg-light border">
         <div class="card-body py-3 px-4">
             <div class="row g-3 align-items-center text-center text-md-start">
                 <div class="col-md-5 border-end-md">
                     <span class="text-muted d-block small text-uppercase fw-semibold mb-1" style="letter-spacing: 0.5px;">Kelas</span>
-                    <span class="fw-bold text-primary fs-5">
+                    <span class="fw-bold text-dark fs-6">
                         {{ $class_info->class_title }} / {{ $class_info->subject_title ?? 'NON-JURUSAN' }} / {{ $class_info->type_title ?? 'EKSTRA' }}
                     </span>
                 </div>
@@ -63,61 +68,98 @@
     </div>
 
     {{-- TABEL CRD UTAMA KOMPONEN TAGIHAN (Tanpa AJAX) --}}
-    <div class="card shadow-sm border-0 bg-body">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle table-borderless border-top border-light mb-0" id="table-payitem" style="width: 100%">
-                    <thead class="table-light text-secondary text-uppercase fs-7 bg-light">
-                        <tr>
-                            <th width="5%" class="text-center ps-3">No</th>
-                            <th width="25%">Nama Komponen / Jenis</th>
-                            <th width="15%" class="text-center">Periode Tagihan</th>
-                            <th width="25%">Alokasi Akun COA</th>
-                            <th width="12%" class="text-center">Pengulangan</th>
-                            <th width="13%" class="text-end pe-3">Nominal</th>
-                            <th width="5%" class="text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($payitems as $index => $item)
-                        <tr>
-                            <td class="text-center ps-3 text-muted fw-bold">{{ $index + 1 }}</td>
-                            <td>
-                                <div class='mb-0 fw-semibold text-dark'>{{ $item->item_title }}</div>
-                                <small class='text-muted' style='font-size:0.75rem;'>{{ $item->payitem_code }}</small>
-                            </td>
-                            <td class="text-center">
-                                <span class='text-success fw-medium fs-7'>{{ $item->pay_start }}</span><br>
-                                <small class='text-danger fs-7'>{{ $item->pay_end }}</small>
-                            </td>
-                            <td>
-                                <div class='lh-sm fs-7'>
-                                    @if(!empty($item->coa_cash)) <span class='badge bg-light text-dark border me-1 mb-1'>Kas: {{ $coa_list[$item->coa_cash] ?? $item->coa_cash }}</span> @endif
-                                    @if(!empty($item->coa_receivable)) <span class='badge bg-light text-dark border me-1 mb-1'>Piutang: {{ $coa_list[$item->coa_receivable] ?? $item->coa_receivable }}</span> @endif
-                                    @if(!empty($item->coa_revenue)) <span class='badge bg-light text-dark border me-1 mb-1'>Pendapatan: {{ $coa_list[$item->coa_revenue] ?? $item->coa_revenue }}</span> @endif
-                                    @if(!empty($item->coa_payable)) <span class='badge bg-light text-dark border me-1 mb-1'>Hutang: {{ $coa_list[$item->coa_payable] ?? $item->coa_payable }}</span> @endif
-                                    @if(!empty($item->coa_cost)) <span class='badge bg-light text-dark border me-1 mb-1'>Biaya: {{ $coa_list[$item->coa_cost] ?? $item->coa_cost }}</span> @endif
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <span class='badge bg-info-subtle text-info px-2 py-1 rounded-pill text-capitalize'>{{ $item->pay_repeat }}</span>
-                            </td>
-                            <td class="text-end pe-3 fw-bold text-dark">
-                                Rp {{ number_format($item->payvalue, 0, ',', '.') }}
-                            </td>
-                            <td class="text-center">
-                                <div class='btn-group shadow-sm rounded'>
-                                    <button type='button' class='btn btn-sm btn-light border text-warning py-1 px-2 btn-edit' data-id='{{ $item->id }}' title='Edit'><i class='bi bi-pencil-square'></i></button>
-                                    <button type='button' class='btn btn-sm btn-light border text-danger py-1 px-2 btn-delete' data-id='{{ $item->id }}' title='Hapus'><i class='bi bi-trash'></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <!-- Header Kartu mengikuti style tabel siswa -->
+            <div class="card-header bg-dark text-white py-3">
+                <h6 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Komponen Pembayaran Kelas</h6>
+            </div>
+            <!-- card-body p-0 agar tabel full-width menempel sempurna -->
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-striped mb-0 align-middle" id="table-payitem" style="width: 100%">
+                        <thead class="table-light text-uppercase">
+                            <tr>
+                                <th class="text-center" width="5%">No</th>
+                                <th class="text-center" width="25%">Jenis</th>
+                                <th class="text-center" width="15%">Periode</th>
+                                <th class="text-center" width="25%">Akun</th>
+                                <th class="text-center" width="12%">Ulang</th>
+                                <th class="text-center" width="13%">Nilai</th>
+                                <th class="text-center" width="5%"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($payitems as $index => $item)
+                                <tr>
+                                    <td class="text-center text-muted">{{ $index + 1 }}</td>
+                                    
+                                    {{-- Kolom JENIS --}}
+                                    <td>
+                                        <strong class="text-dark">{{ $item->item_title }}</strong><br>
+                                        <span class="text-muted small fw-mono">{{ $item->payitem_code }}</span>
+                                    </td>
+                                    
+                                    {{-- Kolom PERIODE --}}
+                                    <td>
+                                        <i class="bi bi-calendar-event text-muted me-1"></i> {{ $item->pay_start }}<br>
+                                        <i class="bi bi-calendar-check text-muted me-1"></i> {{ $item->pay_end }}
+                                    </td>
+                                    
+                                    {{-- Kolom AKUN --}}
+                                    <td class="small text-secondary">
+                                        @if(!empty($item->coa_cash)) 
+                                            {{ $coa_list[$item->coa_cash] ?? $item->coa_cash }}<br> 
+                                        @endif
+                                        @if(!empty($item->coa_receivable)) 
+                                            {{ $coa_list[$item->coa_receivable] ?? $item->coa_receivable }}<br> 
+                                        @endif
+                                        @if(!empty($item->coa_revenue)) 
+                                            {{ $coa_list[$item->coa_revenue] ?? $item->coa_revenue }}<br> 
+                                        @endif
+                                        @if(!empty($item->coa_payable)) 
+                                            {{ $coa_list[$item->coa_payable] ?? $item->coa_payable }}<br> 
+                                        @endif
+                                        @if(!empty($item->coa_cost)) 
+                                            {{ $coa_list[$item->coa_cost] ?? $item->coa_cost }} 
+                                        @endif
+                                    </td>
+
+                                    {{-- Kolom TYPE / REPEAT --}}
+                                    <td>
+                                        {{ $item->pay_repeat }}
+                                    </td>
+                                    
+                                   {{-- Kolom NILAI --}}
+<td class="text-end fw-bold text-dark fs-6">
+    Rp {{ number_format($item->payvalue, 0, ',', '.') }}
+</td>
+                                    
+                                    {{-- Kolom AKSI --}}
+<td class="text-center">
+    <!-- Menggunakan d-grid dengan lebar dikunci rata 80px dan berpusat di tengah sel (mx-auto) -->
+    <div class="d-grid gap-1 mx-auto" style="width: 80px;">
+        <button type="button" class="btn btn-sm btn-outline-warning btn-edit" data-id="{{ $item->id }}" title="Edit">
+            <i class="bi bi-pencil-square"></i> Edit
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="{{ $item->id }}" title="Hapus">
+            <i class="bi bi-trash"></i> Hapus
+        </button>
+    </div>
+</td>
+
+
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
+</div>
+
 </div>
 
 {{-- FORM HIDDEN UNTUK PROSES SINKRONISASI --}}
@@ -237,20 +279,38 @@
             <form action="{{ route('fincom.classpayitem.copy', $class_info->id) }}" method="POST">
                 @csrf
                 <div class="modal-body py-4">
-                    <p class="small text-muted">Fitur ini akan menyalin seluruh jenis komponen tagihan beserta nominal & COA dari kelas lain ke kelas ini.</p>
+                    <p class="small text-muted mb-3">Fitur ini akan menyalin seluruh jenis komponen tagihan beserta nominal & COA dari kelas lain yang berada di lingkup filter aktif berikut:</p>
+                    
+                    {{-- KOTAK INFORMASI FILTER AKTIF --}}
+                    <div class="alert alert-info py-2 px-3 small border-0 shadow-sm mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-secondary">Sekolah Aktif:</span>
+                            <span class="text-end text-dark fw-bold">{{ $class_info->school_name ?? '-' }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-secondary">Tahun Ajaran Aktif:</span>
+                            <span class="text-end text-dark fw-bold">{{ $class_info->year_title ?? '-' }}</span>
+                        </div>
+                    </div>
+
                     <label class="form-label small fw-bold">Pilih Kelas Sumber Asal:</label>
                     <select name="from_class_list_id" class="form-select form-select-sm" required>
-                        <option value="-">- Pilih Kelas Asal -</option>
-                        @foreach($all_classes as $cls)
-                            @if($cls->id != $class_info->id)
-                                <option value="{{ $cls->id }}">{{ $cls->title }}</option>
-                            @endif
-                        @endforeach
-                    </select>
+    <option value="">- Pilih Kelas Asal -</option>
+    @forelse($all_classes as $cls)
+        <option value="{{ $cls->id }}">
+            {{ $cls->title }} {{ $cls->tingkat }} {{ $cls->grup }} {{ $cls->tipe }}
+        </option>
+    @empty
+        <option value="" disabled>⚠️ Tidak ada kelas lain di sekolah & tahun ajaran ini</option>
+    @endforelse
+</select>
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="submit" class="btn btn-sm btn-success fw-bold">Eksekusi Salin Data</button>
+                    {{-- Gunakan method bawaan Laravel isEmpty() sebagai pengganti $kelasDitemukan --}}
+                    <button type="submit" class="btn btn-sm btn-success fw-bold" @if($all_classes->isEmpty()) disabled @endif>
+                        Eksekusi Salin Data
+                    </button>
                 </div>
             </form>
         </div>
@@ -271,15 +331,17 @@ function formatRibuan(nilai) {
 
 $(document).ready(function() {
     
-    // Inisialisasi Ulang DataTables
-    $('#table-payitem').DataTable({
-        language: {
-            url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json"
-        },
-        columnDefs: [
-            { targets: [6], orderable: false }
-        ]
-    });
+    // Inisialisasi Ulang DataTables (Tanpa Sorting, Pagination, dan Search)
+$('#table-payitem').DataTable({
+    language: {
+        url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/id.json"
+    },
+    paging: false,      // Menghilangkan pagination (Semua data langsung muncul)
+    searching: false,   // Menghilangkan kotak pencarian (search box)
+    ordering: false,    // Menghilangkan fitur sorting di semua judul kolom tabel
+    info: false,        // Menghilangkan teks info entri data di bawah tabel
+    lengthChange: false // Menghilangkan drop-down jumlah baris data
+});
     
     // Masking Input Nominal: Otomatis memunculkan titik saat user mengetik angka
     $('#payvalue').on('input', function() {
