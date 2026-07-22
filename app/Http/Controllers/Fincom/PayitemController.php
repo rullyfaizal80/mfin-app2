@@ -10,7 +10,11 @@ class PayitemController extends Controller
 {
     public function index()
     {
-        return view('fincom.payitem.index');
+        // Panggil fungsi getCoaData() agar dropdown di modal index terisi data
+        $coa = $this->getCoaData();
+        
+        // Passing data $coa ke view
+        return view('fincom.payitem.index', $coa);
     }
 
     public function create()
@@ -20,28 +24,27 @@ class PayitemController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $request->validate(['payitem_code' => 'required']);
+{
+    $request->validate(['payitem_code' => 'required']);
 
-        // Mencegah error jika payvalue kosong saat input
-        $payvalue = $request->payvalue ? str_replace(['.', ','], '', $request->payvalue) : 0;
+    DB::table('sis_payitem')->insert([
+        'payitem_code'   => $request->payitem_code,
+        'title'          => $request->title,
+        // Tambahkan baris ini JIKA di tabel database Anda ada kolom 'description' atau 'keterangan'
+        // 'description'    => $request->description, 
+        'payitem_type'   => $request->payitem_type,
+        'payitem_user'   => 'student', 
+        'ordering'       => $request->ordering ?? 1,
+        'coa_cash'       => $request->coa_cash ?? 0,
+        'coa_payable'    => $request->coa_payable ?? 0,
+        'coa_receivable' => $request->coa_receivable ?? 0,
+        'coa_revenue'    => $request->coa_revenue ?? 0,
+        'coa_cost'       => $request->coa_cost ?? 0,
+        'payvalue'       => 0, // <-- SET DEFAULT MENJADI 0 KARENA TIDAK ADA DI FORM
+    ]);
 
-        DB::table('sis_payitem')->insert([
-            'payitem_code'   => $request->payitem_code,
-            'title'          => $request->title,
-            'payitem_type'   => $request->payitem_type,
-            'payitem_user'   => 'student', 
-            'ordering'       => $request->ordering ?? 1,
-            'coa_cash'       => $request->coa_cash ?? 0,
-            'coa_payable'    => $request->coa_payable ?? 0,
-            'coa_receivable' => $request->coa_receivable ?? 0,
-            'coa_revenue'    => $request->coa_revenue ?? 0,
-            'coa_cost'       => $request->coa_cost ?? 0,
-            'payvalue'       => $payvalue,
-        ]);
-
-        return redirect()->route('fincom.payitem.student.index')->with('success', 'Komponen Berhasil Ditambahkan');
-    }
+    return redirect()->route('fincom.payitem.student.index')->with('success', 'Komponen Berhasil Ditambahkan');
+}
 
     public function edit($id)
     {
