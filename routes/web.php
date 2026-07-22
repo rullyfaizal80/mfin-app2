@@ -266,9 +266,9 @@ Route::prefix('fincom/payitem')->name('fincom.payitem.')->group(function () {
     Route::get('/student/create', [App\Http\Controllers\Fincom\PayitemController::class, 'create'])->name('student.create');
     Route::post('/student/store', [App\Http\Controllers\Fincom\PayitemController::class, 'store'])->name('student.store');
     
-    // Edit
+    // Edit (DIPERBARUI PADA BARIS UPDATE DI BAWAH INI)
     Route::get('/student/{id}/edit', [App\Http\Controllers\Fincom\PayitemController::class, 'edit'])->name('student.edit');
-    Route::post('/student/{id}/update', [App\Http\Controllers\Fincom\PayitemController::class, 'update'])->name('student.update');
+    Route::match(['post', 'put'], '/student/{id}/update', [App\Http\Controllers\Fincom\PayitemController::class, 'update'])->name('student.update');
     
     // Delete & Sync
     Route::delete('/student/{id}', [App\Http\Controllers\Fincom\PayitemController::class, 'destroy'])->name('student.destroy');

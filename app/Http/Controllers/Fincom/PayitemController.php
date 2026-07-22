@@ -25,30 +25,65 @@ class PayitemController extends Controller
 
     public function store(Request $request)
 {
-    $request->validate(['payitem_code' => 'required']);
-
-    DB::table('sis_payitem')->insert([
-        'payitem_code'   => $request->payitem_code,
-        'title'          => $request->title,
-        // Tambahkan baris ini JIKA di tabel database Anda ada kolom 'description' atau 'keterangan'
-        // 'description'    => $request->description, 
-        'payitem_type'   => $request->payitem_type,
-        'payitem_user'   => 'student', 
-        'ordering'       => $request->ordering ?? 1,
-        'coa_cash'       => $request->coa_cash ?? 0,
-        'coa_payable'    => $request->coa_payable ?? 0,
-        'coa_receivable' => $request->coa_receivable ?? 0,
-        'coa_revenue'    => $request->coa_revenue ?? 0,
-        'coa_cost'       => $request->coa_cost ?? 0,
-        'payvalue'       => 0, // <-- SET DEFAULT MENJADI 0 KARENA TIDAK ADA DI FORM
+    // 1. Validasi Inputan (Aturan 'unique' dihapus agar kode boleh sama)
+    $request->validate([
+        'payitem_code' => 'required|string|max:50', // <-- 'unique' sudah dihapus
+        'title'        => 'required|string|max:255',
+        'payitem_type' => 'required|string',
+    ], [
+        'payitem_code.required' => 'Kode komponen wajib diisi.',
+        'title.required'        => 'Nama komponen wajib diisi.',
+        'payitem_type.required' => 'Tipe komponen wajib dipilih.',
     ]);
 
-    return redirect()->route('fincom.payitem.student.index')->with('success', 'Komponen Berhasil Ditambahkan');
+    // 2. Bersihkan format angka pada payvalue
+    $payvalue = 0;
+    if ($request->filled('payvalue')) {
+        $payvalue = preg_replace('/[^0-9]/', '', $request->payvalue);
+    }
+
+    try {
+        // 3. Insert ke Database
+        DB::table('sis_payitem')->insert([
+            'payitem_code'   => $request->payitem_code,
+            'title'          => $request->title,
+            'payitem_type'   => $request->payitem_type,
+            'payitem_user'   => 'student',
+            'ordering'       => $request->ordering ?? 1,
+            'payvalue'       => $payvalue,
+            'coa_cash'       => $request->coa_cash ?? '0',
+            'coa_payable'    => $request->coa_payable ?? '0',
+            'coa_receivable' => $request->coa_receivable ?? '0',
+            'coa_revenue'    => $request->coa_revenue ?? '0',
+            'coa_cost'       => $request->coa_cost ?? '0',
+        ]);
+
+        // 4. Return response JSON
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data komponen berhasil ditambahkan!'
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Gagal menyimpan data: ' . $e->getMessage()
+        ], 500);
+    }
 }
 
+    /**
+     * Update method edit untuk merespon request AJAX dari Modal
+     */
     public function edit($id)
     {
         $details = DB::table('sis_payitem')->where('id', $id)->first();
+        
+        // Jika dipanggil via AJAX dari Modal Edit
+        if (request()->ajax()) {
+            return response()->json($details);
+        }
+
         $coa = $this->getCoaData();
         return view('fincom.payitem.edit', array_merge(['details' => $details, 'id' => $id], $coa));
     }
@@ -83,19 +118,55 @@ class PayitemController extends Controller
     }
 
     public function sync($id)
-    {
+{
+    try {
+        // 1. Ambil data master komponen (payitem)
         $p = DB::table('sis_payitem')->where('id', $id)->first();
-        if($p) {
-            DB::table('sis_userpayitem')->where('payitem_id', $id)->update([
+
+        if (!$p) {
+            $msg = 'Data komponen tidak ditemukan!';
+            if (request()->ajax()) {
+                return response()->json(['status' => 'error', 'message' => $msg], 404);
+            }
+            return back()->with('error', $msg);
+        }
+
+        // 2. Sinkronkan pemetaan COA ke tabel sis_userpayitem
+        $updatedRows = DB::table('sis_userpayitem')
+            ->where('payitem_id', $id)
+            ->update([
                 'coa_cash'       => $p->coa_cash,
                 'coa_receivable' => $p->coa_receivable,
                 'coa_payable'    => $p->coa_payable,
                 'coa_revenue'    => $p->coa_revenue,
                 'coa_cost'       => $p->coa_cost,
             ]);
+
+        $msg = "Data Akun Berhasil Disinkronisasi ke {$updatedRows} Data Siswa!";
+
+        // 3. Kembalikan response JSON jika dipanggil via AJAX dari Modal
+        if (request()->ajax()) {
+            return response()->json([
+                'status'   => 'success',
+                'message'  => $msg,
+                'affected' => $updatedRows
+            ]);
         }
-        return back()->with('success', 'Data Akun Berhasil Disinkronisasi ke Semua Siswa');
+
+        // Fallback untuk request HTTP biasa (non-AJAX)
+        return back()->with('success', $msg);
+
+    } catch (\Exception $e) {
+        if (request()->ajax()) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Gagal menyinkronkan: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return back()->with('error', 'Terjadi kesalahan sistem.');
     }
+}
 
     /**
      * DataTables AJAX - Menyesuaikan Format Modern seperti StudentListController
@@ -161,9 +232,9 @@ $coaList = DB::table('sis_coa')->pluck('title', 'coa_code')->toArray();
             }
 
             // Tombol Aksi
-            $btnEdit = '<a href="'.route('fincom.payitem.student.edit', $res->id).'" class="btn btn-sm btn-primary" title="Edit"><i class="bi bi-pencil"></i></a>';
-            $btnDel = '<form action="'.route('fincom.payitem.student.destroy', $res->id).'" method="POST" class="d-inline" onsubmit="return confirm(\'Hapus?\')">'.csrf_field().method_field('DELETE').'<button class="btn btn-sm btn-danger" title="Delete"><i class="bi bi-trash"></i></button></form>';
-
+            $btnEdit = '<button type="button" class="btn btn-sm btn-primary btn-edit" data-id="'.$res->id.'" title="Edit"><i class="bi bi-pencil"></i></button>';
+            $btnDel  = '<form action="'.route('fincom.payitem.student.destroy', $res->id).'" method="POST" class="d-inline" onsubmit="return confirm(\'Hapus?\')">'.csrf_field().method_field('DELETE').'<button class="btn btn-sm btn-danger" title="Delete"><i class="bi bi-trash"></i></button></form>';
+            
             // Pengisian Array Kolom Sesuai Tabel HTML
             $col[] = $res->payitem_code;
             $col[] = $res->title;
