@@ -18,11 +18,11 @@
             <table id="table-payitem" class="table table-bordered table-striped w-100">
                 <thead>
                     <tr>
-                        <th>Kode</th>
-                        <th>Nama Komponen</th>
-                        <th>Tipe</th>
-                        <th>Nominal</th>
-                        <th>Akun COA</th>
+                        <th>KODE</th>
+                        <th>NAMA</th>
+                        <th>TIPE</th>
+                        <th>NILAI</th>
+                        <th>AKUN</th>
                         <th width="100px">Aksi</th>
                     </tr>
                 </thead>

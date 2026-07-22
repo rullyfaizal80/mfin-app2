@@ -23,18 +23,21 @@ class PayitemController extends Controller
     {
         $request->validate(['payitem_code' => 'required']);
 
+        // Mencegah error jika payvalue kosong saat input
+        $payvalue = $request->payvalue ? str_replace(['.', ','], '', $request->payvalue) : 0;
+
         DB::table('sis_payitem')->insert([
-            'payitem_code' => $request->payitem_code,
-            'title'        => $request->title,
-            'payitem_type' => $request->payitem_type,
-            'payitem_user' => 'student',
-            'ordering'     => $request->ordering ?? 1,
-            'coa_cash'     => $request->coa_cash ?? 0,
-            'coa_payable'  => $request->coa_payable ?? 0,
+            'payitem_code'   => $request->payitem_code,
+            'title'          => $request->title,
+            'payitem_type'   => $request->payitem_type,
+            'payitem_user'   => 'student', 
+            'ordering'       => $request->ordering ?? 1,
+            'coa_cash'       => $request->coa_cash ?? 0,
+            'coa_payable'    => $request->coa_payable ?? 0,
             'coa_receivable' => $request->coa_receivable ?? 0,
-            'coa_revenue'  => $request->coa_revenue ?? 0,
-            'coa_cost'     => $request->coa_cost ?? 0,
-            'payvalue'     => str_replace(['.', ','], '', $request->payvalue),
+            'coa_revenue'    => $request->coa_revenue ?? 0,
+            'coa_cost'       => $request->coa_cost ?? 0,
+            'payvalue'       => $payvalue,
         ]);
 
         return redirect()->route('fincom.payitem.student.index')->with('success', 'Komponen Berhasil Ditambahkan');
@@ -51,17 +54,19 @@ class PayitemController extends Controller
     {
         $request->validate(['payitem_code' => 'required']);
 
+        $payvalue = $request->payvalue ? str_replace(['.', ','], '', $request->payvalue) : 0;
+
         DB::table('sis_payitem')->where('id', $id)->update([
-            'payitem_code' => $request->payitem_code,
-            'title'        => $request->title,
-            'payitem_type' => $request->payitem_type,
-            'ordering'     => $request->ordering ?? 1,
-            'coa_cash'     => $request->coa_cash ?? 0,
-            'coa_payable'  => $request->coa_payable ?? 0,
+            'payitem_code'   => $request->payitem_code,
+            'title'          => $request->title,
+            'payitem_type'   => $request->payitem_type,
+            'ordering'       => $request->ordering ?? 1,
+            'coa_cash'       => $request->coa_cash ?? 0,
+            'coa_payable'    => $request->coa_payable ?? 0,
             'coa_receivable' => $request->coa_receivable ?? 0,
-            'coa_revenue'  => $request->coa_revenue ?? 0,
-            'coa_cost'     => $request->coa_cost ?? 0,
-            'payvalue'     => str_replace(['.', ','], '', $request->payvalue),
+            'coa_revenue'    => $request->coa_revenue ?? 0,
+            'coa_cost'       => $request->coa_cost ?? 0,
+            'payvalue'       => $payvalue,
         ]);
 
         return redirect()->route('fincom.payitem.student.index')->with('success', 'Komponen Berhasil Diperbarui');
@@ -77,64 +82,114 @@ class PayitemController extends Controller
     public function sync($id)
     {
         $p = DB::table('sis_payitem')->where('id', $id)->first();
-        DB::table('sis_userpayitem')->where('payitem_id', $id)->update([
-            'coa_cash' => $p->coa_cash,
-            'coa_receivable' => $p->coa_receivable,
-            'coa_payable' => $p->coa_payable,
-            'coa_revenue' => $p->coa_revenue,
-            'coa_cost' => $p->coa_cost,
-        ]);
+        if($p) {
+            DB::table('sis_userpayitem')->where('payitem_id', $id)->update([
+                'coa_cash'       => $p->coa_cash,
+                'coa_receivable' => $p->coa_receivable,
+                'coa_payable'    => $p->coa_payable,
+                'coa_revenue'    => $p->coa_revenue,
+                'coa_cost'       => $p->coa_cost,
+            ]);
+        }
         return back()->with('success', 'Data Akun Berhasil Disinkronisasi ke Semua Siswa');
     }
 
+    /**
+     * DataTables AJAX - Menyesuaikan Format Modern seperti StudentListController
+     */
     public function data(Request $request)
     {
+        // 1. Parameter Modern
+        $draw   = $request->input('draw');
+        $start  = $request->input('start', 0);
+        $length = $request->input('length', 10);
+        $search = $request->input('search.value');
+
+        // 2. Query Utama
         $query = DB::table('sis_payitem')->where('payitem_user', 'student');
         
-        // Pencarian sederhana
-        if ($search = $request->input('search.value')) {
+        $recordsTotal = $query->count();
+
+        // 3. Filter Pencarian
+        if (!empty($search)) {
             $query->where(function($q) use ($search) {
-                $q->where('payitem_code', 'like', "%$search%")->orWhere('title', 'like', "%$search%");
+                $q->where('payitem_code', 'like', "%{$search}%")
+                  ->orWhere('title', 'like', "%{$search}%");
             });
         }
 
-        $total = $query->count();
-        $results = $query->offset($request->start)->limit($request->length)->orderBy('ordering')->get();
-        $coaList = DB::table('sis_coa')->pluck('title', 'id');
+        $recordsFiltered = $query->count();
 
+        $results = $query->offset($start)
+                         ->limit($length)
+                         ->orderBy('ordering', 'asc')
+                         ->orderBy('title', 'asc')
+                         ->get();
+
+        // 1. Ambil data COA dan pastikan menjadi array
+        // SEBELUMNYA:
+// $coaList = DB::table('sis_coa')->pluck('title', 'id')->toArray();
+
+// UBAH MENJADI:
+$coaList = DB::table('sis_coa')->pluck('title', 'coa_code')->toArray();
+
+        // 2. Susun Data
         $data = [];
         foreach ($results as $res) {
-            $accs = "KAS: ".($coaList[$res->coa_cash] ?? '-')."<br>PIUTANG: ".($coaList[$res->coa_receivable] ?? '-');
+            $col = [];
+            $accsArray = [];
             
-            $btnEdit = '<a href="'.route('fincom.payitem.student.edit', $res->id).'" class="btn btn-sm btn-primary"><i class="bi bi-pencil"></i></a>';
-            $btnDel = '<form action="'.route('fincom.payitem.student.destroy', $res->id).'" method="POST" class="d-inline" onsubmit="return confirm(\'Hapus?\')">'.csrf_field().method_field('DELETE').'<button class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button></form>';
+            // LOGIKA BARU: Gunakan ?? (Null Coalescing) agar lebih kebal error
+            // Jika akun ada, tampilkan namanya. Jika ID ada tapi nama tidak ketemu, tampilkan ID-nya sebagai informasi (Debugging).
+            if (!empty($res->coa_cash) && $res->coa_cash != 0) {
+                $accsArray[] = $coaList[$res->coa_cash] ?? "Akun ID (".$res->coa_cash.") Tdk Ditemukan";
+            }
+            if (!empty($res->coa_receivable) && $res->coa_receivable != 0) {
+                $accsArray[] = $coaList[$res->coa_receivable] ?? "Akun ID (".$res->coa_receivable.") Tdk Ditemukan";
+            }
+            if (!empty($res->coa_cost) && $res->coa_cost != 0) {
+                $accsArray[] = $coaList[$res->coa_cost] ?? "Akun ID (".$res->coa_cost.") Tdk Ditemukan";
+            }
+            if (!empty($res->coa_payable) && $res->coa_payable != 0) {
+                $accsArray[] = $coaList[$res->coa_payable] ?? "Akun ID (".$res->coa_payable.") Tdk Ditemukan";
+            }
+            if (!empty($res->coa_revenue) && $res->coa_revenue != 0) {
+                $accsArray[] = $coaList[$res->coa_revenue] ?? "Akun ID (".$res->coa_revenue.") Tdk Ditemukan";
+            }
 
-            $data[] = [
-                $res->payitem_code,
-                $res->title,
-                strtoupper($res->payitem_type),
-                number_format($res->payvalue, 0, ',', '.'),
-                '<small>'.$accs.'</small>',
-                $btnEdit.' '.$btnDel
-            ];
+            // Tombol Aksi
+            $btnEdit = '<a href="'.route('fincom.payitem.student.edit', $res->id).'" class="btn btn-sm btn-primary" title="Edit"><i class="bi bi-pencil"></i></a>';
+            $btnDel = '<form action="'.route('fincom.payitem.student.destroy', $res->id).'" method="POST" class="d-inline" onsubmit="return confirm(\'Hapus?\')">'.csrf_field().method_field('DELETE').'<button class="btn btn-sm btn-danger" title="Delete"><i class="bi bi-trash"></i></button></form>';
+
+            // Pengisian Array Kolom Sesuai Tabel HTML
+            $col[] = $res->payitem_code;
+            $col[] = $res->title;
+            $col[] = strtoupper($res->payitem_type);
+            $col[] = number_format((float)$res->payvalue, 0, ',', '.');
+            // Jika kosong semua, beri tanda strip (-), jika ada gabungkan dengan <br>
+            $col[] = !empty($accsArray) ? implode('<br>', $accsArray) : '<span class="text-muted">-</span>'; 
+            $col[] = '<div class="btn-group">'.$btnEdit.' '.$btnDel.'</div>';
+            
+            $data[] = $col;
         }
 
+        // 5. Kembalikan response JSON format Modern DataTables
         return response()->json([
-            "draw" => intval($request->draw),
-            "recordsTotal" => $total,
-            "recordsFiltered" => $total,
-            "data" => $data
+            "draw"            => intval($draw),
+            "recordsTotal"    => intval($recordsTotal),
+            "recordsFiltered" => intval($recordsFiltered),
+            "data"            => $data
         ]);
     }
 
     private function getCoaData()
     {
         return [
-            'coa_cash' => DB::table('sis_coa')->whereIn('coaclass_id', [1, 2])->orderBy('title')->get(),
-            'coa_payable' => DB::table('sis_coa')->whereIn('coaclass_id', [8, 9, 10])->orderBy('title')->get(),
-            'coa_cost' => DB::table('sis_coa')->whereIn('coaclass_id', [14, 15, 16, 18])->orderBy('title')->get(),
+            'coa_cash'       => DB::table('sis_coa')->whereIn('coaclass_id', [1, 2])->orderBy('title')->get(),
+            'coa_payable'    => DB::table('sis_coa')->whereIn('coaclass_id', [8, 9, 10])->orderBy('title')->get(),
+            'coa_cost'       => DB::table('sis_coa')->whereIn('coaclass_id', [14, 15, 16, 18])->orderBy('title')->get(),
             'coa_receivable' => DB::table('sis_coa')->whereIn('coaclass_id', [3])->orderBy('title')->get(),
-            'coa_revenue' => DB::table('sis_coa')->whereIn('coaclass_id', [13, 31, 32, 33, 34, 35, 36])->orderBy('title')->get(),
+            'coa_revenue'    => DB::table('sis_coa')->whereIn('coaclass_id', [13, 31, 32, 33, 34, 35, 36])->orderBy('title')->get(),
         ];
     }
 }
