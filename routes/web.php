@@ -24,6 +24,7 @@ use App\Http\Controllers\Fincom\PaymentController;
 use App\Http\Controllers\Fincom\TransexpenseController;
 use App\Http\Controllers\Reports\PayitemController;
 use App\Http\Controllers\Fincom\StudentListController;
+use App\Http\Controllers\Fincom\ReceivableController;
 
 /*
  * |--------------------------------------------------------------------------
@@ -329,6 +330,28 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::get('/set_payer/{student_id}/{payer_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'set_payer'])->name('set_payer');
         Route::get('/del_payer/{student_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'del_payer'])->name('del_payer');
     });
+    
+    // Halaman Utama Receivable
+    Route::get('receivable', [ReceivableController::class, 'index'])->name('receivable.index');
+    
+    // Endpoint AJAX untuk DataTables Server-side
+    Route::post('receivable/ajax', [ReceivableController::class, 'getData'])->name('receivable.ajax');
+    
+    // Route Baru untuk ilist
+    Route::get('receivable/ilist', [ReceivableController::class, 'ilist'])->name('receivable.ilist');
+    Route::post('receivable/ilist/ajax', [ReceivableController::class, 'getIlistData'])->name('receivable.ilist.ajax');
+
+    // === ROUTE UNLOCK (Cukup 1 pasang saja agar tidak duplikat) ===
+    // Nama rute disesuaikan persis dengan panggilan di Controller dan Blade
+    Route::get('receivable/{id}/unlock', [ReceivableController::class, 'unlockForm'])->name('receivable.unlockForm');
+    Route::post('receivable/{id}/unlock', [ReceivableController::class, 'unlockProcess'])->name('receivable.unlock.process');
+
+    // === ROUTE EDIT ===
+    // Gunakan Route::match(['get', 'post']) karena method edit() menangani tampilan awal (GET) dan submit form (POST)
+    Route::match(['get', 'post'], 'receivable/{id}/edit', [ReceivableController::class, 'edit'])->name('receivable.edit');
+    
+    // Route Report
+    Route::get('receivable/reportall/{payitem_id}/{school_id}', [ReceivableController::class, 'reportAll'])->name('receivable.reportall');
 
 });
        
