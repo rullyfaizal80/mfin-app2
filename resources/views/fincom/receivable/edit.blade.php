@@ -326,9 +326,7 @@ $(document).ready(function() {
                     <button type="submit" name="delete" value="Hapus" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus data keseluruhan ini?');">
                         Hapus Permanen
                     </button>
-                    <button type="submit" name="cancel" value="Batal" class="btn btn-secondary" onclick="return confirm('Yakin ingin membatalkan transaksi ini?');">
-                        Batal
-                    </button>
+                    <a href="{{ route('fincom.receivable.ilist') }}" class="btn btn-secondary">Batal</a>
                     <button type="submit" name="save" value="Simpan" class="btn btn-success px-4">
                         Simpan Transaksi
                     </button>
