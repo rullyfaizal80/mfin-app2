@@ -15,6 +15,24 @@
                 </div>
 
                 <div class="card-body">
+
+                    {{-- Notifikasi Sukses / Pesan --}}
+@if(session('message'))
+    <div class="alert alert-success alert-dismissible fade show my-3" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        {{ session('message') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
+{{-- Notifikasi Gagal / Error --}}
+@if(session('error'))
+    <div class="alert alert-danger alert-dismissible fade show my-3" role="alert">
+        <i class="bi bi-exclamation-octagon-fill me-2"></i>
+        {{ session('error') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
                     {{-- Tabel Responsive --}}
                     <div class="table-responsive">
                         <table class="table table-hover align-middle border-secondary-subtle" id="table-ilist" style="width:100%">

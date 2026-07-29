@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Fincom;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class ReceivableController extends Controller
 {
@@ -289,6 +290,7 @@ class ReceivableController extends Controller
             $userPayitem = DB::table('sis_userpayitem')->where('id', $request->input('userpayitem_id'))->first();
 
             DB::table('sis_receivable')->insert([
+                'tid'            => 0, // <-- Ganti string dengan angka (contoh: 0 atau variabel integer lainnya)
                 'treceivable_id' => $idr,
                 'user_id'        => $request->input('user_id'),
                 'tdate'          => $date,
@@ -304,66 +306,7 @@ class ReceivableController extends Controller
             return back()->with('message', 'Item berhasil ditambahkan.');
         }
 
-        // =========================================================
-        // B. PENANGANAN REQUEST POST: TOMBOL "SUBMIT" (Update/Del)
-        // =========================================================
-        if ($request->has('submit')) {
-            foreach ($request->all() as $pid => $pval) {
-                if (str_contains($pid, 'update_')) {
-                    $idrp = explode("_", $pid)[1];
-
-                    $trDetail = DB::table('sis_receivable')->where('id', $idrp)->first();
-                    $debitLama = $trDetail ? $trDetail->debit : 0;
-                    
-                    $trHeader = DB::table('sis_treceivable')->where('id', $idr)->first();
-                    $tvalueAwal = $trHeader->tvalue - $debitLama;
-                    $kreditBaru = $tvalueAwal + $this->dotFormat($request->input('tvalue_' . $idrp));
-
-                    DB::table('sis_treceivable')->where('id', $idr)->update(['tvalue' => $kreditBaru]);
-
-                    $month = $request->input('month_' . $idrp);
-                    if ($month == 15) {
-                        $month = "08";
-                    } elseif ($month == 16) {
-                        $month = "09";
-                    }
-
-                    $year = $request->input('year_' . $idrp);
-                    $paystart = $request->input('start_date_' . $idrp);
-                    $repeat = $request->input('pay_repeat_' . $idrp);
-
-                    if ($repeat == "once") {
-                        $date = $paystart;
-                    } elseif ($repeat == "yearly") {
-                        $expl = explode('-', $paystart);
-                        $date = $year . '-' . $expl[1] . '-' . $expl[2];
-                    } else {
-                        $date = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-25';
-                    }
-
-                    $payfor = $request->input('month_' . $idrp) > 0 
-                                ? $request->input('year_' . $idrp) . "-" . str_pad($request->input('month_' . $idrp), 2, '0', STR_PAD_LEFT) . "-01" 
-                                : $request->input('year_' . $idrp);
-
-                    DB::table('sis_receivable')->where('id', $idrp)->update([
-                        'tdate'  => $date,
-                        'debit'  => $this->dotFormat($request->input('tvalue_' . $idrp)),
-                        'payfor' => $payfor,
-                        'note'   => $request->input('tnote_' . $idrp),
-                    ]);
-                } 
-                else if (str_contains($pid, 'del_')) {
-                    $idrp = explode("_", $pid)[1];
-
-                    $trHeader = DB::table('sis_treceivable')->where('id', $idr)->first();
-                    $tvalueAkhir = $trHeader->tvalue - $this->dotFormat($request->input('tvalue_' . $idrp));
-
-                    DB::table('sis_treceivable')->where('id', $idr)->update(['tvalue' => $tvalueAkhir]);
-                    DB::table('sis_receivable')->where('id', $idrp)->delete();
-                }
-            }
-            return back()->with('message', 'Item berhasil diperbarui.');
-        }
+        
 
         // =========================================================
         // C. PENANGANAN REQUEST POST: TOMBOL "SAVE" (Finalisasi)
@@ -455,7 +398,7 @@ class ReceivableController extends Controller
 
             // Bersihkan session jika dicancel
             session()->forget('unlocked_treceivable_' . $idr);
-            return redirect('fincom/receivable');
+            return redirect('fincom/receivable/ilist');
         }
 
         // =========================================================
@@ -471,18 +414,104 @@ class ReceivableController extends Controller
             DB::table('sis_lock')->where('table_name', 'treceivable')->where('table_id', $idr)->delete();
             session()->forget('unlocked_treceivable_' . $idr);
 
-            return redirect('fincom/receivable')->with('message', 'Transaksi berhasil dihapus.');
+            return redirect('fincom/receivable/ilist')->with('message', 'Transaksi berhasil dihapus.');
+        }
+
+        // =========================================================
+        // B. PENANGANAN REQUEST POST: TOMBOL "SUBMIT" (Update/Del)
+        // =========================================================
+        if ($request->has('submit')) {
+            foreach ($request->all() as $pid => $pval) {
+                if (str_contains($pid, 'update_')) {
+                    $idrp = explode("_", $pid)[1];
+
+                    $trDetail = DB::table('sis_receivable')->where('id', $idrp)->first();
+                    $debitLama = $trDetail ? $trDetail->debit : 0;
+                    
+                    $trHeader = DB::table('sis_treceivable')->where('id', $idr)->first();
+                    $tvalueAwal = $trHeader->tvalue - $debitLama;
+                    $kreditBaru = $tvalueAwal + $this->dotFormat($request->input('tvalue_' . $idrp));
+
+                    DB::table('sis_treceivable')->where('id', $idr)->update(['tvalue' => $kreditBaru]);
+
+                    $month = $request->input('month_' . $idrp);
+                    if ($month == 15) {
+                        $month = "08";
+                    } elseif ($month == 16) {
+                        $month = "09";
+                    }
+
+                    $year = $request->input('year_' . $idrp);
+                    $paystart = $request->input('start_date_' . $idrp);
+                    $repeat = $request->input('pay_repeat_' . $idrp);
+
+                    if ($repeat == "once") {
+                        $date = $paystart;
+                    } elseif ($repeat == "yearly") {
+                        $expl = explode('-', $paystart);
+                        $date = $year . '-' . $expl[1] . '-' . $expl[2];
+                    } else {
+                        $date = $year . '-' . str_pad($month, 2, '0', STR_PAD_LEFT) . '-25';
+                    }
+
+                    $payfor = $request->input('month_' . $idrp) > 0 
+                                ? $request->input('year_' . $idrp) . "-" . str_pad($request->input('month_' . $idrp), 2, '0', STR_PAD_LEFT) . "-01" 
+                                : $request->input('year_' . $idrp);
+
+                    DB::table('sis_receivable')->where('id', $idrp)->update([
+                        'tdate'  => $date,
+                        'debit'  => $this->dotFormat($request->input('tvalue_' . $idrp)),
+                        'payfor' => $payfor,
+                        'note'   => $request->input('tnote_' . $idrp),
+                    ]);
+                } 
+                else if (str_contains($pid, 'del_')) {
+                    $idrp = explode("_", $pid)[1];
+
+                    $trHeader = DB::table('sis_treceivable')->where('id', $idr)->first();
+                    $tvalueAkhir = $trHeader->tvalue - $this->dotFormat($request->input('tvalue_' . $idrp));
+
+                    DB::table('sis_treceivable')->where('id', $idr)->update(['tvalue' => $tvalueAkhir]);
+                    DB::table('sis_receivable')->where('id', $idrp)->delete();
+                }
+            }
+            return back()->with('message', 'Item berhasil diperbarui.');
         }
 
         // =========================================================
         // F. PERSIAPAN DATA UNTUK DITAMPILKAN DI VIEW (Method GET)
         // =========================================================
+        
+        // Ambil header sebagai obyek tunggal untuk memudahkan pemfilteran
+        $headerTrans = DB::table('sis_treceivable')->where('id', $idr)->first();
+        
+        // --- MULAI FITUR AUTO-HEAL (KOREKSI TOTAL MILIARAN) ---
+        // Hitung total murni dari nominal rincian (sis_receivable)
+        if ($headerTrans) {
+            $actualTotal = DB::table('sis_receivable')
+                ->where('treceivable_id', $idr)
+                ->sum('debit');
+
+            // Jika total di database induk salah, koreksi dan update sekarang juga
+            if ($headerTrans->tvalue != $actualTotal) {
+                DB::table('sis_treceivable')->where('id', $idr)->update(['tvalue' => $actualTotal]);
+            }
+        }
+        // --- SELESAI FITUR AUTO-HEAL ---
+
+        // Ambil data header transaksi terbaru (setelah dikoreksi) untuk dilempar ke View
         $receivable = DB::table('sis_treceivable')->where('id', $idr)->get(); 
+        
         $users = DB::table('sis_user')->get();
 
+        // --- REVISI DROPDOWN PIUTANG ($itemspay) ---
+        // Tambahkan ->where('a.user_id') agar dropdown HANYA menampilkan piutang
+        // yang sudah ditugaskan/di-assign ke user/siswa pada transaksi ini.
         $itemspay = DB::table('sis_userpayitem as a')
             ->join('sis_payitem as b', 'a.payitem_id', '=', 'b.id')
-            ->select('a.*', 'b.title')
+            ->where('a.user_id', $headerTrans->user_id) 
+            // GANTI a.amount MENJADI a.payvalue di bawah ini:
+            ->select('a.id', 'a.payitem_id', 'a.payvalue', 'b.title', 'a.pay_repeat', 'a.pay_start')
             ->get();
 
         $items = DB::table('sis_receivable as a')
@@ -501,11 +530,11 @@ class ReceivableController extends Controller
             'ket'        => $ket,
             'receivable' => $receivable,
             'users'      => $users,
-            'itemspay'   => $itemspay,
+            'itemspay'   => $itemspay, // Ini variabel yang akan dipanggil di Blade
             'items'      => $items,
             'refno'      => $refno,
             'count_item' => $items->count(),
-            'message'    => session('message') ?? session('success'), // Menangkap success flash session dari auth
+            'message'    => session('message') ?? session('success'),
             'page_title' => "Entri Piutang",
             'page_body'  => 'fincom.receivable_create_tpl'
         ];

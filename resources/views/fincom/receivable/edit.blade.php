@@ -236,11 +236,17 @@ $(document).ready(function() {
                                         <input type="hidden" name="userpayitem_id_{{ $itemId }}" id="userpayitem_id_{{ $itemId }}" value="{{ $item->payitem_id }}"/>
                                         <span class="fw-medium">{{ $item->title }}</span>
                                     </td>
-                                    <td>
-                                        <input name="tvalue_{{ $itemId }}" type="text" class="form-control form-control-sm text-end" id="tvalue_{{ $itemId }}" value="{{ number_format($debit, 0, ',', '.') }}" />
-                                        <input name="pay_repeat_{{ $itemId }}" type="hidden" id="pay_repeat_{{ $itemId }}" value="{{ $payRepeat }}" />
-                                        <input name="start_date_{{ $itemId }}" type="hidden" id="start_date_{{ $itemId }}" value="{{ $item->pay_start }}" />
-                                    </td>
+                                   <td>
+    <input name="tvalue_{{ $itemId }}" 
+           type="text" 
+           class="form-control form-control-sm text-end" 
+           id="tvalue_{{ $itemId }}" 
+           value="{{ number_format($debit, 0, ',', '.') }}" 
+           oninput="formatRibuan(this)" /> {{-- <-- Tambahkan ini --}}
+           
+    <input name="pay_repeat_{{ $itemId }}" type="hidden" id="pay_repeat_{{ $itemId }}" value="{{ $payRepeat }}" />
+    <input name="start_date_{{ $itemId }}" type="hidden" id="start_date_{{ $itemId }}" value="{{ $item->pay_start }}" />
+</td>
                                     <td>
                                         <select id="month_{{ $itemId }}" name="month_{{ $itemId }}" class="form-select form-select-sm" @if($payRepeat == "once" || $payRepeat == "yearly") disabled @endif>
                                             <option value="01" {{ $month == "01" ? 'selected' : '' }}>Januari</option>
@@ -274,17 +280,37 @@ $(document).ready(function() {
 
                             <!-- Baris Tambah Item Baru -->
                             <tr class="table-secondary">
+                                <!-- Kolom 1: Jenis Piutang (Dropdown) -->
                                 <td>
                                     <select id="userpayitem_id" name="userpayitem_id" class="form-select form-select-sm">
-                                        <option value="">-- Pilih Piutang --</option>
-                                        <!-- Diisi via AJAX -->
-                                    </select>
+    <option value="" data-payvalue="0" data-payrepeat="" data-startdate="">-- Pilih Piutang --</option>
+    
+    @foreach($itemspay as $item)
+        <option value="{{ $item->id }}" 
+                {{-- Format angkanya langsung di sini menggunakan PHP --}}
+                data-payvalue="{{ number_format($item->payvalue, 0, ',', '.') }}"
+                data-payrepeat="{{ $item->pay_repeat }}"
+                data-startdate="{{ $item->pay_start }}">
+            {{ $item->title }}
+        </option>
+    @endforeach
+</select>
                                 </td>
+                                
+                                <!-- Kolom 2: Nominal (Input Text) -->
                                 <td>
-                                    <input name="tvalue" type="text" class="form-control form-control-sm text-end" id="tvalue" value="0" />
-                                    <input name="pay_repeat" type="hidden" id="pay_repeat" />
-                                    <input name="start_date" type="hidden" id="start_date" />
-                                </td>
+    <input name="tvalue" 
+           type="text" 
+           class="form-control form-control-sm text-end" 
+           id="tvalue" 
+           value="0" 
+           oninput="formatRibuan(this)" /> {{-- <-- Tambahkan ini --}}
+           
+    <input name="pay_repeat" type="hidden" id="pay_repeat" />
+    <input name="start_date" type="hidden" id="start_date" />
+</td>
+                                
+                                <!-- Kolom 3: Bulan (Dropdown) -->
                                 <td>
                                     <select id="month" name="month" class="form-select form-select-sm">
                                         <option value="01">Januari</option>
@@ -301,19 +327,22 @@ $(document).ready(function() {
                                         <option value="12">Desember</option>
                                     </select>
                                 </td>
+                                
+                                <!-- Kolom 4: Tahun (Input Text) -->
                                 <td>
                                     <input name="year" type="text" class="form-control form-control-sm text-center" id="year" value="{{ date('Y') }}" />
                                 </td>
+                                
+                                <!-- Kolom 5: Catatan Detail (Input Text) -->
                                 <td>
                                     <input name="tnote" type="text" class="form-control form-control-sm" id="tnote" placeholder="Catatan item baru..." />
                                 </td>
+                                
+                                <!-- Kolom 6: Aksi (Button) -->
                                 <td class="text-center">
                                     <button type="submit" name="add" value="Add" class="btn btn-sm btn-primary w-100">Tambah</button>
                                 </td>
                             </tr>
-                        </tbody>
-                    </table>
-                </div>
                 
                 <!-- Hidden Flag -->
                 <input name="submit" type="hidden" id="submit" value="1" />
@@ -326,7 +355,9 @@ $(document).ready(function() {
                     <button type="submit" name="delete" value="Hapus" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus data keseluruhan ini?');">
                         Hapus Permanen
                     </button>
-                    <a href="{{ route('fincom.receivable.ilist') }}" class="btn btn-secondary">Batal</a>
+                    <button type="submit" name="cancel" value="1" class="btn btn-secondary">
+    Batal
+</button>
                     <button type="submit" name="save" value="Simpan" class="btn btn-success px-4">
                         Simpan Transaksi
                     </button>
@@ -336,4 +367,35 @@ $(document).ready(function() {
         </div>
     </form>
 </div>
+
+@push('scripts')
+<script>
+    $(document).ready(function() {
+        // Deteksi perubahan pada dropdown pilihan piutang
+        $('#userpayitem_id').on('change', function() {
+            // Tangkap elemen <option> yang sedang dipilih
+            let selected = $(this).find(':selected');
+            
+            // Isi otomatis input berdasarkan data dari atribut <option>
+            $('#tvalue').val(selected.data('payvalue') || '0'); 
+            $('#pay_repeat').val(selected.data('payrepeat') || ''); 
+            $('#start_date').val(selected.data('startdate') || ''); 
+        });
+    });
+
+    function formatRibuan(element) {
+        // 1. Ambil hanya karakter angka
+        let rawValue = element.value.replace(/\D/g, '');
+        
+        // 2. Jika kosong, biarkan kosong
+        if (rawValue === '') {
+            element.value = '';
+            return;
+        }
+        
+        // 3. Format ulang angka menjadi standar Indonesia (titik di ribuan)
+        element.value = new Intl.NumberFormat('id-ID').format(rawValue);
+    }
+</script>
+@endpush
 @endsection
