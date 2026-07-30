@@ -243,7 +243,11 @@ class ReceivableController extends Controller
         }
 
         $idt = (int) $treceivable->tid;
-        $ket = $idt > 0 ? "edit" : "new";
+        
+        // REVISI LOGIKA: 
+        // Jika user_id > 0 (siswa sudah dipilih/tersimpan), jadikan mode "edit"
+        // Jika masih 0, berarti ini benar-benar draft kosong baru ("new")
+        $ket = $treceivable->user_id > 0 ? "edit" : "new";
 
         // UN-POSTING SEMENTARA SAAT DI-EDIT
         if ($idt > 0) {
@@ -381,23 +385,19 @@ class ReceivableController extends Controller
         // D. PENANGANAN REQUEST POST: TOMBOL "CANCEL"
         // =========================================================
         if ($request->has('cancel')) {
-            $co_item = DB::table('sis_treceivable')->where('id', $idr)->first();
             
-            if ($co_item && $co_item->cdate == $co_item->mdate) {
-                DB::table('sis_treceivable')->where('id', $idr)->delete();
-                DB::table('sis_receivable')->where('treceivable_id', $idr)->delete();
-                DB::table('sis_trans')->where('id', $idt)->delete();
-                DB::table('sis_ledger')->where('tid', $idt)->delete();
-            } else {
-                if ($idt > 0) {
-                    DB::table('sis_treceivable')->where('id', $idr)->update(['is_posted' => 'yes']);
-                    DB::table('sis_trans')->where('id', $idt)->update(['is_posted' => 'yes']);
-                    DB::table('sis_ledger')->where('tid', $idt)->update(['is_posted' => 'yes']);
-                }
+            // Jika mengedit transaksi lama (yang sudah ter-posting),
+            // kembalikan status is_posted menjadi 'yes' agar tidak tersangkut sebagai draft
+            if ($idt > 0) {
+                DB::table('sis_treceivable')->where('id', $idr)->update(['is_posted' => 'yes']);
+                DB::table('sis_trans')->where('id', $idt)->update(['is_posted' => 'yes']);
+                DB::table('sis_ledger')->where('tid', $idt)->update(['is_posted' => 'yes']);
             }
 
-            // Bersihkan session jika dicancel
+            // Bersihkan session otorisasi admin
             session()->forget('unlocked_treceivable_' . $idr);
+
+            // Langsung redirect ke halaman daftar piutang
             return redirect('fincom/receivable/ilist');
         }
 
@@ -524,7 +524,7 @@ class ReceivableController extends Controller
             ->select('a.*', 'b.payitem_id', 'b.pay_repeat', 'b.pay_start', 'c.title')
             ->get();
 
-        $refno = "RCV-" . date('Ymd') . "-" . rand(100, 999);
+        $refno = $this->generateRefNo();
 
         $data = [
             'ket'        => $ket,
@@ -623,5 +623,112 @@ class ReceivableController extends Controller
 
         // Tampilkan view unlock
         return view('fincom.receivable.unlock', compact('id', 'page_title', 'details'));
+    }
+
+    public function create()
+    {
+        // 1. Dapatkan nomor referensi berurutan persis logika CI2 lama
+        $ref_no = $this->generateRefNo();
+
+        // 2. Buat draft
+        $idr = DB::table('sis_treceivable')->insertGetId([
+            'user_id'   => 0,
+            'ref_no'    => $ref_no, // Masukkan ref_no yang sudah di-generate
+            'tdate'     => now()->toDateString(), 
+            'tvalue'    => 0, 
+            'note'      => '',
+            'mdate'   => now(),
+            'is_posted' => 'no',
+            'cdate'     => now(),
+            'mdate'     => now(),
+            'mdate_by'  => Auth::id() ?? 0,
+            'tid'       => 0,
+            'ttype'     => 'tuition',
+            'ucode'     => mt_rand(100000, 999999) . date("YmdHis"),
+        ]);
+
+        // 3. Langsung lemparkan user ke halaman edit
+        return redirect()->route('fincom.receivable.edit', $idr);
+    }
+
+    // =========================================================
+    // ENDPOINT AJAX: PENCARIAN SISWA (NIS ATAU NAMA)
+    // =========================================================
+    public function searchStudent(Request $request)
+    {
+        $keyword = $request->input('nis');
+
+        // Cari berdasarkan NIS atau Nama
+        $users = DB::table('sis_user')
+            ->join('sis_student', 'sis_student.id', '=', 'sis_user.id')
+            ->select('sis_user.id', 'sis_user.fullname', 'sis_user.nickname', 'sis_student.nis')
+            ->where('sis_student.nis', 'LIKE', "%{$keyword}%")
+            ->orWhere('sis_user.fullname', 'LIKE', "%{$keyword}%")
+            ->limit(20) // Batasi hasil maksimal 20 agar dropdown tidak terlalu panjang
+            ->get();
+
+        if ($users->count() > 0) {
+            $html = '';
+            foreach ($users as $user) {
+                // Susun string HTML untuk dropdown persis seperti struktur lama
+                $displayName = sprintf("%s - %s - %s", $user->fullname, $user->nickname ?? '-', $user->nis);
+                
+                $html .= '<a href="#" class="res-fnis-item" user_id="'.$user->id.'" user_name="'.$user->fullname.'" user_nis="'.$user->nis.'">' . $displayName . '</a>';
+            }
+            return response($html);
+        } else {
+            return response('<strong class="d-block p-3 text-danger text-center">Data siswa tidak ditemukan</strong>');
+        }
+    }
+
+    // =========================================================
+    // ENDPOINT AJAX: AMBIL DAFTAR PIUTANG SISWA (DROPDOWN)
+    // =========================================================
+    public function getUserPayItems($userId)
+    {
+        $itemspay = DB::table('sis_userpayitem as a')
+            ->join('sis_payitem as b', 'a.payitem_id', '=', 'b.id')
+            ->where('a.user_id', $userId)
+            ->select('a.id', 'a.payitem_id', 'a.payvalue', 'b.title', 'a.pay_repeat', 'a.pay_start')
+            ->get();
+
+        $html = '<option value="" data-payvalue="0" data-payrepeat="" data-startdate="">-- Pilih Piutang --</option>';
+        
+        foreach ($itemspay as $item) {
+            $formattedValue = number_format($item->payvalue, 0, ',', '.');
+            $html .= sprintf(
+                '<option value="%s" data-payvalue="%s" data-payrepeat="%s" data-startdate="%s">%s</option>',
+                $item->id, $formattedValue, $item->pay_repeat, $item->pay_start, $item->title
+            );
+        }
+
+        return response($html);
+    }
+
+    // Fungsi untuk mereplikasi logika fetch_no() & get_refno() dari aplikasi lama
+    private function generateRefNo()
+    {
+        // Cari transaksi piutang terakhir yang memiliki prefix RCV/
+        $lastRecord = DB::table('sis_treceivable')
+            ->where('ref_no', 'like', 'RCV/%')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        // Default awal jika tidak ada data sama sekali (disesuaikan dengan posisi terakhir Anda)
+        $nextSeq = 122476; 
+
+        if ($lastRecord && $lastRecord->ref_no) {
+            // Pecah string RCV/2026/Jul/30/122476 berdasarkan garis miring
+            $parts = explode('/', $lastRecord->ref_no);
+            // Ambil bagian paling belakang
+            $lastSeq = end($parts); 
+            
+            // Jika bagian belakang adalah angka, tambahkan 1
+            if (is_numeric($lastSeq)) {
+                $nextSeq = intval($lastSeq) + 1;
+            }
+        }
+
+        return 'RCV/' . date('Y/M/d/') . $nextSeq;
     }
 }

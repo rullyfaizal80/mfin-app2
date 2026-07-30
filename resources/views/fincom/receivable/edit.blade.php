@@ -156,8 +156,8 @@ $(document).ready(function() {
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">NIS / Nama</label>
                         <div class="input-group autocomplete-wrapper">
-                            <input name="fnis" type="text" class="form-control" id="fnis" placeholder="Cari NIS..." maxlength="50" />
-                            <button type="button" class="btn btn-outline-secondary" id="fnis_btn">Cari</button>
+                            <input name="fnis" type="text" class="form-control" id="fnis" placeholder="Cari NIS..." maxlength="50" {{ isset($ket) && $ket == 'edit' ? 'disabled' : '' }} />
+<button type="button" class="btn btn-outline-secondary" id="fnis_btn" {{ isset($ket) && $ket == 'edit' ? 'disabled' : '' }}>Cari</button>
                             <input name="user_id" type="hidden" id="user_id" value="{{ $r->user_id }}" />
                             <input name="nis" type="hidden" id="nis" value="" />
                             <div id="student-list"></div>
@@ -352,9 +352,11 @@ $(document).ready(function() {
             <!-- Footer / Action Buttons -->
             <div class="card-footer bg-transparent py-3">
                 <div class="d-flex gap-2 justify-content-end">
-                    <button type="submit" name="delete" value="Hapus" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus data keseluruhan ini?');">
-                        Hapus Permanen
-                    </button>
+                    @if(isset($ket) && $ket == 'edit')
+    <button type="submit" name="delete" value="Hapus" class="btn btn-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus data keseluruhan ini?');">
+        Hapus Permanen
+    </button>
+@endif
                     <button type="submit" name="cancel" value="1" class="btn btn-secondary">
     Batal
 </button>
@@ -371,29 +373,102 @@ $(document).ready(function() {
 @push('scripts')
 <script>
     $(document).ready(function() {
-        // Deteksi perubahan pada dropdown pilihan piutang
-        $('#userpayitem_id').on('change', function() {
-            // Tangkap elemen <option> yang sedang dipilih
-            let selected = $(this).find(':selected');
+        // Setup CSRF untuk AJAX
+        $.ajaxSetup({
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
+        });
+
+        // 1. KUNCI INPUT JIKA STATUSNYA EDIT TRANSAKSI LAMA
+        var stat = "{{ $ket }}";
+        if (stat === "edit") {
+            $("#fnis").prop('disabled', true);
+            $("#fnis_btn").prop('disabled', true);
+            $("#ref_no").prop('readonly', true);
+        }
+
+        // 2. TOMBOL CARI SISWA (AJAX)
+        $("#fnis_btn").click(function() {
+            var fnis = $("#fnis").val();
+            var btn = $(this);
             
-            // Isi otomatis input berdasarkan data dari atribut <option>
+            if(fnis.trim() === '') {
+                alert('Masukkan NIS atau Nama terlebih dahulu!');
+                return;
+            }
+
+            btn.prop('disabled', true).text('Mencari...');
+
+            $.post("{{ route('fincom.receivable.searchStudent') }}", { 'nis': fnis }, function(data) {
+                $("div#student-list").html(data).slideDown(200);
+            }).fail(function() {
+                alert('Terjadi kesalahan saat mencari data.');
+            }).always(function() {
+                btn.prop('disabled', false).text('Cari');
+            });
+        });
+
+        // 3. KETIKA SISWA DARI HASIL PENCARIAN DIPILIH
+        $("#student-list").on("click", ".res-fnis-item", function(e) {
+            e.preventDefault();
+            
+            var userId = $(this).attr('user_id');
+            var userName = $(this).attr('user_name');
+            var userNis = $(this).attr('user_nis');
+            
+            // Isi input hidden dan ubah teks label
+            $("#user_id").val(userId);
+            $("#nis").val(userNis);
+            $("#student_name").html(userName);
+            
+            // Tutup dropdown pencarian
+            $("div#student-list").slideUp(200);
+            
+            // Render ulang dropdown daftar piutang berdasarkan user_id (AJAX)
+            $.get("{{ url('/fincom/receivable/get-user-payitems') }}/" + userId, function(htmlOptions) {
+                $("#userpayitem_id").html(htmlOptions);
+                // Reset nominal ke 0
+                $('#tvalue').val('0'); 
+            });
+        });
+
+        // Menutup dropdown autocomplete jika klik di luar area
+        $(document).click(function(event) {
+            if (!$(event.target).closest('.autocomplete-wrapper').length) {
+                $('#student-list').slideUp(200);
+            }
+        });
+
+        // 4. SAAT DROPDOWN JENIS PIUTANG DIPILIH
+        $('#userpayitem_id').on('change', function() {
+            let selected = $(this).find(':selected');
+            let bulanan = selected.data('payrepeat');
+            
+            // Isi input otomatis dari atribut data-* 
             $('#tvalue').val(selected.data('payvalue') || '0'); 
-            $('#pay_repeat').val(selected.data('payrepeat') || ''); 
+            $('#pay_repeat').val(bulanan || ''); 
             $('#start_date').val(selected.data('startdate') || ''); 
+            
+            // Logika enable/disable input Bulan & Tahun
+            if (bulanan === "once") {
+                $("#month").prop('disabled', true);
+                $("#year").removeAttr("disabled"); // Asumsi butuh tahun bayar
+            } else if (bulanan === "yearly") {
+                $("#year").removeAttr("disabled");
+                $("#month").prop('disabled', true);
+            } else {
+                $("#month").removeAttr("disabled");
+                $("#year").removeAttr("disabled");
+            }
         });
     });
 
+    // 5. FORMATTING RIBUAN UNTUK INPUT NOMINAL
     function formatRibuan(element) {
-        // 1. Ambil hanya karakter angka
         let rawValue = element.value.replace(/\D/g, '');
-        
-        // 2. Jika kosong, biarkan kosong
         if (rawValue === '') {
             element.value = '';
             return;
         }
-        
-        // 3. Format ulang angka menjadi standar Indonesia (titik di ribuan)
         element.value = new Intl.NumberFormat('id-ID').format(rawValue);
     }
 </script>

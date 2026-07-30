@@ -9,9 +9,6 @@
                 {{-- Header Card --}}
                 <div class="card-header bg-primary-subtle text-primary-emphasis border-bottom border-primary-subtle py-3 d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0"><i class="bi bi-list-check me-2"></i> {{ $page_title }}</h5>
-                    <a href="{{ route('fincom.receivable.index') }}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-arrow-left"></i> Kembali ke Rekap
-                    </a>
                 </div>
 
                 <div class="card-body">

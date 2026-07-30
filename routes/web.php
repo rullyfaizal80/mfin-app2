@@ -341,6 +341,10 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     Route::get('receivable/ilist', [ReceivableController::class, 'ilist'])->name('receivable.ilist');
     Route::post('receivable/ilist/ajax', [ReceivableController::class, 'getIlistData'])->name('receivable.ilist.ajax');
 
+    // === ROUTE CREATE ===
+    // Tambahkan di sini (sebelum route yang memiliki parameter {id})
+    Route::get('receivable/create', [ReceivableController::class, 'create'])->name('receivable.create');
+
     // === ROUTE UNLOCK (Cukup 1 pasang saja agar tidak duplikat) ===
     // Nama rute disesuaikan persis dengan panggilan di Controller dan Blade
     Route::get('receivable/{id}/unlock', [ReceivableController::class, 'unlockForm'])->name('receivable.unlockForm');
@@ -349,6 +353,10 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     // === ROUTE EDIT ===
     // Gunakan Route::match(['get', 'post']) karena method edit() menangani tampilan awal (GET) dan submit form (POST)
     Route::match(['get', 'post'], 'receivable/{id}/edit', [ReceivableController::class, 'edit'])->name('receivable.edit');
+    // === ROUTE PENCARIAN AJAX ===
+    Route::post('receivable/search-student', [ReceivableController::class, 'searchStudent'])->name('receivable.searchStudent');
+    // Endpoint Ambil Dropdown Piutang Siswa
+    Route::get('receivable/get-user-payitems/{userId}', [ReceivableController::class, 'getUserPayItems'])->name('receivable.getUserPayItems');
     
     // Route Report
     Route::get('receivable/reportall/{payitem_id}/{school_id}', [ReceivableController::class, 'reportAll'])->name('receivable.reportall');
