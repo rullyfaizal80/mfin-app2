@@ -19,9 +19,15 @@ class ReceivableController extends Controller
         $schoolId = $request->input('fschool', 'all');
 
         // Ambil data referensi untuk dropdown filter
-        $ptype = DB::table('sis_payitem')->select('id', 'title')->get();
-       // app/Http/Controllers/Fincom/ReceivableController.php:22
-        $units = DB::table('sis_cschool')->select('id as school_id', 'name as school')->get();
+        $ptype = DB::table('sis_payitem')
+            ->select('id', 'title')
+            ->where('payitem_type', 'tuition') // <-- KOREKSI: Tambahan filter tipe pembayaran
+            ->get();
+
+        // Mengambil data sekolah (Sudah optimal menggunakan tabel master)
+        $units = DB::table('sis_cschool')
+            ->select('id as school_id', 'name as school')
+            ->get();
 
         $data = [
             'page_title' => 'Daftar Piutang Siswa',
@@ -35,44 +41,52 @@ class ReceivableController extends Controller
     }
 
     /**
-     * Mengembalikan data JSON untuk DataTables Server-Side Processing
+     * Mengembalikan data JSON untuk DataTables Server-Side Processing (Rekap Piutang)
      */
     public function getData(Request $request)
     {
         $payitemId = $request->input('payitem_id', 'all');
         $schoolId = $request->input('school_id', 'all');
 
-        // Parameter bawaan DataTables
         $draw   = $request->input('draw');
         $start  = $request->input('start', 0);
         $length = $request->input('length', 10);
         $search = $request->input('search.value');
 
-        // Mulai Query Builder 
-        // Melakukan join view classuser dengan tabel receivable sesuai logika lama
+        // 1. Mulai Query Builder dengan Agregasi (Debit dikurangi Credit)
         $query = DB::table('sis_v_classuser as v')
             ->join('sis_receivable as r', 'v.user_id', '=', 'r.user_id')
             ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
             ->select(
+                'v.user_id',
                 'v.nis', 
                 'v.fullname', 
-                'v.kelas', 
+                'v.class_title', 
                 'p.title as jenis', 
-                'r.debit', 
-                'r.treceivable_id'
-            );
+                // Menghitung Net Piutang = Total Tagihan - Total Pembayaran
+                DB::raw('(SUM(r.debit) - SUM(r.credit)) as total_piutang') 
+            )
+            ->where('p.payitem_type', 'tuition') // Sesuai CI2 lama
+            ->where('r.tstat', '<>', 'retur')    // Mengabaikan transaksi yang diretur
+            ->groupBy('v.user_id', 'v.nis', 'v.fullname', 'v.class_title', 'p.title') 
+            // Hanya tampilkan yang sisa piutangnya lebih dari 0 (belum lunas)
+            ->havingRaw('(SUM(r.debit) - SUM(r.credit)) > 0'); 
 
-        // Terapkan Filter Jenis Piutang
+        // 2. Terapkan Filter Dropdown
         if ($payitemId !== 'all') {
             $query->where('r.payitem_id', $payitemId);
         }
 
-        // Terapkan Filter Sekolah/Unit
         if ($schoolId !== 'all') {
             $query->where('v.school_id', $schoolId);
         }
 
-        // Terapkan Filter Pencarian (NIS atau Nama)
+        // Hitung total data SEBELUM pencarian (menggunakan subquery karena ada GROUP BY dan HAVING)
+        $recordsTotal = DB::table(DB::raw("({$query->toSql()}) as sub"))
+            ->mergeBindings($query)
+            ->count();
+
+        // 3. Terapkan Filter Pencarian (NIS atau Nama)
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('v.nis', 'like', "%{$search}%")
@@ -80,31 +94,33 @@ class ReceivableController extends Controller
             });
         }
 
-        // Hitung total data setelah difilter
-        $recordsFiltered = $query->count();
-        $recordsTotal    = $recordsFiltered; // Asumsi total dan filter sama dalam konteks base query ini
+        // Hitung total data SESUDAH pencarian
+        $recordsFiltered = DB::table(DB::raw("({$query->toSql()}) as sub"))
+            ->mergeBindings($query)
+            ->count();
 
-        // Terapkan Pagination & Order
+        // 4. Ambil Data dengan Pagination & Order
         $records = $query->offset($start)
                          ->limit($length)
-                         ->orderBy('v.fullname', 'asc') // Default urut berdasarkan Nama
+                         ->orderBy('v.fullname', 'asc')
                          ->get();
 
-        // Format Data untuk DataTables
         $data = [];
         $no = $start + 1;
 
         foreach ($records as $row) {
-            // Tombol Aksi
-            $actionBtn = '<a href="'.route('fincom.receivable.edit', $row->treceivable_id).'" class="btn btn-sm btn-primary"><i class="bi bi-pencil-square"></i> Edit</a>';
+            
+            // Tombol Report Piutang mengarah ke route report detail (sesuaikan URL-nya jika sudah ada)
+            // Menggunakan user_id agar bisa menarik detail semua piutang anak tersebut
+            $actionBtn = '<a href="'.url('/fincom/receivable/reportdetail/0/'.$row->user_id).'" target="_blank" class="btn btn-sm btn-secondary"><i class="bi bi-printer"></i> Report Piutang</a>';
 
             $data[] = [
                 $no++,
                 $row->nis,
                 $row->fullname,
-                $row->kelas,
+                $row->class_title,
                 $row->jenis,
-                'Rp ' . number_format($row->debit, 0, ',', '.'),
+                'Rp ' . number_format($row->total_piutang, 0, ',', '.'),
                 $actionBtn
             ];
         }
@@ -637,7 +653,6 @@ class ReceivableController extends Controller
             'tdate'     => now()->toDateString(), 
             'tvalue'    => 0, 
             'note'      => '',
-            'mdate'   => now(),
             'is_posted' => 'no',
             'cdate'     => now(),
             'mdate'     => now(),

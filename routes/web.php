@@ -331,35 +331,30 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::get('/del_payer/{student_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'del_payer'])->name('del_payer');
     });
     
-    // Halaman Utama Receivable
-    Route::get('receivable', [ReceivableController::class, 'index'])->name('receivable.index');
-    
-    // Endpoint AJAX untuk DataTables Server-side
-    Route::post('receivable/ajax', [ReceivableController::class, 'getData'])->name('receivable.ajax');
-    
-    // Route Baru untuk ilist
-    Route::get('receivable/ilist', [ReceivableController::class, 'ilist'])->name('receivable.ilist');
-    Route::post('receivable/ilist/ajax', [ReceivableController::class, 'getIlistData'])->name('receivable.ilist.ajax');
-
-    // === ROUTE CREATE ===
-    // Tambahkan di sini (sebelum route yang memiliki parameter {id})
-    Route::get('receivable/create', [ReceivableController::class, 'create'])->name('receivable.create');
-
-    // === ROUTE UNLOCK (Cukup 1 pasang saja agar tidak duplikat) ===
-    // Nama rute disesuaikan persis dengan panggilan di Controller dan Blade
-    Route::get('receivable/{id}/unlock', [ReceivableController::class, 'unlockForm'])->name('receivable.unlockForm');
-    Route::post('receivable/{id}/unlock', [ReceivableController::class, 'unlockProcess'])->name('receivable.unlock.process');
-
-    // === ROUTE EDIT ===
-    // Gunakan Route::match(['get', 'post']) karena method edit() menangani tampilan awal (GET) dan submit form (POST)
-    Route::match(['get', 'post'], 'receivable/{id}/edit', [ReceivableController::class, 'edit'])->name('receivable.edit');
-    // === ROUTE PENCARIAN AJAX ===
-    Route::post('receivable/search-student', [ReceivableController::class, 'searchStudent'])->name('receivable.searchStudent');
-    // Endpoint Ambil Dropdown Piutang Siswa
-    Route::get('receivable/get-user-payitems/{userId}', [ReceivableController::class, 'getUserPayItems'])->name('receivable.getUserPayItems');
-    
-    // Route Report
-    Route::get('receivable/reportall/{payitem_id}/{school_id}', [ReceivableController::class, 'reportAll'])->name('receivable.reportall');
+    Route::prefix('receivable')->name('receivable.')->controller(ReceivableController::class)->group(function () {
+        // Halaman Utama Receivable
+        Route::get('/', 'index')->name('index');
+        // Endpoint AJAX untuk DataTables Server-side
+        // Catatan: Pastikan URL pada ajax DataTables di view index.blade.php Anda 
+        // mengarah ke url('fincom/receivable/ajax') jika Anda menggunakan rute ini.
+        Route::post('ajax', 'getData')->name('ajax');
+        // Route Baru untuk ilist
+        Route::get('ilist', 'ilist')->name('ilist');
+        Route::post('ilist/ajax', 'getIlistData')->name('ilist.ajax');
+        // === ROUTE CREATE ===
+        Route::get('create', 'create')->name('create');
+        // === ROUTE EDIT ===
+        Route::match(['get', 'post'], '{id}/edit', 'edit')->name('edit');
+        // === ROUTE UNLOCK ===
+        Route::get('{id}/unlock', 'unlockForm')->name('unlockForm');
+        Route::post('{id}/unlock', 'unlockProcess')->name('unlock.process');
+        // === ROUTE PENCARIAN AJAX ===
+        Route::post('search-student', 'searchStudent')->name('searchStudent');
+        // Endpoint Ambil Dropdown Piutang Siswa
+        Route::get('get-user-payitems/{userId}', 'getUserPayItems')->name('getUserPayItems');
+        // Route Report
+        Route::get('reportall/{payitem_id}/{school_id}', 'reportAll')->name('reportall');
+    });
 
 });
        
