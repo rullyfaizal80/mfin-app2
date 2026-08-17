@@ -53,40 +53,36 @@ class ReceivableController extends Controller
         $length = $request->input('length', 10);
         $search = $request->input('search.value');
 
-        // 1. Mulai Query Builder dengan Agregasi (Debit dikurangi Credit)
+        // 1. Siapkan Query Dasar
         $query = DB::table('sis_v_classuser as v')
             ->join('sis_receivable as r', 'v.user_id', '=', 'r.user_id')
             ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->where('p.payitem_type', 'tuition')
+            ->where('r.tstat', '<>', 'retur')
             ->select(
                 'v.user_id',
                 'v.nis', 
                 'v.fullname', 
                 'v.class_title', 
                 'p.title as jenis', 
-                // Menghitung Net Piutang = Total Tagihan - Total Pembayaran
-                DB::raw('(SUM(r.debit) - SUM(r.credit)) as total_piutang') 
+                DB::raw('(SUM(r.debit) - SUM(r.credit)) as total_piutang')
             )
-            ->where('p.payitem_type', 'tuition') // Sesuai CI2 lama
-            ->where('r.tstat', '<>', 'retur')    // Mengabaikan transaksi yang diretur
-            ->groupBy('v.user_id', 'v.nis', 'v.fullname', 'v.class_title', 'p.title') 
-            // Hanya tampilkan yang sisa piutangnya lebih dari 0 (belum lunas)
-            ->havingRaw('(SUM(r.debit) - SUM(r.credit)) > 0'); 
+            ->groupBy('v.user_id', 'v.nis', 'v.fullname', 'v.class_title', 'p.title')
+            ->havingRaw('(SUM(r.debit) - SUM(r.credit)) > 0');
 
-        // 2. Terapkan Filter Dropdown
+        // 2. Filter Dropdown
         if ($payitemId !== 'all') {
             $query->where('r.payitem_id', $payitemId);
         }
-
         if ($schoolId !== 'all') {
             $query->where('v.school_id', $schoolId);
         }
 
-        // Hitung total data SEBELUM pencarian (menggunakan subquery karena ada GROUP BY dan HAVING)
-        $recordsTotal = DB::table(DB::raw("({$query->toSql()}) as sub"))
-            ->mergeBindings($query)
-            ->count();
+        // 3. Hitung Total Data (Tanpa Search) menggunakan fromSub bawaan Laravel
+        // clone() digunakan agar query asli tidak terpengaruh saat dihitung
+        $recordsTotal = DB::query()->fromSub($query->clone(), 'sub')->count();
 
-        // 3. Terapkan Filter Pencarian (NIS atau Nama)
+        // 4. Filter Pencarian (Berfungsi normal karena ditambahkan sebelum eksekusi dari query builder utama)
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('v.nis', 'like', "%{$search}%")
@@ -94,24 +90,19 @@ class ReceivableController extends Controller
             });
         }
 
-        // Hitung total data SESUDAH pencarian
-        $recordsFiltered = DB::table(DB::raw("({$query->toSql()}) as sub"))
-            ->mergeBindings($query)
-            ->count();
+        // 5. Hitung Data Setelah Filter Pencarian
+        $recordsFiltered = DB::query()->fromSub($query->clone(), 'sub')->count();
 
-        // 4. Ambil Data dengan Pagination & Order
-        $records = $query->offset($start)
+        // 6. Ambil Data (Pagination)
+        $records = $query->orderBy('v.fullname', 'asc')
+                         ->offset($start)
                          ->limit($length)
-                         ->orderBy('v.fullname', 'asc')
                          ->get();
 
         $data = [];
         $no = $start + 1;
 
         foreach ($records as $row) {
-            
-            // Tombol Report Piutang mengarah ke route report detail (sesuaikan URL-nya jika sudah ada)
-            // Menggunakan user_id agar bisa menarik detail semua piutang anak tersebut
             $actionBtn = '<a href="'.url('/fincom/receivable/reportdetail/0/'.$row->user_id).'" target="_blank" class="btn btn-sm btn-secondary"><i class="bi bi-printer"></i> Report Piutang</a>';
 
             $data[] = [
