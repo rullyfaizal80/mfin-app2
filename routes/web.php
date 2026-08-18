@@ -354,6 +354,7 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::get('get-user-payitems/{userId}', 'getUserPayItems')->name('getUserPayItems');
         // Route Report
         Route::get('reportall/{payitem_id}/{school_id}', 'reportAll')->name('reportall');
+        
     });
 
 });

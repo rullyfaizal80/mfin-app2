@@ -52,9 +52,9 @@
             <button type="submit" id="filter_btn" class="btn btn-primary px-4">
                 <i class="bi bi-funnel"></i> Filter
             </button>
-            <a href="{{ url('fincom/receivable/reportall/'.$payitem_id.'/'.$school_id) }}" target="_blank" class="btn btn-outline-secondary">
-                <i class="bi bi-printer"></i> Print
-            </a>
+            <button type="button" onclick="cetakLaporan()" class="btn btn-primary">
+                <i class="fa fa-print"></i> Cetak Laporan
+            </button>
         </div>
         
     </div>
@@ -138,6 +138,27 @@ $(document).ready(function() {
         oTable.draw();
     });
 });
+
+function cetakLaporan() {
+    // Ambil nilai dari dropdown (pastikan nama id/name-nya sesuai dengan select dropdown Anda)
+    // Misalnya dropdown Anda menggunakan name="fpayitem_list" dan name="fschool"
+    let payitemId = $('select[name="fpayitem_list"]').val();
+    let schoolId = $('select[name="fschool"]').val();
+
+    // Jika kosong, set ke 'all'
+    if(!payitemId) payitemId = 'all';
+    if(!schoolId) schoolId = 'all';
+
+    // Buat URL rute sementara
+    let url = "{{ route('fincom.receivable.reportall', ['payitem_id' => ':payitem', 'school_id' => ':school']) }}";
+    
+    // Ganti kata sementara dengan nilai asli dari dropdown
+    url = url.replace(':payitem', payitemId);
+    url = url.replace(':school', schoolId);
+
+    // Buka di tab baru
+    window.open(url, '_blank');
+}
 </script>
 @endpush
 @endsection

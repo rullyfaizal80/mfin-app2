@@ -737,4 +737,72 @@ class ReceivableController extends Controller
 
         return 'RCV/' . date('Y/M/d/') . $nextSeq;
     }
+
+    /**
+     * === ROUTE REPORT ALL ===
+     * Mencetak laporan piutang berdasarkan komponen dan sekolah
+     */
+    public function reportAll($payitem_id = 'all', $school_id = 'all')
+    {
+        // 1. Query Builder untuk mengambil data siswa beserta total piutangnya
+        $query = DB::table('sis_receivable as r')
+            ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+            ->join('sis_v_classuser as v', 'v.user_id', '=', 'r.user_id')
+            ->select(
+                'v.fullname', 
+                'v.nis', 
+                'r.user_id', 
+                'p.title', 
+                'v.class_title', 
+                'v.school', 
+                // Kalkulasi (Debit - Credit) untuk mendapatkan sisa piutang
+                DB::raw('(SUM(r.debit) - SUM(r.credit)) as piutang') 
+            )
+            ->where('p.payitem_type', 'tuition')
+            ->where('r.tstat', '!=', 'retur')
+            // Di Laravel (strict mode), semua field di SELECT harus masuk ke groupBy
+            ->groupBy('r.user_id', 'v.fullname', 'v.nis', 'p.title', 'v.class_title', 'v.school', 'p.ordering');
+
+        // 2. Terapkan Filter Komponen (jika bukan 'all')
+        if ($payitem_id !== 'all' && $payitem_id > 0) {
+            $query->where('r.payitem_id', $payitem_id);
+        }
+
+        // 3. Terapkan Filter Sekolah (jika bukan 'all')
+        if ($school_id !== 'all' && $school_id > 0) {
+            $query->where('v.school_id', $school_id);
+        }
+
+        // 4. Eksekusi Query dan Urutkan
+        $students = $query->orderBy('v.school')
+                          ->orderBy('v.class_title')
+                          ->orderBy('v.fullname')
+                          ->orderBy('p.ordering')
+                          ->get();
+
+        // 5. Setup data teks untuk Header Laporan (Komponen & Sekolah)
+        $komponen = "Semua";
+        $sekolah = "Semua";
+
+        if ($students->count() > 0) {
+            if ($payitem_id !== 'all' && $payitem_id > 0) {
+                $komponen = $students->first()->title;
+            }
+            if ($school_id !== 'all' && $school_id > 0) {
+                $sekolah = $students->first()->school;
+            }
+        }
+
+        // 6. Kirim data ke View
+        $data = [
+            'page_title' => 'Rekapitulasi Piutang Siswa',
+            'komponen'   => $komponen,
+            'sekolah'    => $sekolah,
+            'payitem_id' => $payitem_id,
+            'students'   => $students
+        ];
+
+        // Karena Anda memakai folder 'receivable', kita arahkan view ke sana
+        return view('fincom.receivable.reportall', $data);
+    }
 }
