@@ -330,36 +330,34 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::get('/set_payer/{student_id}/{payer_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'set_payer'])->name('set_payer');
         Route::get('/del_payer/{student_id}', [\App\Http\Controllers\Fincom\UserPayItemController::class, 'del_payer'])->name('del_payer');
     });
-    
+   
     Route::prefix('receivable')->name('receivable.')->controller(ReceivableController::class)->group(function () {
         // Halaman Utama Receivable
         Route::get('/', 'index')->name('index');
-        // Endpoint AJAX untuk DataTables Server-side
-        // Catatan: Pastikan URL pada ajax DataTables di view index.blade.php Anda 
-        // mengarah ke url('fincom/receivable/ajax') jika Anda menggunakan rute ini.
         Route::post('ajax', 'getData')->name('ajax');
-        // Route Baru untuk ilist
+
+        // Route ilist
         Route::get('ilist', 'ilist')->name('ilist');
         Route::post('ilist/ajax', 'getIlistData')->name('ilist.ajax');
-        // === ROUTE CREATE ===
+
+        // === ROUTE REPORT (Wajib di atas rute wildcard {id}) ===
+        Route::get('report', 'report')->name('report');
+        Route::post('report/ajax', 'getReportData')->name('report.ajax');
+        Route::get('reportall/{payitem_id}/{school_id}', 'reportAll')->name('reportall');
+        Route::get('reportdetail/{user_id}', 'reportDetail')->name('reportdetail');
+
+        // === ROUTE CREATE & EDIT ===
         Route::get('create', 'create')->name('create');
-        // === ROUTE EDIT ===
         Route::match(['get', 'post'], '{id}/edit', 'edit')->name('edit');
+
         // === ROUTE UNLOCK ===
         Route::get('{id}/unlock', 'unlockForm')->name('unlockForm');
         Route::post('{id}/unlock', 'unlockProcess')->name('unlock.process');
-        // === ROUTE PENCARIAN AJAX ===
-        Route::post('search-student', 'searchStudent')->name('searchStudent');
-       // Endpoint Ambil Dropdown Piutang Siswa
-        Route::get('get-user-payitems/{userId}', 'getUserPayItems')->name('getUserPayItems');
-        
-        // Route Report All
-        Route::get('reportall/{payitem_id}/{school_id}', 'reportAll')->name('reportall');
-        
-        // TAMBAHKAN BARIS INI UNTUK REPORT DETAIL:
-        Route::get('reportdetail/{user_id}', 'reportDetail')->name('reportdetail');
-    });
 
+        // === ROUTE AJAX SEARCH ===
+        Route::post('search-student', 'searchStudent')->name('searchStudent');
+        Route::get('get-user-payitems/{userId}', 'getUserPayItems')->name('getUserPayItems');
+    });
 });
-       
+
 });

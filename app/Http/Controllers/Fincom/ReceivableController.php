@@ -905,4 +905,118 @@ class ReceivableController extends Controller
 
         return view('fincom.receivable.reportdetail', $data);
     }
+
+    /**
+     * Halaman Utama Laporan Piutang Kelas
+     */
+    public function report(Request $request)
+    {
+        // 1. Ambil daftar kelas persis CI2
+        $classes = DB::table('sis_class_list as m')
+            ->join('sis_csubject as s', 'm.csubject_id', '=', 's.id')
+            ->join('sis_ctype as t', 'm.ctype_id', '=', 't.id')
+            ->join('sis_cyear as y', 'm.cyear_id', '=', 'y.id')
+            ->where('t.title', 'REGULER')
+            ->where('y.is_active', 'yes')
+            ->select('m.id', 'm.title', 's.title as subject', 'y.title as y_title')
+            ->orderBy('m.title', 'asc')
+            ->get();
+
+        // 2. Set default kelas pertama jika belum dipilih
+        $classId = $request->input('fclass_list');
+        if (!$classId && $classes->count() > 0) {
+            $classId = $classes->first()->id;
+        }
+
+        $data = [
+            'page_title' => 'Rekap Piutang Kelas',
+            'class_id'   => $classId,
+            'classes'    => $classes,
+        ];
+
+        return view('fincom.receivable.report', $data);
+    }
+
+   public function getReportData(Request $request)
+    {
+        $classId = $request->input('class_id');
+        $search  = $request->input('search.value');
+        $start   = $request->input('start', 0);
+        $length  = $request->input('length', 10);
+        $draw    = $request->input('draw');
+
+        // 1. Buat Subquery: Hitung total piutang dan HANYA ambil yang > 0
+        $saldoSubquery = DB::table('sis_receivable as r')
+            ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+            ->where('p.payitem_type', 'tuition')
+            ->where('r.tstat', '!=', 'retur')
+            ->select('r.user_id', DB::raw('(SUM(r.debit) - SUM(r.credit)) as saldo'))
+            ->groupBy('r.user_id')
+            ->havingRaw('(SUM(r.debit) - SUM(r.credit)) > 0'); // <-- Filter Piutang > 0
+
+        // 2. Query Utama: Gabungkan (Join) subquery piutang ke tabel siswa
+        $query = DB::table('sis_student as s')
+            ->join('sis_user as u', 's.id', '=', 'u.id')
+            ->join('sis_class_user as cu', 'cu.user_id', '=', 's.id')
+            ->joinSub($saldoSubquery, 'piutang', function ($join) {
+                $join->on('s.id', '=', 'piutang.user_id'); // <-- INNER JOIN memastikan yang saldonya <= 0 atau lunas otomatis terbuang
+            })
+            ->where('cu.class_list_id', $classId)
+            ->where('u.is_student', 'yes');
+
+        // Total baris setelah di-filter saldonya (sebelum fitur pencarian)
+        $recordsTotal = $query->count();
+
+        // Fitur Pencarian DataTables (NIS / Nama)
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('s.nis', 'like', "%{$search}%")
+                  ->orWhere('u.fullname', 'like', "%{$search}%");
+            });
+        }
+
+        $recordsFiltered = $query->count();
+
+        // 3. Eksekusi Query beserta Limit/Pagination
+        $records = $query->select(
+                's.nis', 
+                'u.fullname', 
+                'u.dateofbirth as dob', 
+                'u.gender', 
+                'u.id as user_id',
+                'piutang.saldo' // <-- Ambil nilai saldo langsung dari hasil join
+            )
+            ->orderBy('u.fullname', 'asc')
+            ->offset($start)
+            ->limit($length)
+            ->get();
+
+        // 4. Mapping Data untuk DataTables (Sangat ringkas sekarang!)
+        $data = [];
+        $no = $start + 1;
+
+        foreach ($records as $row) {
+            $printUrl = route('fincom.receivable.reportdetail', ['user_id' => $row->user_id]);
+            $actionBtn = '<a href="'.$printUrl.'" target="_blank" class="btn btn-sm btn-light border shadow-sm">
+                            <i class="bi bi-printer"></i> Report Piutang
+                          </a>';
+
+            $data[] = [
+                $no++,
+                $row->nis,
+                $row->fullname,
+                $row->dob ? \Carbon\Carbon::parse($row->dob)->format('d M Y') : '-',
+                ($row->gender == 'M' || $row->gender == 'L') ? 'L' : 'P',
+                number_format($row->saldo, 0, ',', '.'), // Nilai saldo otomatis valid > 0
+                $actionBtn
+            ];
+        }
+
+        return response()->json([
+            "draw"            => intval($draw),
+            "recordsTotal"    => $recordsTotal,
+            "recordsFiltered" => $recordsFiltered,
+            "data"            => $data
+        ]);
+    }
 }
