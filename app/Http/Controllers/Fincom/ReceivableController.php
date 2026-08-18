@@ -103,7 +103,12 @@ class ReceivableController extends Controller
         $no = $start + 1;
 
         foreach ($records as $row) {
-            $actionBtn = '<a href="'.url('/fincom/receivable/reportdetail/0/'.$row->user_id).'" target="_blank" class="btn btn-sm btn-secondary"><i class="bi bi-printer"></i> Report Piutang</a>';
+            // Gunakan helper url() agar kebal terhadap error nama Route
+            $printUrl = url('fincom/receivable/reportdetail/' . $row->user_id);
+            
+            $actionBtn = '<a href="'.$printUrl.'" target="_blank" class="btn btn-sm btn-info text-white" title="Cetak Detail Piutang">
+                            <i class="bi bi-printer"></i> Detail Cetak
+                          </a>';
 
             $data[] = [
                 $no++,
@@ -111,7 +116,7 @@ class ReceivableController extends Controller
                 $row->fullname,
                 $row->class_title,
                 $row->jenis,
-                'Rp ' . number_format($row->total_piutang, 0, ',', '.'),
+                number_format($row->total_piutang, 0, ',', '.'),
                 $actionBtn
             ];
         }
@@ -804,5 +809,100 @@ class ReceivableController extends Controller
 
         // Karena Anda memakai folder 'receivable', kita arahkan view ke sana
         return view('fincom.receivable.reportall', $data);
+    }
+
+    public function reportDetail($user_id)
+    {
+        // 1. Ambil data profil siswa
+        $students = DB::table('sis_v_classuser')
+            ->where('user_id', $user_id)
+            ->select('fullname', 'class_title')
+            ->get();
+
+        // 2. Ambil SEMUA riwayat transaksi (tagihan & pembayaran) tanpa di-group
+        $transactions = DB::table('sis_receivable as r')
+            ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+            ->select(
+                'r.id',
+                'p.id as payitem_id',
+                'p.title as jenis_piutang', 
+                'r.tdate', 
+                'r.debit',
+                'r.credit'
+            )
+            ->where('r.user_id', $user_id)
+            ->where('p.payitem_type', 'tuition')
+            ->where('r.tstat', '!=', 'retur')
+            ->orderBy('r.tdate', 'asc') // Urutkan dari yang paling lama
+            ->orderBy('r.id', 'asc')
+            ->get();
+
+        // 3. Proses Logika FIFO (Mencocokkan Pembayaran dengan Tagihan)
+        $bills = [];    // Penampung daftar tagihan
+        $payments = []; // Penampung total uang pembayaran
+
+        // Pisahkan debit dan kredit berdasarkan jenis komponennya
+        foreach ($transactions as $t) {
+            if ($t->debit > 0) {
+                // Catat sebagai tagihan
+                $bills[$t->payitem_id][] = [
+                    'jenis_piutang' => $t->jenis_piutang,
+                    'tdate'         => $t->tdate,
+                    'piutang'       => $t->debit
+                ];
+            }
+            if ($t->credit > 0) {
+                // Kumpulkan sebagai saldo pembayaran
+                if (!isset($payments[$t->payitem_id])) {
+                    $payments[$t->payitem_id] = 0;
+                }
+                $payments[$t->payitem_id] += $t->credit;
+            }
+        }
+
+        $items = []; // Hasil akhir rincian piutang murni
+
+        // Eksekusi pemotongan tagihan menggunakan saldo pembayaran
+        foreach ($bills as $payitemId => $payitemBills) {
+            $totalCredit = $payments[$payitemId] ?? 0;
+
+            foreach ($payitemBills as $bill) {
+                if ($totalCredit > 0) {
+                    if ($totalCredit >= $bill['piutang']) {
+                        // Jika saldo cukup, tagihan bulan ini lunas sepenuhnya
+                        $totalCredit -= $bill['piutang'];
+                        $bill['piutang'] = 0;
+                    } else {
+                        // Jika saldo tidak cukup, tagihan bulan ini lunas sebagian
+                        $bill['piutang'] -= $totalCredit;
+                        $totalCredit = 0;
+                    }
+                }
+
+                // Jika tagihan masih ada sisa (belum lunas), masukkan ke laporan
+                if ($bill['piutang'] > 0) {
+                    // Dijadikan object agar terbaca oleh file blade ($i->jenis_piutang)
+                    $items[] = (object) [
+                        'jenis_piutang' => $bill['jenis_piutang'],
+                        'tdate'         => $bill['tdate'],
+                        'piutang'       => $bill['piutang']
+                    ];
+                }
+            }
+        }
+
+        // Urutkan hasil akhir berdasarkan tanggal tagihan
+        usort($items, function($a, $b) {
+            return strtotime($a->tdate) - strtotime($b->tdate);
+        });
+
+        // 4. Kirim data ke View
+        $data = [
+            'page_title' => 'Laporan Detail Piutang Siswa',
+            'students'   => $students,
+            'items'      => $items
+        ];
+
+        return view('fincom.receivable.reportdetail', $data);
     }
 }

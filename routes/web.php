@@ -350,11 +350,14 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
         Route::post('{id}/unlock', 'unlockProcess')->name('unlock.process');
         // === ROUTE PENCARIAN AJAX ===
         Route::post('search-student', 'searchStudent')->name('searchStudent');
-        // Endpoint Ambil Dropdown Piutang Siswa
+       // Endpoint Ambil Dropdown Piutang Siswa
         Route::get('get-user-payitems/{userId}', 'getUserPayItems')->name('getUserPayItems');
-        // Route Report
+        
+        // Route Report All
         Route::get('reportall/{payitem_id}/{school_id}', 'reportAll')->name('reportall');
         
+        // TAMBAHKAN BARIS INI UNTUK REPORT DETAIL:
+        Route::get('reportdetail/{user_id}', 'reportDetail')->name('reportdetail');
     });
 
 });
