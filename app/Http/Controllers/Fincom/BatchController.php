@@ -10,15 +10,11 @@ class BatchController extends Controller
 {
     public function lproc($period_id)
     {
-        // Ambil data periode
         $period = DB::table('sis_period')->where('id', $period_id)->first();
-        
-        // Jika periode tidak ada, kembalikan ke halaman daftar periode
         if (!$period) {
             return redirect()->route('fincom.period.index')->with('error', 'Data periode tidak ditemukan.');
         }
 
-        // Siapkan data untuk view
         $page_title = "Daftar Proses Periode";
         $ttype = $period->ttype;
 
@@ -33,173 +29,165 @@ class BatchController extends Controller
         }
 
         $page_title = "Proses Tagihan SPP Bulanan";
-        // 1. Hitung total siswa aktif (Sesuaikan nama tabel 'users' jika di DB Anda namanya lain, misal 'siswa' atau 'students')
-$total_siswa = DB::table('sis_user')
-                ->where('is_student', 'yes') // Menggunakan kolom is_student
-                ->where('is_active', 'yes')  // Menggunakan kolom is_active
-                ->count();
 
-// 2. Hitung siswa yang sudah berhasil diproses di bulan/periode ini
-$sudah_proses = DB::table('sis_logprocess')
-                ->where('period_id', $period_id)
-                ->where('proc_type', 'SPP')
-                ->count();
-
-// 3. Hitung sisa yang belum
-$belum_proses = $total_siswa - $sudah_proses;
-if ($belum_proses < 0) { $belum_proses = 0; } // Jaga-jaga agar tidak minus
-
-// 4. Kirim semua datanya ke halaman View
-return view('fincom.batch.proc_tuition', compact(
-    'period_id', 'period', 'page_title', 
-    'total_siswa', 'sudah_proses', 'belum_proses'
-));
-    }
-
-    // ===========================================================================
-    // 1. FUNGSI AMBIL 1 SISWA (YANG BELUM DIPROSES)
-    // ===========================================================================
-    public function getStudent(Request $request, $period_id)
-    {
-        // Cari 1 siswa aktif yang belum ada di tabel sis_logprocess untuk periode ini
-        $student = DB::table('sis_user')
-            ->select('id', 'fullname')
+        // 1. Hitung total siswa aktif yang punya komponen tagihan di periode ini
+        $querySiswa = DB::table('sis_user')
             ->where('is_student', 'yes')
             ->where('is_active', 'yes')
-            ->whereNotIn('id', function ($query) use ($period_id) {
-                $query->select('user_id')
-                      ->from('sis_logprocess')
-                      ->where('period_id', $period_id);
+            ->whereExists(function ($query) use ($period) {
+                $query->select(DB::raw(1))
+                      ->from('sis_userpayitem as up')
+                      ->join('sis_payitem as p', 'p.id', '=', 'up.payitem_id')
+                      ->whereColumn('up.user_id', 'sis_user.id')
+                      ->where('p.payitem_type', 'tuition')
+                      ->where('up.pay_start', '<=', $period->period_end)
+                      ->where('up.pay_end', '>=', $period->period_start);
+            });
+
+        $total_siswa = $querySiswa->count();
+
+        // 2. Hitung jumlah yang sudah diproses (Bisa dari logprocess ATAU sudah ada di treceivable CI2 lama)
+        $sudah_proses = DB::table('sis_user')
+            ->where('is_student', 'yes')
+            ->where('is_active', 'yes')
+            ->whereExists(function ($query) use ($period) {
+                $query->select(DB::raw(1))
+                      ->from('sis_userpayitem as up')
+                      ->join('sis_payitem as p', 'p.id', '=', 'up.payitem_id')
+                      ->whereColumn('up.user_id', 'sis_user.id')
+                      ->where('p.payitem_type', 'tuition')
+                      ->where('up.pay_start', '<=', $period->period_end)
+                      ->where('up.pay_end', '>=', $period->period_start);
             })
-            ->orderBy('fullname', 'asc')
-            ->first();
+            ->where(function ($query) use ($period_id, $period) {
+                $query->whereIn('id', function ($sub) use ($period_id) {
+                    $sub->select('user_id')->from('sis_logprocess')->where('period_id', $period_id)->where('proc_type', 'SPP');
+                })
+                ->orWhereIn('id', function ($sub) use ($period) {
+                    $sub->select('user_id')->from('sis_treceivable')
+                        ->where('ttype', 'tuition')
+                        ->where('tdate', '>=', $period->period_start)
+                        ->where('tdate', '<=', $period->period_end);
+                });
+            })
+            ->count();
 
-        if ($student) {
-            return response()->json([
-                'status'   => 'ok',
-                'user_id'  => $student->id,
-                'fullname' => $student->fullname
-            ]);
-        }
+        $belum_proses = max(0, $total_siswa - $sudah_proses);
 
-        // Jika sudah habis
-        return response()->json(['status' => 'empty']);
+        return view('fincom.batch.proc_tuition', compact(
+            'period_id', 'period', 'page_title', 
+            'total_siswa', 'sudah_proses', 'belum_proses'
+        ));
     }
 
-    // ===========================================================================
-    // 2. FUNGSI PROSES TAGIHAN (SPP) PER SISWA
-    // ===========================================================================
-    public function processTuition(Request $request, $period_id, $user_id)
+    public function processChunk(Request $request, $period_id)
     {
-        try {
-            DB::beginTransaction();
+        $period = DB::table('sis_period')->where('id', $period_id)->first();
+        if (!$period) {
+            return response()->json(['status' => 'error', 'message' => 'Periode tidak valid.']);
+        }
 
-            $period = DB::table('sis_period')->where('id', $period_id)->first();
-            $pdate  = $period->period_start;
+        $chunkSize = 50;
+        $processedCount = 0;
 
-            // Ambil daftar komponen tagihan siswa (SPP, dll) yang aktif pada periode ini
-            $upitems = DB::table('sis_userpayitem as up')
-                ->join('sis_payitem as p', 'p.id', '=', 'up.payitem_id')
-                ->where('p.payitem_type', 'tuition')
-                ->where('up.user_id', $user_id)
-                ->where('up.pay_start', '<=', $period->period_end)
-                ->where('up.pay_end', '>=', $period->period_start)
-                ->select('up.user_id', 'up.payitem_id', 'p.payitem_code', 'up.payvalue', 'up.pay_repeat', 'up.pay_start', 'up.pay_end', 'p.title')
-                ->orderBy('p.ordering', 'asc')
-                ->get();
+        // Ambil 50 siswa yang BELUM diproses menggunakan dua whereNotIn terpisah (Sangat Aman)
+        $students = DB::table('sis_user')
+            ->where('is_student', 'yes')
+            ->where('is_active', 'yes')
+            ->whereExists(function ($query) use ($period) {
+                $query->select(DB::raw(1))
+                      ->from('sis_userpayitem as up')
+                      ->join('sis_payitem as p', 'p.id', '=', 'up.payitem_id')
+                      ->whereColumn('up.user_id', 'sis_user.id')
+                      ->where('p.payitem_type', 'tuition')
+                      ->where('up.pay_start', '<=', $period->period_end)
+                      ->where('up.pay_end', '>=', $period->period_start);
+            })
+            ->whereNotIn('id', function ($query) use ($period_id) {
+                $query->select('user_id')->from('sis_logprocess')
+                      ->where('period_id', $period_id)->where('proc_type', 'SPP');
+            })
+            ->whereNotIn('id', function ($query) use ($period) {
+                $query->select('user_id')->from('sis_treceivable')
+                      ->where('ttype', 'tuition')
+                      ->where('tdate', '>=', $period->period_start)
+                      ->where('tdate', '<=', $period->period_end);
+            })
+            ->limit($chunkSize)
+            ->get();
 
-            if ($upitems->count() > 0) {
-                // 1. Buat Induk Tagihan (Treceivable / Total Receivable)
-                $ucode = date("YmdHis") . mt_rand(10000, 99999);
-                
-                $treceivable_id = DB::table('sis_treceivable')->insertGetId([
-                    'user_id'   => $user_id,
-                    'ref_no'    => '', // Akan diisi jika sudah ada nomor referensi
-                    'tdate'     => $pdate,
-                    'tvalue'    => 0,
-                    'note'      => sprintf("Tagihan periode: %s s/d %s", $period->period_start, $period->period_end),
-                    'is_posted' => 'no',
-                    'cdate'     => now(),
-                    'mdate'     => now(),
-                    'mdate_by'  => auth()->id() ?? 1,
-                    'tid'       => 0,
-                    'ttype'     => 'tuition',
-                    'ucode'     => $ucode
-                ]);
+        if ($students->isEmpty()) {
+            return response()->json(['status' => 'finished']);
+        }
 
-                $tot_val = 0;
+        $pdate = $period->period_start;
 
-                // 2. Looping Komponen Tagihan (Detail Receivable)
-                foreach ($upitems as $upitem) {
-                    $tuition_date = date("Y-m-d");
+        foreach ($students as $student) {
+            try {
+                DB::beginTransaction();
 
-                    // Tentukan tanggal berdasarkan siklus berulang (pay_repeat)
-                    if ($upitem->pay_repeat == 'yearly') {
-                        $tuition_date = $upitem->pay_start;
-                    } else if ($upitem->pay_repeat == 'monthly') {
-                        $tuition_date = $pdate;
+                $user_id = $student->id;
+
+                $upitems = DB::table('sis_userpayitem as up')
+                    ->join('sis_payitem as p', 'p.id', '=', 'up.payitem_id')
+                    ->where('p.payitem_type', 'tuition')
+                    ->where('up.user_id', $user_id)
+                    ->where('up.pay_start', '<=', $period->period_end)
+                    ->where('up.pay_end', '>=', $period->period_start)
+                    ->select('up.user_id', 'up.payitem_id', 'p.payitem_code', 'up.payvalue', 'up.pay_repeat', 'up.pay_start', 'up.pay_end', 'p.title')
+                    ->orderBy('p.ordering', 'asc')
+                    ->get();
+
+                if ($upitems->count() > 0) {
+                    $ucode = date("YmdHis") . mt_rand(10000, 99999);
+                    
+                    $treceivable_id = DB::table('sis_treceivable')->insertGetId([
+                        'user_id'   => $user_id, 'ref_no' => '', 'tdate' => $pdate, 'tvalue' => 0,
+                        'note'      => sprintf("Tagihan periode: %s s/d %s", $period->period_start, $period->period_end),
+                        'is_posted' => 'no', 'cdate' => now(), 'mdate' => now(),
+                        'mdate_by'  => auth()->id() ?? 1, 'tid' => 0, 'ttype' => 'tuition', 'ucode' => $ucode
+                    ]);
+
+                    $tot_val = 0;
+
+                    foreach ($upitems as $upitem) {
+                        $tuition_date = date("Y-m-d");
+                        if ($upitem->pay_repeat == 'yearly') $tuition_date = $upitem->pay_start;
+                        else if ($upitem->pay_repeat == 'monthly') $tuition_date = $pdate;
+
+                        $queryRcv = DB::table('sis_receivable')->where('payitem_id', $upitem->payitem_id)->where('user_id', $user_id);
+                        if (in_array($upitem->pay_repeat, ['yearly', 'monthly'])) $queryRcv->where('tdate', $tuition_date);
+                        
+                        if (!$queryRcv->exists() && $upitem->payvalue > 0) {
+                            DB::table('sis_receivable')->insert([
+                                'treceivable_id' => $treceivable_id, 'user_id' => $user_id, 'ref_no' => '',
+                                'tdate' => $tuition_date, 'payitem_id' => $upitem->payitem_id,
+                                'debit' => $upitem->payvalue, 'credit' => 0, 'note' => $upitem->title,
+                                'tstat' => 'unpaid', 'cdate' => now(), 'mdate' => now(), 'mdate_by' => auth()->id() ?? 1, 'tid' => 0
+                            ]);
+                            $tot_val += $upitem->payvalue;
+                        }
                     }
-
-                    // Cek apakah detail tagihan ini sudah pernah dibuat sebelumnya
-                    $queryRcv = DB::table('sis_receivable')
-                        ->where('payitem_id', $upitem->payitem_id)
-                        ->where('user_id', $user_id);
-
-                    if ($upitem->pay_repeat == 'yearly' || $upitem->pay_repeat == 'monthly') {
-                        $queryRcv->where('tdate', $tuition_date);
-                    }
-                    $rcvExists = $queryRcv->exists();
-
-                    // Jika belum ada, masukkan sebagai rincian tagihan (Receivable)
-                    if (!$rcvExists && $upitem->payvalue > 0) {
-                        DB::table('sis_receivable')->insert([
-                            'treceivable_id' => $treceivable_id,
-                            'user_id'        => $user_id,
-                            'ref_no'         => '',
-                            'tdate'          => $tuition_date,
-                            'payitem_id'     => $upitem->payitem_id,
-                            'debit'          => $upitem->payvalue,
-                            'credit'         => 0,
-                            'note'           => $upitem->title,
-                            'tstat'          => 'unpaid',
-                            'cdate'          => now(),
-                            'mdate'          => now(),
-                            'mdate_by'       => auth()->id() ?? 1,
-                            'tid'            => 0
-                        ]);
-
-                        $tot_val += $upitem->payvalue;
-                    }
+                    DB::table('sis_treceivable')->where('id', $treceivable_id)->update(['tvalue' => $tot_val]);
                 }
 
-                // Update Total Tagihan di Induk
-                DB::table('sis_treceivable')->where('id', $treceivable_id)->update([
-                    'tvalue' => $tot_val
+                DB::table('sis_logprocess')->insert([
+                    'period_id' => $period_id, 'user_id' => $user_id,
+                    'cdate' => now(), 'note' => 'Sukses diproses (Sync CI2)', 'proc_type' => 'SPP'
                 ]);
 
-                // =========================================================================
-                // CATATAN PENTING: 
-                // Di aplikasi lama, di titik ini memanggil $this->libpayitem->transact();
-                // Untuk tahap ini, saya melewatinya sementara agar kita bisa fokus 
-                // memastikan tagihannya masuk ke database terlebih dahulu.
-                // =========================================================================
+                DB::commit();
+                $processedCount++;
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                continue; 
             }
-
-            // 3. Catat di tabel logprocess agar siswa ini tidak diproses 2 kali
-            DB::table('sis_logprocess')->insert([
-                'period_id' => $period_id,
-                'user_id'   => $user_id,
-                'cdate'     => now(),
-                'note'      => 'Sukses diproses',
-                'proc_type' => 'SPP'
-            ]);
-
-            DB::commit();
-            return response()->json(['status' => 'success', 'message' => 'Processed']);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+
+        return response()->json([
+            'status' => 'processing',
+            'processed_count' => $processedCount
+        ]);
     }
 }

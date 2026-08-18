@@ -73,98 +73,89 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 $(document).ready(function() {
-    let timer;
     let is_finish = false;
-    let counter = 0;
+    let xhrRequest = null;
     const period_id = "{{ $period_id }}";
     
-    // Fungsi untuk menambah teks ke layar hitam (Console)
+    // Ambil angka dari tampilan awal Blade
+    let countTotal  = parseInt("{{ $total_siswa }}");
+    let countSudah  = parseInt("{{ $sudah_proses }}");
+    let countSesi   = 0;
+
     function addLog(message, isError = false) {
         const color = isError ? "text-danger" : "text-success";
         $('#consoleLog').append(`<span class="${color}">${message}</span><br>`);
-        // Auto scroll ke bawah
         $('#consoleLog').scrollTop($('#consoleLog')[0].scrollHeight);
     }
 
-    function runProcess() {
-        if (is_finish) {
-            stopProcess();
-            addLog("> PROSES SELESAI / DIHENTIKAN.", true);
-            return;
-        }
+    function runProcessChunk() {
+        if (is_finish) return;
 
-        // 1. AJAX AMBIL 1 SISWA
-        $.ajax({
-            url: "{{ url('fincom/batch/get-student') }}/" + period_id,
+        xhrRequest = $.ajax({
+            url: "{{ url('fincom/batch/process-chunk') }}/" + period_id,
             type: "POST",
             data: { _token: "{{ csrf_token() }}" },
             dataType: "json",
-            success: function(resStudent) {
-                if (resStudent.status === 'empty') {
+            success: function(res) {
+                if (res.status === 'finished') {
                     is_finish = true;
-                    $('#statusBadge').removeClass('bg-warning').addClass('bg-success').text("Status: SELESAI");
-                    addLog("> SELURUH SISWA TELAH SELESAI DIPROSES!", false);
-                    stopProcess();
-                } else if (resStudent.status === 'ok') {
-                    let user_id = resStudent.user_id;
-                    let fullname = resStudent.fullname;
-                    addLog(`> Memproses SPP: [${user_id}] ${fullname}...`);
+                    $('#btnRun').prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
+                    $('#btnStop').prop('disabled', true);
+                    $('#statusBadge').removeClass('bg-warning text-dark').addClass('bg-success text-white').text("Status: SELESAI");
+                    
+                    addLog("======================================");
+                    addLog("> SELURUH DATA TELAH SELESAI DIPROSES DENGAN CEPAT!", false);
+                    return;
+                }
 
-                    // 2. AJAX PROSES TAGIHAN SISWA TERSEBUT
-                    $.ajax({
-                        url: "{{ url('fincom/batch/process-tuition') }}/" + period_id + "/" + user_id,
-                        type: "POST",
-                        data: { _token: "{{ csrf_token() }}" },
-                        dataType: "json",
-                       success: function(resProcess) {
-                            counter++; // Tetap pertahankan ini
-                            
-                            // 1. Ambil angka saat ini dari badge (Statis)
-                            let sudah = parseInt($('#count_sudah').text()) || 0;
-                            let belum = parseInt($('#count_belum').text()) || 0;
-                            
-                            // 2. Update angkanya di layar
-                            $('#count_sudah').text(sudah + 1);
-                            if(belum > 0) $('#count_belum').text(belum - 1);
-                            $('#count_sesi').text(counter); // Gunakan nilai counter ke badge Sesi Ini
+                if (res.status === 'processing') {
+                    countSesi  += res.processed_count;
+                    countSudah += res.processed_count;
+                    let sisaBelum = countTotal - countSudah;
 
-                            // 3. Tambahkan teks ke terminal
-                            addLog(`   -- Berhasil!`);
-                            
-                            // 4. Lanjut rekursif ke siswa berikutnya
-                            timer = setTimeout(runProcess, 200); 
-                        },
-                        error: function(xhr) {
-                            addLog(`   -- ERROR: Gagal memproses tagihan. Cek koneksi/server.`, true);
-                            is_finish = true;
-                            stopProcess();
-                        }
-                    });
+                    $('#count_sesi').text(countSesi);
+                    $('#count_sudah').text(countSudah);
+                    $('#count_belum').text(sisaBelum < 0 ? 0 : sisaBelum);
+
+                    addLog(`> Memproses data... [ ${res.processed_count} siswa ditambahkan ke database ]`);
+
+                    // Lanjut tembak lagi (Otomatis Looping ke 50 siswa berikutnya)
+                    if(!is_finish) {
+                        runProcessChunk();
+                    }
                 }
             },
-            error: function(xhr) {
-                            // TAMPILKAN ERROR ASLI DARI LARAVEL
-                            let errorMsg = "Koneksi terputus.";
-                            if (xhr.responseJSON && xhr.responseJSON.message) {
-                                errorMsg = xhr.responseJSON.message;
-                            } else if (xhr.responseText) {
-                                errorMsg = xhr.responseText.substring(0, 100) + "..."; // Ambil sedikit teksnya
-                            }
-                            
-                            addLog(`   -- ERROR DATABASE: ${errorMsg}`, true);
-                            is_finish = true;
-                            stopProcess();
-                        }
+            error: function(xhr, status, error) {
+                // Jika error karena admin menekan tombol STOP, abaikan
+                if (status === 'abort') {
+                    addLog(`> Menghentikan komunikasi dengan server...`, true);
+                    return;
+                }
+                
+                // Tangkap pesan Error murni dari Laravel
+                let errorMsg = "Koneksi terputus/Internal Server Error.";
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMsg = xhr.responseJSON.message;
+                } else if (xhr.status) {
+                    errorMsg = "HTTP Error " + xhr.status + ": " + xhr.statusText;
+                }
+                
+                addLog(`> ERROR KODE: ${errorMsg}`, true);
+                console.log(xhr.responseText); // Tampil detail di inspect element
+                stopProcess();
+            }
         });
     }
 
     function stopProcess() {
-        clearTimeout(timer);
         is_finish = true;
+        if (xhrRequest) {
+            xhrRequest.abort(); // Putuskan koneksi yang sedang berjalan
+        }
         $('#btnRun').prop('disabled', false).removeClass('btn-secondary').addClass('btn-success');
         $('#btnStop').prop('disabled', true);
         if($('#statusBadge').text() !== "Status: SELESAI") {
-            $('#statusBadge').removeClass('bg-warning').addClass('bg-danger').text("Status: DIHENTIKAN");
+            $('#statusBadge').removeClass('bg-warning text-dark').addClass('bg-danger text-white').text("Status: DIHENTIKAN");
         }
     }
 
@@ -173,11 +164,12 @@ $(document).ready(function() {
         is_finish = false;
         $('#btnRun').prop('disabled', true).removeClass('btn-success').addClass('btn-secondary');
         $('#btnStop').prop('disabled', false);
-        $('#statusBadge').removeClass('bg-secondary bg-danger bg-success').addClass('bg-warning text-dark').text("Status: SEDANG BERJALAN...");
-        addLog("======================================");
-        addLog("> Memulai proses penarikan data...");
+        $('#statusBadge').removeClass('bg-secondary bg-danger bg-success').addClass('bg-warning text-dark').text("Status: MEMPROSES MASSAL...");
         
-        runProcess();
+        addLog("======================================");
+        addLog("> Memulai proses massal (Kecepatan: 50 siswa / sesi)...");
+        
+        runProcessChunk();
     });
 
     // Tombol Stop

@@ -253,8 +253,9 @@ Route::middleware(['custom.auth'])->group(function () {
     Route::prefix('fincom/batch')->name('fincom.batch.')->group(function () {
         Route::get('/lproc/{period_id}', [App\Http\Controllers\Fincom\BatchController::class, 'lproc'])->name('lproc');
         Route::get('/proc-tuition/{period_id}', [App\Http\Controllers\Fincom\BatchController::class, 'procTuition'])->name('proc_tuition');
-        Route::post('/get-student/{period_id}', [App\Http\Controllers\Fincom\BatchController::class, 'getStudent'])->name('get_student');
-        Route::post('/process-tuition/{period_id}/{user_id}', [App\Http\Controllers\Fincom\BatchController::class, 'processTuition'])->name('process_tuition');
+    
+        // Rute get-student dan process-tuition yang lama dihapus, diganti dengan 1 rute ini:
+        Route::post('/process-chunk/{period_id}', [App\Http\Controllers\Fincom\BatchController::class, 'processChunk'])->name('process_chunk');
     });
     
         // Group Route Fincom Payitem
