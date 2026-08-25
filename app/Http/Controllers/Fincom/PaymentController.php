@@ -81,9 +81,13 @@ class PaymentController extends Controller
      */
     public function store(Request $request)
     {
+        // 1. Pastikan siswa sudah dipilih (user_id tidak boleh kosong)
         $request->validate([
             'user_id' => 'required|integer',
             'tdate'   => 'required|date',
+        ], [
+            'user_id.required' => 'Nama Siswa belum dipilih!',
+            'user_id.integer'  => 'Pilih nama siswa dari daftar pencarian yang muncul.',
         ]);
 
         $userId = $request->input('user_id');
@@ -92,7 +96,7 @@ class PaymentController extends Controller
 
         DB::beginTransaction();
         try {
-            // [REVISI] Generate Ulang + Kunci tabel agar nomor referensi tidak ganda jika ada 2 kasir
+            // Generate Ulang + Kunci tabel agar nomor referensi tidak ganda jika ada 2 kasir
             $lastRecord = DB::table('sis_treceivable')
                 ->where('ref_no', 'like', 'PYM/%')
                 ->orderBy('id', 'desc')
@@ -111,44 +115,56 @@ class PaymentController extends Controller
             $nextSeqFormatted = str_pad($nextSeqNum, 6, '0', STR_PAD_LEFT);
             $refNo = "PYM/" . date('Y') . "/" . date('M') . "/" . date('d') . "/" . $nextSeqFormatted;
 
+            // Insert Header (sis_treceivable)
             $trId = DB::table('sis_treceivable')->insertGetId([
                 'user_id'   => $userId,
                 'ref_no'    => $refNo,
                 'tdate'     => $tdate,
                 'tvalue'    => $payvalue,
-                'note'      => $request->input('note'),
+                'note'      => $request->input('note') ?? '', // Cegah Null
                 'is_posted' => 'yes',
                 'cdate'     => now(),
                 'mdate'     => now(),
                 'mdate_by'  => Auth::id() ?? 1,
                 'ttype'     => 'tuition_payment',
+                'tid'       => 0, // [Perbaikan] Warisan CI2, harus didefinisikan agar tidak error
                 'ucode'     => mt_rand(100000, 999999) . date('YmdHis'),
             ]);
 
+            // 2. Insert Detail Pembayaran (sis_receivable)
             $inputs = $request->all();
             foreach ($inputs as $key => $value) {
+                // Deteksi input checkbox dari AJAX
                 if (str_starts_with($key, 'cheked_')) {
                     $n = str_replace('cheked_', '', $key);
                     
                     $payitemId = $inputs["userpayitem_id_$n"] ?? 0;
                     $nominal = (float) str_replace('.', '', $inputs["tvaluee_$n"] ?? 0);
-                    $payfor = $inputs["tdatee_$n"] ?? null;
+                    
+                    // [PERBAIKAN] Ambil tanggal TAGIHAN ASLI, bukan tanggal bayar hari ini
+                    $originalBillDate = $inputs["tdatee_$n"] ?? $tdate; 
                     
                     if ($nominal > 0) {
                         DB::table('sis_receivable')->insert([
                             'treceivable_id' => $trId,
                             'user_id'        => $userId,
                             'ref_no'         => $refNo,
-                            'tdate'          => $tdate,
+                            
+                            // Gunakan tanggal tagihan asli agar query SUM(debit)-SUM(credit) sinkron
+                            'tdate'          => $originalBillDate, 
                             'payitem_id'     => $payitemId,
-                            'payfor'         => $payfor,
+                            'payfor'         => $originalBillDate, 
+                            
                             'credit'         => $nominal,
                             'note'           => $inputs["tnotee_$n"] ?? '',
                             'cdate'          => now(),
                             'mdate'          => now(),
                             'mdate_by'       => Auth::id() ?? 1,
                             'tstat'          => 'paid',
-                            'is_cash'        => isset($inputs["is_cash_$n"]) ? 'yes' : 'no'
+                            'mode'           => '',
+                            'is_cash'        => isset($inputs["is_cash_$n"]) ? 'yes' : 'no',
+                            'tid'            => 0,
+                            'debit'          => 0, 
                         ]);
                     }
                 }
@@ -163,7 +179,8 @@ class PaymentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Gagal menyimpan: ' . $e->getMessage());
+            // Akan melempar error ke session 'error' yang baru saja kita pasang di Blade
+            return back()->with('error', $e->getMessage());
         }
     }
 

@@ -22,6 +22,25 @@
     @csrf
     @if(isset($payment)) @method('PUT') @endif
 
+    {{-- TAMBAHKAN BLOK INI UNTUK MELIHAT ERROR DATABASE / VALIDASI --}}
+    @if ($errors->any())
+        <div class="alert alert-danger shadow-sm">
+            <strong>Gagal Menyimpan!</strong> Periksa isian berikut:
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="alert alert-danger shadow-sm">
+            <strong>System Error:</strong> {{ session('error') }}
+        </div>
+    @endif
+    {{-- BATAS TAMBAHAN --}}
+
     <div class="row">
         {{-- BAGIAN ATAS: INFORMASI TRANSAKSI --}}
         <div class="col-12 mb-4">
