@@ -209,12 +209,6 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::get('/detail/{id}', [ReportTeacherController::class, 'detail'])->name('detail');
     });
 
-    Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
-        Route::get('/', [PaymentController::class, 'index'])->name('index');
-        // Route untuk AJAX pencarian siswa
-        Route::get('/ajax-student', [PaymentController::class, 'ajaxStudent'])->name('ajax_student');
-    });
-
     Route::prefix('fincom/transexpense')->name('fincom.transexpense.')->group(function () {
         Route::get('/list_expense', [App\Http\Controllers\Fincom\TransincomeController::class, 'listExpenseComponent'])->name('list_expense');
         Route::get('/', [TransexpenseController::class, 'index'])->name('index');
@@ -361,4 +355,24 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     });
 });
 
+    Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
+    // Rute CRUD Utama (Tidak ada perubahan, sudah benar)
+    Route::get('/', [PaymentController::class, 'index'])->name('index');
+    Route::get('/create', [PaymentController::class, 'create'])->name('create');
+    Route::post('/store', [PaymentController::class, 'store'])->name('store');
+    Route::get('/edit/{id}', [PaymentController::class, 'edit'])->name('edit');
+    Route::put('/update/{id}', [PaymentController::class, 'update'])->name('update');
+
+    // Rute AJAX
+    Route::get('/ajax-student', [PaymentController::class, 'ajaxStudent'])->name('ajax_student');
+    
+    // Tetap POST karena mengirim parameter pencarian {nis: fnis} di body (payload)
+    Route::post('/ajax-getnis', [PaymentController::class, 'ajaxGetNis'])->name('ajax_getnis');
+    
+    // [REVISI] Ubah 4 baris di bawah ini menjadi GET agar sesuai dengan $.get() di JavaScript
+    Route::get('/ajax-getuserpayid/{id}', [PaymentController::class, 'ajaxGetUserPayId'])->name('ajax_getuserpayid');
+    Route::get('/ajax-getuserpayment/{uid}/{id}', [PaymentController::class, 'ajaxGetUserPayment'])->name('ajax_getuserpayment');
+    Route::get('/ajax-list-payment/{uid}', [PaymentController::class, 'ajaxListPayment'])->name('ajax_list_payment');
+    Route::get('/ajax-list-payment-edit/{trxId}', [PaymentController::class, 'ajaxListPaymentEdit'])->name('ajax_list_payment_edit');
+});
 });
