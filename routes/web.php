@@ -374,5 +374,8 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     Route::get('/ajax-getuserpayment/{uid}/{id}', [PaymentController::class, 'ajaxGetUserPayment'])->name('ajax_getuserpayment');
     Route::get('/ajax-list-payment/{uid}', [PaymentController::class, 'ajaxListPayment'])->name('ajax_list_payment');
     Route::get('/ajax-list-payment-edit/{trxId}', [PaymentController::class, 'ajaxListPaymentEdit'])->name('ajax_list_payment_edit');
+    
+    // TAMBAHKAN INI UNTUK STRUK PRINT
+    Route::get('/reportall/{id}', [PaymentController::class, 'reportall'])->name('reportall');
 });
 });

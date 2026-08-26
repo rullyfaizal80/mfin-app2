@@ -335,4 +335,50 @@ class PaymentController extends Controller
     {
         return "<div class='alert alert-info text-center'>Menampilkan Tagihan Edit ID: {$trxId}</div>";
     }
+
+    /**
+     * CETAK BUKTI PEMBAYARAN (STRUK)
+     */
+    public function reportall($id)
+    {
+        // 1. Ambil Data Header Transaksi
+        $payment = DB::table('sis_treceivable as tr')
+            ->join('sis_user as u', 'tr.user_id', '=', 'u.id')
+            ->leftJoin('sis_user as c', 'tr.mdate_by', '=', 'c.id')
+            ->leftJoin('sis_v_classuser as vc', 'tr.user_id', '=', 'vc.user_id')
+            ->select('tr.*', 'u.fullname', 'vc.class_title as kelas', 'c.fullname as cashier')
+            ->where('tr.id', $id)
+            ->first();
+
+        if (!$payment) abort(404, 'Data Pembayaran tidak ditemukan.');
+
+        // 2. Ambil Item yang Dibayar (tstat = 'paid')
+        $items = DB::table('sis_receivable as a')
+            ->join('sis_payitem as p', 'a.payitem_id', '=', 'p.id')
+            ->leftJoin('sis_userpayitem as up', function($join) {
+                $join->on('a.payitem_id', '=', 'up.payitem_id')
+                     ->on('a.user_id', '=', 'up.user_id');
+            })
+            ->select('a.*', 'p.title', 'up.pay_repeat')
+            ->where('a.treceivable_id', $id)
+            ->where('a.tstat', 'paid')
+            ->get();
+
+        // 3. Ambil Item Retur (jika ada)
+        $returs = DB::table('sis_receivable as a')
+            ->join('sis_payitem as p', 'a.payitem_id', '=', 'p.id')
+            ->leftJoin('sis_userpayitem as up', function($join) {
+                $join->on('a.payitem_id', '=', 'up.payitem_id')
+                     ->on('a.user_id', '=', 'up.user_id');
+            })
+            ->select('a.*', 'p.title', 'up.pay_repeat')
+            ->where('a.treceivable_id', $id)
+            ->where('a.tstat', 'retur')
+            ->get();
+
+        // [REVISI] Query blmLunas / tunggakan sudah dihapus dari sini
+
+        // Jangan lupa variabel $blmLunas juga dihapus dari compact()
+        return view('fincom.payment.reportall', compact('payment', 'items', 'returs'));
+    }
 }
