@@ -212,19 +212,133 @@ class PaymentController extends Controller
      */
     public function update(Request $request, $id)
     {
-        if ($request->input('action') === 'delete') {
-            DB::table('sis_receivable')->where('treceivable_id', $id)->delete();
-            DB::table('sis_treceivable')->where('id', $id)->delete();
-            
-            session()->forget("unlocked_payment_{$id}"); // Kunci kembali setelah dihapus
-            return redirect('fincom/payment')->with('success', 'Data berhasil dihapus.');
+        $action = $request->input('action');
+
+        // 1. LOGIKA HAPUS KESELURUHAN TRANSAKSI
+        if ($action === 'delete') {
+            DB::beginTransaction();
+            try {
+                DB::table('sis_receivable')->where('treceivable_id', $id)->delete();
+                DB::table('sis_treceivable')->where('id', $id)->delete();
+                
+                DB::commit();
+                session()->forget("unlocked_payment_{$id}"); 
+                return redirect('fincom/payment')->with('success', 'Data Transaksi berhasil dihapus sepenuhnya.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
+            }
         }
 
-        // Logic Update (Sesuai dengan kebutuhan, misal retur / update nominal)
-        // ... (Bisa dikembangkan sesuai struktur update CI2) ...
+        // 2. LOGIKA SIMPAN & SIMPAN + PRINT (Header Transaksi)
+        if ($action === 'save' || $action === 'save_print') {
+            $request->validate(['tdate' => 'required|date']);
 
-        session()->forget("unlocked_payment_{$id}"); // Kunci kembali setelah update berhasil
-        return redirect('fincom/payment')->with('success', 'Data diperbarui.');
+            DB::beginTransaction();
+            try {
+                $totalCredit = DB::table('sis_receivable')
+                    ->where('treceivable_id', $id)
+                    ->where('tstat', 'paid') 
+                    ->sum('credit');
+
+                DB::table('sis_treceivable')
+                    ->where('id', $id)
+                    ->update([
+                        'tdate'    => $request->input('tdate'),
+                        'note'     => $request->input('note') ?? '',
+                        'tvalue'   => $totalCredit, 
+                        'mdate'    => now(),
+                        'mdate_by' => Auth::id() ?? 1,
+                    ]);
+
+                DB::commit();
+                session()->forget("unlocked_payment_{$id}"); // Kunci admin ditutup
+
+                if ($action === 'save_print') {
+                    return redirect('fincom/payment/reportall/' . $id);
+                }
+                
+                return redirect('fincom/payment')->with('success', 'Perubahan Informasi Pembayaran berhasil disimpan.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->with('error', 'Gagal menyimpan pembaruan: ' . $e->getMessage());
+            }
+        }
+
+        // 3. LOGIKA TOMBOL PER BARIS (Upd, Del, Retur)
+        if (str_starts_with($action, 'update_') || str_starts_with($action, 'del_') || str_starts_with($action, 'ret_')) {
+            DB::beginTransaction();
+            try {
+                $parts = explode('_', $action);
+                $cmd = $parts[0];       // Berisi: 'update', 'del', atau 'ret'
+                $detailId = $parts[1];  // Berisi ID dari tabel sis_receivable
+
+                $msg = "";
+
+                if ($cmd === 'update') {
+                    // Ambil nilai yang diketik kasir di textbox form tabel
+                    $tvalueRaw = $request->input("tvalue_{$detailId}", 0);
+                    $tvalue = (float) str_replace('.', '', $tvalueRaw);
+                    $tnote = $request->input("tnote_{$detailId}", '');
+
+                    DB::table('sis_receivable')
+                        ->where('id', $detailId)
+                        ->update([
+                            'credit'   => $tvalue,
+                            'note'     => $tnote,
+                            'mdate'    => now(),
+                            'mdate_by' => Auth::id() ?? 1
+                        ]);
+                    $msg = "Item tagihan berhasil diperbarui.";
+
+                } elseif ($cmd === 'del') {
+                    // Hapus fisik dari database
+                    DB::table('sis_receivable')->where('id', $detailId)->delete();
+                    $msg = "Item tagihan berhasil dihapus.";
+
+                } elseif ($cmd === 'ret') {
+                    // Ubah status menjadi retur (tidak dihapus fisik)
+                    DB::table('sis_receivable')
+                        ->where('id', $detailId)
+                        ->update([
+                            'tstat'    => 'retur',
+                            'mdate'    => now(),
+                            'mdate_by' => Auth::id() ?? 1
+                        ]);
+                    $msg = "Item tagihan berhasil diretur.";
+                }
+
+                // SINKRONISASI ULANG TOTAL TRANSAKSI
+                // Setiap kali baris di-update/hapus/retur, hitung ulang total struknya
+                $totalCredit = DB::table('sis_receivable')
+                    ->where('treceivable_id', $id)
+                    ->where('tstat', 'paid') 
+                    ->sum('credit');
+
+                DB::table('sis_treceivable')
+                    ->where('id', $id)
+                    ->update([
+                        'tvalue' => $totalCredit,
+                        'mdate'  => now()
+                    ]);
+
+                DB::commit();
+                
+                // CATATAN PENTING:
+                // Kita TIDAK menghapus session("unlocked_payment_{$id}") di sini.
+                // Tujuannya agar setelah tombol diklik, kasir tetap berada di halaman form edit 
+                // tanpa harus login Admin lagi secara berulang-ulang.
+                
+                return back()->with('success', $msg);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->with('error', 'Gagal memproses item: ' . $e->getMessage());
+            }
+        }
+
+        // Fallback
+        return back();
     }
 
     /**
