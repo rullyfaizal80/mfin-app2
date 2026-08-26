@@ -363,6 +363,10 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     Route::get('/edit/{id}', [PaymentController::class, 'edit'])->name('edit');
     Route::put('/update/{id}', [PaymentController::class, 'update'])->name('update');
 
+    // RUTE UNTUK UNLOCK ADMIN
+    Route::get('/unlock/{id}', [PaymentController::class, 'unlock'])->name('unlock');
+    Route::post('/unlock/{id}', [PaymentController::class, 'processUnlock'])->name('unlock.process');
+
     // Rute AJAX
     Route::get('/ajax-student', [PaymentController::class, 'ajaxStudent'])->name('ajax_student');
     

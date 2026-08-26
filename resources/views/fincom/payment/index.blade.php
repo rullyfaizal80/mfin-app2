@@ -144,15 +144,15 @@
             {{-- TOMBOL EDIT --}}
             <td class="text-center">
                 {{-- Menggunakan item_id (ID Transaksi) --}}
-                <a href="{{ url('payment/edit/'.$row->item_id) }}" class="btn btn-xs btn-warning" title="Edit">
+                <a href="{{ route('fincom.payment.edit', $row->item_id) }}" class="btn btn-xs btn-warning" title="Edit">
                     <i class="bi bi-pencil"></i>
                 </a>
             </td>
 
-            {{-- TOMBOL CETAK --}}
+           {{-- TOMBOL CETAK --}}
             <td class="text-center">
-                {{-- Menggunakan item_id (ID Transaksi) --}}
-                <a href="{{ url('payment/print/'.$row->item_id) }}" target="_blank" class="btn btn-xs btn-secondary" title="Cetak">
+                {{-- Menggunakan item_id (ID Transaksi) mengarah ke route reportall --}}
+                <a href="{{ route('fincom.payment.reportall', $row->item_id) }}" target="_blank" class="btn btn-xs btn-secondary" title="Cetak Struk">
                     <i class="bi bi-printer"></i>
                 </a>
             </td>

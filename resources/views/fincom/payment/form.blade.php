@@ -213,7 +213,7 @@ $(document).ready(function() {
         $("#student-list").slideUp(200);
     });
 
-    // FUNGSI LOAD DATA AJAX (Menggunakan GET karena hanya fetch data)
+    // FUNGSI LOAD DATA AJAX
     function loadUserPayItems(userId) {
         $.get("{{ url('fincom/payment/ajax-getuserpayid') }}/" + userId, function(data) {
             $("#userpayitem_id").html(data);
@@ -221,12 +221,21 @@ $(document).ready(function() {
     }
 
     function loadListPayment(userId) {
+        // [PERBAIKAN UX] Tampilkan indikator Loading sebelum menarik data
+        $("#list-payment").html('<div class="text-center text-primary py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div><strong>Memuat rincian tagihan...</strong></div>');
+        
         $.get("{{ url('fincom/payment/ajax-list-payment') }}/" + userId, function(data) {
             $("#list-payment").html(data);
+        }).fail(function() {
+            // Tampilkan error jika koneksi gagal
+            $("#list-payment").html('<div class="alert alert-danger text-center">Gagal memuat tagihan.</div>');
         });
     }
 
     function loadListPaymentEdit(trxId) {
+        // [PERBAIKAN UX] Tampilkan indikator Loading untuk tabel Edit
+        $("#list-payment").html('<div class="text-center text-primary py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div><strong>Memuat rincian tagihan...</strong></div>');
+        
         $.get("{{ url('fincom/payment/ajax-list-payment-edit') }}/" + trxId, function(data) {
             $("#list-payment").html(data);
         });

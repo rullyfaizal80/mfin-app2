@@ -184,11 +184,20 @@ class PaymentController extends Controller
         }
     }
 
+   /**
+     * TAMPILAN FORM EDIT (DENGAN PROTEKSI ADMIN)
+     */
     public function edit($id)
     {
+        // CEK LOCK: Jika session unlock untuk ID ini belum ada, arahkan ke halaman Unlock
+        if (!session("unlocked_payment_{$id}")) {
+            return redirect()->route('fincom.payment.unlock', $id);
+        }
+
         $payment = DB::table('sis_treceivable')->where('id', $id)->first();
         if (!$payment) abort(404);
 
+        // Ambil data siswa
         $payment->student = DB::table('sis_user as u')
             ->leftJoin('sis_student as s', 'u.id', '=', 's.id')
             ->select('u.fullname', 's.nis')
@@ -198,15 +207,67 @@ class PaymentController extends Controller
         return view('fincom.payment.form', compact('payment'));
     }
 
+    /**
+     * PROSES UPDATE ATAU DELETE
+     */
     public function update(Request $request, $id)
     {
         if ($request->input('action') === 'delete') {
             DB::table('sis_receivable')->where('treceivable_id', $id)->delete();
             DB::table('sis_treceivable')->where('id', $id)->delete();
+            
+            session()->forget("unlocked_payment_{$id}"); // Kunci kembali setelah dihapus
             return redirect('fincom/payment')->with('success', 'Data berhasil dihapus.');
         }
 
+        // Logic Update (Sesuai dengan kebutuhan, misal retur / update nominal)
+        // ... (Bisa dikembangkan sesuai struktur update CI2) ...
+
+        session()->forget("unlocked_payment_{$id}"); // Kunci kembali setelah update berhasil
         return redirect('fincom/payment')->with('success', 'Data diperbarui.');
+    }
+
+    /**
+     * TAMPILKAN FORM UNLOCK ADMIN
+     */
+    public function unlock($id)
+    {
+        $page_title = "Buka Kunci Edit Pembayaran";
+        return view('fincom.payment.unlock', compact('id', 'page_title'));
+    }
+
+    /**
+     * PROSES VALIDASI PASSWORD ADMIN
+     */
+    public function processUnlock(Request $request, $id)
+    {
+        $request->validate([
+            'admin_username' => 'required',
+            'admin_password' => 'required',
+        ]);
+
+        // Cek data admin dari tabel sis_user
+        // CATATAN: Ubah kolom 'username' jika di tabel Anda namanya berbeda (misal: 'email' atau 'userid')
+        $admin = DB::table('sis_user')
+            ->where('username', $request->admin_username)
+            ->first();
+
+        if ($admin) {
+            // [PENTING] Jika password DB lama (CI2) menggunakan MD5, gunakan: 
+            // if (md5($request->admin_password) === $admin->password) {
+            
+            // Jika sudah menggunakan enkripsi Bcrypt Laravel (standar modern), gunakan:
+            if (\Hash::check($request->admin_password, $admin->password)) { 
+                
+                // Beri tanda bahwa ID ini sudah di-unlock di session
+                session(["unlocked_payment_{$id}" => true]);
+                
+                return redirect()->route('fincom.payment.edit', $id);
+            }
+        }
+
+        // Jika gagal
+        return back()->with('error', 'Username atau Password Admin salah!');
     }
 
     /* =========================================================================
@@ -237,20 +298,24 @@ class PaymentController extends Controller
         return $html;
     }
 
-    public function ajaxGetUserPayId($idj)
+   public function ajaxGetUserPayId($idj)
     {
-        $payitems = DB::table('sis_receivable as a')
-            ->join('sis_treceivable as b', 'a.treceivable_id', '=', 'b.id')
-            ->join('sis_userpayitem as c', 'a.payitem_id', '=', 'c.id')
-            ->join('sis_payitem as d', 'c.payitem_id', '=', 'd.id')
-            ->where('a.user_id', $idj)
-            ->where('b.ttype', 'tuition')
-            ->where('a.tstat', 'unpaid')
-            ->where('c.pay_repeat', 'occasionally')
-            ->select('a.*', 'd.title', 'd.note')
-            ->get();
-
         if ($idj <= 0) return '';
+
+        // 1. Cari payitem_id yang statusnya masih unpaid untuk user ini (Sangat cepat karena index user_id)
+        $unpaidIds = DB::table('sis_receivable')
+            ->where('user_id', $idj)
+            ->where('tstat', 'unpaid')
+            ->pluck('payitem_id');
+
+        // 2. Ambil data dropdown secara mandiri
+        $payitems = DB::table('sis_userpayitem as up')
+            ->join('sis_payitem as p', 'up.payitem_id', '=', 'p.id')
+            ->where('up.user_id', $idj)
+            ->where('up.pay_repeat', 'occasionally')
+            ->whereIn('up.payitem_id', $unpaidIds)
+            ->select('p.id as payitem_id', 'p.title', 'p.note')
+            ->get();
 
         $html = '<option value="0" id="pilih">-- Pilih Jenis Pembayaran --</option>';
         foreach ($payitems as $item) {
@@ -274,55 +339,66 @@ class PaymentController extends Controller
         return response()->json($row ?: []);
     }
 
-    public function ajaxListPayment($iduser)
+   public function ajaxListPayment($iduser)
     {
-        // [REVISI] Query dimodifikasi agar lolos MySQL Strict Mode Laravel
-        $list = DB::select("
-            SELECT a.payitem_id, a.tdate, b.pay_repeat, c.title, MAX(a.note) as anote,
-            (SELECT (SUM(g.debit)-SUM(g.credit)) FROM sis_receivable g 
-             WHERE g.user_id = a.user_id AND g.payitem_id = a.payitem_id 
-             AND g.tdate = a.tdate AND g.tstat NOT LIKE '%retur%') as tot
-            FROM sis_receivable a
-            JOIN sis_userpayitem b ON a.payitem_id = b.payitem_id
-            JOIN sis_payitem c ON b.payitem_id = c.id
-            WHERE a.user_id = ? AND b.user_id = ? AND b.pay_repeat != 'occasionally'
-            GROUP BY a.payitem_id, a.tdate, b.pay_repeat, c.title, a.user_id
-        ", [$iduser, $iduser]);
+        // 1. Load setting tagihan siswa ke memori (Menghindari Full Table Scan akibat tidak ada index)
+        $userPayItems = DB::table('sis_userpayitem')
+            ->where('user_id', $iduser)
+            ->get()
+            ->keyBy('payitem_id');
 
-        $html = '<table class="table table-sm table-bordered mt-2">';
+        // 2. Ambil referensi master nama tagihan
+        $payItemsMaster = DB::table('sis_payitem')->get()->keyBy('id');
+
+        // 3. Query Agregasi Murni (Hanya query ke 1 tabel yang punya Index)
+        $receivables = DB::table('sis_receivable')
+            ->select('payitem_id', 'tdate', DB::raw('MAX(note) as anote'), DB::raw('(SUM(debit) - SUM(credit)) as tot'))
+            ->where('user_id', $iduser)
+            ->where('tstat', '!=', 'retur') 
+            ->groupBy('payitem_id', 'tdate')
+            ->having('tot', '>', 0)
+            ->orderBy('tdate', 'asc')
+            ->get();
+
+        $html = '<table class="table table-sm table-bordered mt-2 align-middle">';
         $html .= '<thead class="table-light"><tr>
                     <th>Jenis Piutang</th>
                     <th width="150">Nilai Tagihan</th>
-                    <!-- PERBAIKAN: Perlebar width dan cegah wrap pada Tanggal & Tunai -->
-                    <th width="120" style="white-space: nowrap;">Tanggal</th>
+                    <th width="120" style="white-space: nowrap;">Tanggal Piutang</th>
                     <th width="80" class="text-center" style="white-space: nowrap;">Tunai</th>
                     <th>Note</th>
                   </tr></thead><tbody>';
 
         $a = 0;
-        foreach ($list as $l) {
-            if ($l->tot > 0) {
-                $tgl = date('d M Y', strtotime($l->tdate));
-                $html .= "<tr>";
-                $html .= "<td>
-                            <div class='form-check'>
-                                <input class='form-check-input list-box' type='checkbox' name='cheked_{$a}' id='cheked_{$a}' value='check' no='{$a}'>
-                                <label class='form-check-label'>{$l->title}</label>
-                            </div>
-                            <input type='hidden' name='userpayitem_id_{$a}' value='{$l->payitem_id}'>
-                          </td>";
-                $html .= "<td>
-                            <input type='text' name='tvaluee_{$a}' id='tvaluee_{$a}' class='form-control form-control-sm text-end listvalue' value='".number_format($l->tot, 0, ',', '.')."' no='{$a}'>
-                            <input type='hidden' id='payvalue_{$a}' value='{$l->tot}'>
-                          </td>";
-                // PERBAIKAN: Tambahkan white-space: nowrap pada sel Tanggal agar teks "15 Aug 2026" tidak turun baris
-                $html .= "<td class='text-center' style='white-space: nowrap;'>{$tgl}<input type='hidden' name='tdatee_{$a}' value='{$l->tdate}'></td>";
-                $html .= "<td class='text-center'><input type='checkbox' name='is_cash_{$a}' value='yes' checked></td>";
-                $html .= "<td><input type='text' name='tnotee_{$a}' class='form-control form-control-sm' value='{$l->anote}'></td>";
-                $html .= "</tr>";
-                $a++;
+        foreach ($receivables as $l) {
+            // Filter: Abaikan jika pay_repeat = occasionally
+            $up = $userPayItems->get($l->payitem_id);
+            if ($up && $up->pay_repeat == 'occasionally') {
+                continue; 
             }
+
+            $title = $payItemsMaster->has($l->payitem_id) ? $payItemsMaster->get($l->payitem_id)->title : 'Unknown';
+            $tgl = date('d M Y', strtotime($l->tdate));
+            
+            $html .= "<tr>";
+            $html .= "<td>
+                        <div class='form-check'>
+                            <input class='form-check-input list-box' type='checkbox' name='cheked_{$a}' id='cheked_{$a}' value='check' no='{$a}'>
+                            <label class='form-check-label'>{$title}</label>
+                        </div>
+                        <input type='hidden' name='userpayitem_id_{$a}' value='{$l->payitem_id}'>
+                      </td>";
+            $html .= "<td>
+                        <input type='text' name='tvaluee_{$a}' id='tvaluee_{$a}' class='form-control form-control-sm text-end listvalue' value='".number_format($l->tot, 0, ',', '.')."' no='{$a}'>
+                        <input type='hidden' id='payvalue_{$a}' value='{$l->tot}'>
+                      </td>";
+            $html .= "<td class='text-center' style='white-space: nowrap;'>{$tgl}<input type='hidden' name='tdatee_{$a}' value='{$l->tdate}'></td>";
+            $html .= "<td class='text-center'><input type='checkbox' name='is_cash_{$a}' value='yes' checked></td>";
+            $html .= "<td><input type='text' name='tnotee_{$a}' class='form-control form-control-sm' value='{$l->anote}'></td>";
+            $html .= "</tr>";
+            $a++;
         }
+        
         $html .= '</tbody></table>';
         $html .= "<input type='hidden' name='value_row' id='value_row' value='{$a}'>";
 
@@ -331,9 +407,79 @@ class PaymentController extends Controller
         return $html;
     }
 
-    public function ajaxListPaymentEdit($trxId)
+   public function ajaxListPaymentEdit($trxId)
     {
-        return "<div class='alert alert-info text-center'>Menampilkan Tagihan Edit ID: {$trxId}</div>";
+        // 1. Ambil rincian tagihan dari database
+        $list = DB::table('sis_receivable as a')
+            ->join('sis_userpayitem as b', function($join) {
+                $join->on('a.user_id', '=', 'b.user_id')
+                     ->on('a.payitem_id', '=', 'b.payitem_id');
+            })
+            ->join('sis_payitem as c', 'b.payitem_id', '=', 'c.id')
+            ->select('a.*', 'b.pay_repeat', 'c.title')
+            ->where('a.treceivable_id', $trxId)
+            ->get();
+
+        // 2. Bangun Header Tabel
+        $html = '<table class="table table-sm table-bordered mt-2 align-middle">';
+        $html .= '<thead class="table-light"><tr>
+                    <th>Jenis Piutang</th>
+                    <th width="150">Nilai</th>
+                    <th width="120" style="white-space: nowrap;">Tanggal Piutang</th>
+                    <th>Note</th>
+                    <th width="160" class="text-center">Aksi</th>
+                  </tr></thead><tbody>';
+
+        // 3. Bangun Isi Tabel (Looping Data)
+        if ($list->isEmpty()) {
+            $html .= '<tr><td colspan="5" class="text-center text-muted py-3">Tidak ada rincian tagihan.</td></tr>';
+        } else {
+            foreach ($list as $l) {
+                $isRetur = ($l->tstat === 'retur');
+                $bgClass = $isRetur ? 'bg-light text-muted' : '';
+                $tgl = date('d M Y', strtotime($l->tdate));
+                $creditFormat = number_format($l->credit, 0, ',', '.');
+                
+                $html .= "<tr class='{$bgClass}'>";
+                
+                // Kolom Jenis Piutang
+                $html .= "<td>{$l->title}<input type='hidden' name='payitem_id_{$l->id}' value='{$l->payitem_id}'></td>";
+                
+                if ($isRetur) {
+                    // Tampilan jika statusnya RETUR (di-disable / tidak bisa diedit)
+                    $html .= "<td><input type='text' class='form-control form-control-sm text-end' value='{$creditFormat}' disabled></td>";
+                    $html .= "<td class='text-center' style='white-space: nowrap;'>{$tgl}</td>";
+                    $html .= "<td><input type='text' class='form-control form-control-sm' value='{$l->note}' disabled></td>";
+                    $html .= "<td class='text-center fw-bold text-danger' style='font-size: 12px;'>-- RETUR --</td>";
+                } else {
+                    // Tampilan normal (bisa diedit)
+                    $html .= "<td>
+                                <input type='text' name='tvalue_{$l->id}' class='form-control form-control-sm text-end' value='{$creditFormat}'>
+                              </td>";
+                    $html .= "<td class='text-center' style='white-space: nowrap;'>
+                                {$tgl}<input type='hidden' name='date_{$l->id}' value='{$l->tdate}'>
+                              </td>";
+                    $html .= "<td>
+                                <input type='text' name='tnote_{$l->id}' class='form-control form-control-sm' value='{$l->note}'>
+                              </td>";
+                    
+                    // Kolom Tombol Aksi (Upd, Del, Retur)
+                    $html .= "<td class='text-center'>
+                                <div class='btn-group btn-group-sm'>
+                                    <button type='submit' name='action' value='update_{$l->id}' class='btn btn-outline-primary' title='Update'>Upd</button>
+                                    <button type='submit' name='action' value='del_{$l->id}' class='btn btn-outline-danger' title='Delete' onclick=\"return confirm('Hapus item ini?')\">Del</button>
+                                    <button type='submit' name='action' value='ret_{$l->id}' class='btn btn-outline-warning' title='Retur' onclick=\"return confirm('Retur item ini?')\">Retur</button>
+                                </div>
+                              </td>";
+                }
+                
+                $html .= "</tr>";
+            }
+        }
+        
+        $html .= '</tbody></table>';
+
+        return $html;
     }
 
     /**
