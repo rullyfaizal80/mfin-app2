@@ -398,6 +398,10 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
 
     // TAMBAHKAN RUTE INI: Rute Daftar Pembayaran Rinci Per Siswa
     Route::get('/listyear/{user_id}/{year?}', [PaymentController::class, 'listYear'])->name('listyear');
+
+    // Rute Laporan Rekap Piutang
+    Route::get('/recaprec', [PaymentController::class, 'recapRec'])->name('recaprec');
+    Route::get('/recaprec/print', [PaymentController::class, 'printRecapRec'])->name('recaprec.print');
 });
 
 });

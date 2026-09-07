@@ -875,4 +875,120 @@ class PaymentController extends Controller
 
         return view('fincom.payment.listyear', compact('student', 'year', 'rcvs', 'page_title'));
     }
+
+    /**
+     * TAMPILAN FILTER & DATA REKAP PIUTANG PER KOMPONEN (DIOPTIMASI)
+     */
+    public function recapRec(Request $request)
+    {
+        $year = $request->input('year', date('Y'));
+        $fpayitem = $request->input('fpayitem', 'all');
+        $isFilter = $request->has('filter');
+
+        $payitems = DB::table('sis_payitem')
+            ->select('id', 'title')
+            ->where('payitem_user', 'student')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $receivables = collect();
+        $grandTotal = 0;
+
+        if ($isFilter) {
+            // OPTIMASI 1: Konversi Tahun ke Rentang Tanggal agar Index MySQL bekerja
+            $startDate = $year . '-01-01';
+            $endDate = $year . '-12-31';
+
+            $query = DB::table('sis_receivable as r')
+                ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+                ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+                ->leftJoin('sis_v_classuser as cu', 'cu.user_id', '=', 'r.user_id')
+                ->select(
+                    'u.fullname',
+                    'p.title as komponen',
+                    'r.user_id',
+                    'r.payitem_id',
+                    DB::raw('MAX(cu.class_title) as class'),
+                    DB::raw('MAX(r.ref_no) as ref_no'),
+                    DB::raw('MAX(r.note) as note'),
+                    DB::raw('MAX(r.tdate) as tdate'),
+                    DB::raw('SUM(r.debit) - SUM(r.credit) as payment')
+                )
+                // Menggunakan komparasi tanggal normal, bukan whereYear
+                ->whereDate('r.tdate', '>=', $startDate)
+                ->whereDate('r.tdate', '<=', $endDate);
+
+            if ($fpayitem !== 'all') {
+                $query->where('r.payitem_id', $fpayitem);
+            }
+
+            $query->groupBy('r.payitem_id', 'r.user_id', 'u.fullname', 'p.title')
+                  ->havingRaw('SUM(r.debit) - SUM(r.credit) > 0');
+
+            // OPTIMASI 2: Hitung Grand Total menggunakan Subquery DB (Jauh lebih hemat RAM)
+            $queryForTotal = clone $query;
+            $grandTotal = DB::query()->fromSub($queryForTotal, 'sub')->sum('payment');
+
+            $receivables = $query->orderBy('u.fullname', 'asc')->paginate(20)->withQueryString();
+        }
+
+        $page_title = "Rekap Piutang Per Komponen";
+
+        return view('fincom.payment.recaprec', compact(
+            'year', 'fpayitem', 'payitems', 'page_title', 'receivables', 'grandTotal', 'isFilter'
+        ));
+    }
+
+    /**
+     * FUNGSI CETAK LAPORAN REKAP PIUTANG (FORMAT A4) (DIOPTIMASI)
+     */
+    public function printRecapRec(Request $request)
+    {
+        $year = $request->input('year', date('Y'));
+        $fpayitem = $request->input('fpayitem', 'all');
+
+        $startDate = $year . '-01-01';
+        $endDate = $year . '-12-31';
+
+        $query = DB::table('sis_receivable as r')
+            ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+            ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+            ->leftJoin('sis_v_classuser as cu', 'cu.user_id', '=', 'r.user_id')
+            ->select(
+                'u.fullname',
+                'p.title as komponen',
+                'r.user_id',
+                'r.payitem_id',
+                DB::raw('MAX(cu.class_title) as class'),
+                DB::raw('MAX(r.ref_no) as ref_no'),
+                DB::raw('MAX(r.note) as note'),
+                DB::raw('MAX(r.tdate) as tdate'),
+                DB::raw('SUM(r.debit) - SUM(r.credit) as payment')
+            )
+            ->whereDate('r.tdate', '>=', $startDate)
+            ->whereDate('r.tdate', '<=', $endDate);
+
+        if ($fpayitem !== 'all') {
+            $query->where('r.payitem_id', $fpayitem);
+        }
+
+        $query->groupBy('r.payitem_id', 'r.user_id', 'u.fullname', 'p.title')
+              ->havingRaw('SUM(r.debit) - SUM(r.credit) > 0')
+              ->orderBy('u.fullname', 'asc');
+
+        $receivables = $query->get();
+        $grandTotal = $receivables->sum('payment');
+
+        $payitemName = "Semua Komponen";
+        if ($fpayitem !== 'all') {
+            $pitem = DB::table('sis_payitem')->where('id', $fpayitem)->first();
+            if ($pitem) $payitemName = $pitem->title;
+        }
+
+        $page_title = "Rekap Piutang Per Komponen";
+
+        return view('fincom.payment.p_recaprec', compact(
+            'year', 'payitemName', 'page_title', 'receivables', 'grandTotal'
+        ));
+    }
 } // <-- Ini adalah kurung kurawal penutup class PaymentController
