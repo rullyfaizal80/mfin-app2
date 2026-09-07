@@ -13,10 +13,9 @@
             background-color: #f4f6f9;
         }
 
-        /* Diubah menjadi 297mm untuk kertas A4 Landscape (Mendatar) */
         .report-container {
-            width: 297mm; 
-            min-height: 210mm;
+            width: 210mm;
+            min-height: 297mm;
             margin: 0 auto;
             background: #fff;
             padding: 15mm;
@@ -43,22 +42,21 @@
             body { background-color: #fff; padding: 0; }
             .report-container { box-shadow: none; border: none; margin: 0; width: 100%; padding: 0;}
             .no-print { display: none; }
-            /* Memaksa browser mencetak dalam format kertas Landscape */
-            @page { size: A4 landscape; margin: 10mm; } 
+            @page { size: A4 portrait; margin: 10mm; }
         }
     </style>
 </head>
 <body>
 
-    {{-- Tombol Aksi (Tidak ikut tercetak) --}}
-    <div class="no-print" style="width: 297mm; margin: 0 auto 15px auto; text-align: right;">
+    {{-- Tombol Aksi (Tidak ikut tercetak ke kertas) --}}
+    <div class="no-print" style="width: 210mm; margin: 0 auto 15px auto; text-align: right;">
         <button onclick="window.print()" class="btn-action" style="background: #0d6efd;">🖨️ Cetak Laporan</button>
         <button onclick="window.close()" class="btn-action" style="background: #6c757d;">Tutup</button>
     </div>
 
     <div class="report-container">
         
-        {{-- Header Yayasan Konsisten --}}
+        {{-- Header Yayasan --}}
         <table border="0" cellspacing="0" cellpadding="0" style="border-bottom: 3px solid #000; margin-bottom: 20px; padding-bottom: 10px;">
             <tr>
                 <td width="80" align="left" valign="middle">
@@ -77,11 +75,11 @@
         </div>
 
         {{-- Info Siswa --}}
-        <table class="info-table" style="width: 50%; margin-bottom: 20px;">
+        <table class="info-table" style="width: 60%; margin-bottom: 20px;">
             <tr>
-                <td width="30%"><strong>Nama Siswa</strong></td>
+                <td width="25%"><strong>Nama Siswa</strong></td>
                 <td width="5%">:</td>
-                <td width="65%">{{ $student->fullname }}</td>
+                <td width="70%">{{ $student->fullname }}</td>
             </tr>
             <tr>
                 <td><strong>Kelas</strong></td>
@@ -89,80 +87,51 @@
                 <td>{{ $student->kelas }} {{ $student->tgroup }} {{ $student->tsubject }}</td>
             </tr>
             <tr>
-                <td><strong>Tahun Pembayaran</strong></td>
+                <td><strong>Tahun</strong></td>
                 <td>:</td>
                 <td>{{ $year }}</td>
             </tr>
         </table>
 
-        {{-- Tabel Data Matriks 12 Bulan --}}
+        {{-- Tabel Data Rincian Pembayaran --}}
         <table class="table-data">
             <thead>
                 <tr>
-                    <th width="3%">No</th>
-                    <th width="15%">Pembayaran</th>
-                    <th width="6%">Jan</th>
-                    <th width="6%">Feb</th>
-                    <th width="6%">Mar</th>
-                    <th width="6%">Apr</th>
-                    <th width="6%">Mei</th>
-                    <th width="6%">Jun</th>
-                    <th width="6%">Jul</th>
-                    <th width="6%">Ags</th>
-                    <th width="6%">Sep</th>
-                    <th width="6%">Okt</th>
-                    <th width="6%">Nov</th>
-                    <th width="6%">Des</th>
-                    <th width="7%">Total</th>
+                    <th width="5%">No</th>
+                    <th width="15%">Tanggal</th>
+                    <th width="25%">Referensi</th>
+                    <th width="35%">Jenis Pembayaran (Komponen)</th>
+                    <th width="20%">Nilai (Rp)</th>
                 </tr>
             </thead>
             <tbody>
-                @php
-                    $n = 1;
-                    $totalall = 0;
-                    $totalBulan = array_fill(1, 12, 0);
+                @php 
+                    $no = 1;
+                    $tot = 0;
                 @endphp
-
-                @forelse($lrcv as $rcv)
+                
+                @forelse($rcvs as $row)
                     <tr>
-                        <td align="center"><strong>{{ $n++ }}</strong></td>
-                        <td>{{ $rcv['title'] }}</td>
-
-                        @php $subtot = 0; @endphp
-                        @for($m = 1; $m <= 12; $m++)
-                            @php
-                                $val = $rcv['mons'][$m];
-                                $subtot += $val;
-                                $totalBulan[$m] += $val;
-                            @endphp
-                            <td align="right">{{ $val > 0 ? number_format($val, 0, ',', '.') : '0' }}</td>
-                        @endfor
-
-                        @php $totalall += $subtot; @endphp
-                        <td align="right" style="font-weight: bold; background-color: #f9f9f9;">
-                            {{ number_format($subtot, 0, ',', '.') }}
-                        </td>
-                    </tr>
+                        <td align="center">{{ $no++ }}</td>
+                        <td align="center">{{ date('d/m/Y', strtotime($row->tdate)) }}</td>
+                        <td>{{ $row->ref_no }}</td>
+                        <td>{{ $row->title }}</td>
+                        <td align="right">{{ number_format($row->payment, 0, ',', '.') }}</td>
+                    </tr>      
+                    @php $tot += $row->payment; @endphp
                 @empty
                     <tr>
-                        <td colspan="15" align="center" style="padding: 20px;">Belum ada data pembayaran di tahun ini.</td>
+                        <td colspan="5" align="center" style="padding: 20px;">Belum ada data rincian pembayaran di tahun {{ $year }}.</td>
                     </tr>
                 @endforelse
-
+                
                 {{-- Total Keseluruhan --}}
-                @if(count($lrcv) > 0)
                 <tr>
-                    <td colspan="2" align="center" style="font-size: 13px; font-weight: bold; background-color: #f0f0f0;">TOTAL KESELURUHAN</td>
-                    @for($m = 1; $m <= 12; $m++)
-                        <td align="right" style="font-size: 12px; font-weight: bold; background-color: #f0f0f0;">
-                            {{ number_format($totalBulan[$m], 0, ',', '.') }}
-                        </td>
-                    @endfor
-                    <td align="right" style="font-size: 13px; font-weight: bold; background-color: #f0f0f0; color: #198754;">
-                        {{ number_format($totalall, 0, ',', '.') }}
+                    <td colspan="4" align="right" style="font-size: 14px; font-weight: bold; background-color: #f0f0f0;">TOTAL PEMBAYARAN :</td>
+                    <td align="right" style="font-size: 14px; font-weight: bold; background-color: #f0f0f0; color: #198754;">
+                        {{ number_format($tot, 0, ',', '.') }}
                     </td>
                 </tr>
-                @endif
             </tbody>
         </table>
 

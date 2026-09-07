@@ -661,9 +661,8 @@ class PaymentController extends Controller
 
         if (!$student) abort(404, 'Data Siswa tidak ditemukan.');
 
-        // 2. Query Agregasi Bulanan (Sangat Cepat Berkat USE INDEX)
-        // Setara dengan query CI2 yang mengabaikan status 'retur' dan mencari 'tuition'
-        $rcvs = DB::table(DB::raw('sis_receivable USE INDEX (user_id)'))
+        // 2. Query Agregasi Bulanan (Tanpa USE INDEX paksa)
+        $rcvs = DB::table('sis_receivable')
             ->join('sis_payitem as p', 'p.id', '=', 'sis_receivable.payitem_id')
             ->select(
                 'p.id as payitem_id',
@@ -798,5 +797,82 @@ class PaymentController extends Controller
         return view('fincom.payment.print_recapitem', compact(
             'month', 'year', 'fpayitem', 'page_title', 'reports', 'grandTotal'
         ));
+    }
+
+    /**
+     * TAMPILAN FILTER LAPORAN PEMBAYARAN PER SISWA
+     */
+    public function report(Request $request)
+    {
+        $year = $request->input('year', date('Y'));
+        $fnis = $request->input('fnis');
+        $userId = $request->input('user_id');
+
+        // [PERBAIKAN] Jika kotak teks NIS/Nama dikosongkan, paksa user_id menjadi null 
+        // agar sistem mengabaikan filter spesifik dan menampilkan SEMUA siswa.
+        if (empty($fnis)) {
+            $userId = null;
+        }
+
+        // Query mengambil data siswa yang punya transaksi pembayaran di tahun tersebut
+        $query = DB::table('sis_treceivable as tr')
+            ->join('sis_user as u', 'tr.user_id', '=', 'u.id')
+            ->select('tr.user_id', 'u.fullname', DB::raw('SUM(tr.tvalue) as total'))
+            ->where('tr.ttype', 'like', '%tuition%')
+            ->where('tr.is_posted', 'yes')
+            ->whereYear('tr.tdate', $year)
+            ->groupBy('tr.user_id', 'u.fullname');
+
+        // Jika ada pencarian nama siswa spesifik (dan teks fnis tidak kosong)
+        if ($userId) {
+            $query->where('tr.user_id', $userId);
+        }
+
+        $students = $query->orderBy('u.fullname', 'asc')->paginate(20)->withQueryString();
+        $page_title = "Rekap Pembayaran Per Siswa";
+
+        return view('fincom.payment.report', compact('year', 'userId', 'fnis', 'students', 'page_title'));
+    }
+
+    /**
+     * DAFTAR PEMBAYARAN RINCI SISWA PER TAHUN
+     */
+    public function listYear($userId, $year = null)
+    {
+        if (!$year) $year = date('Y');
+
+        // 1. Ambil Data Siswa beserta Kelas & Grupnya
+        $student = DB::table('sis_user as u')
+            ->leftJoin('sis_class_user as cu', 'u.id', '=', 'cu.user_id')
+            ->leftJoin('sis_class_list as cl', 'cu.class_list_id', '=', 'cl.id')
+            ->leftJoin('sis_cgroup as cg', 'cl.cgroup_id', '=', 'cg.id')
+            ->leftJoin('sis_csubject as cs', 'cl.csubject_id', '=', 'cs.id')
+            ->select('u.fullname', 'cl.title as kelas', 'cg.title as tgroup', 'cs.title as tsubject')
+            ->where('u.id', $userId)
+            ->first();
+
+        if (!$student) abort(404, 'Data Siswa tidak ditemukan.');
+
+        // 2. Query Rincian Pembayaran
+        // Setara dengan query CI2 yang mengabaikan 'retur' dan mencari 'tuition'
+        $rcvs = DB::table('sis_receivable as r')
+            ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+            ->select(
+                'p.title',
+                'r.tdate',
+                'r.ref_no',
+                'r.credit as payment'
+            )
+            ->where('r.user_id', $userId)
+            ->where('r.credit', '>', 0)
+            ->where('p.payitem_type', 'tuition')
+            ->whereYear('r.tdate', $year)
+            ->where('r.tstat', '!=', 'retur')
+            ->orderBy('r.tdate', 'asc')
+            ->get();
+
+        $page_title = "Rekap Pembayaran Siswa Tahunan";
+
+        return view('fincom.payment.listyear', compact('student', 'year', 'rcvs', 'page_title'));
     }
 } // <-- Ini adalah kurung kurawal penutup class PaymentController

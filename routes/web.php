@@ -386,5 +386,13 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     Route::get('/recapitem', [PaymentController::class, 'recapItem'])->name('recapitem');
     Route::post('/recapitem', [PaymentController::class, 'recapItem'])->name('recapitem.filter');
     Route::get('/recapitem/print', [PaymentController::class, 'printRecapItem'])->name('recapitem.print');
+    // Rute Laporan Pembayaran Per Siswa (Filter Induk)
+    Route::get('/report', [PaymentController::class, 'report'])->name('report');
+
+    // Rute Rekap Tahunan 12 Bulan Per Siswa
+    Route::get('/recapyear/{user_id}/{year?}', [PaymentController::class, 'recapYear'])->name('recapyear');
+
+    // TAMBAHKAN RUTE INI: Rute Daftar Pembayaran Rinci Per Siswa
+    Route::get('/listyear/{user_id}/{year?}', [PaymentController::class, 'listYear'])->name('listyear');
 });
 });
