@@ -39,12 +39,23 @@
 
         .info-table td { border: none; padding: 3px 0; font-size: 13px; }
 
-        @media print {
-            body { background-color: #fff; padding: 0; }
-            .report-container { box-shadow: none; border: none; margin: 0; width: 100%; padding: 0;}
-            .no-print { display: none; }
-            /* Memaksa browser mencetak dalam format kertas Landscape */
-            @page { size: A4 landscape; margin: 10mm; } 
+       @media print {
+            body, html { background-color: #fff; padding: 0; margin: 0; }
+            .report-container { 
+                box-shadow: none; 
+                border: none; 
+                margin: 0; 
+                width: 100%; 
+                padding: 0;
+                min-height: auto !important; /* Menghapus paksaan tinggi */
+                height: auto !important;
+            }
+            .no-print { display: none !important; }
+            @page { size: A4 landscape; margin: 10mm; }
+            
+            /* Mencegah tabel terpotong di tengah baris jika datanya banyak */
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
         }
     </style>
 </head>
