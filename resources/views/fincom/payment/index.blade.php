@@ -179,6 +179,11 @@
 <script>
     $(document).ready(function() {
         
+        // Setup CSRF token (wajib untuk POST di Laravel)
+        $.ajaxSetup({
+            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+        });
+
         // 1. Logika Klik Tombol "Cari"
         $("#fnis_btn").click(function(){
             var keyword = $("#fnis").val();
@@ -186,39 +191,26 @@
             // Tampilkan loading/text sementara
             $("#student-list").html('<div class="p-2 text-center text-muted">Mencari...</div>').slideDown(100);
 
-            // AJAX Request ke Laravel Route
-            $.get("{{ route('fincom.payment.ajax_student') }}", { q: keyword }, function(data){
-                var html = '';
-                
-                if(data.length > 0) {
-                    $.each(data, function(index, item){
-                        // Format tampilan per item dropdown
-                        html += '<div class="res-fnis-item" ' +
-                                    'data-id="' + item.id + '" ' +
-                                    'data-name="' + item.fullname + '" ' +
-                                    'data-nis="' + item.nis + '">' +
-                                    '<strong>' + item.nis + '</strong> - ' + item.fullname + 
-                                '</div>';
-                    });
-                } else {
-                    html = '<div class="p-2 text-center text-danger">Data tidak ditemukan</div>';
-                }
-
-                $("#student-list").html(html);
+            // AJAX Request (Gunakan POST ke ajax-getnis agar seragam dengan form.blade.php)
+            $.post("{{ url('fincom/payment/ajax-getnis') }}", { nis: keyword }, function(data){
+                // Controller ajaxGetNis sudah me-return HTML lengkap, jadi tinggal kita masukkan
+                $("#student-list").html(data);
+            }).fail(function() {
+                $("#student-list").html('<div class="p-2 text-center text-danger">Gagal menghubungi server.</div>');
             });
         });
 
-        // 2. Logika Klik Item Hasil Pencarian
+        // 2. Logika Klik Item Hasil Pencarian (Menggunakan atribut data dari ajaxGetNis)
         $(document).on("click", ".res-fnis-item", function() {
-            var userId = $(this).data('id');
-            var userName = $(this).data('name');
-            var userNis = $(this).data('nis');
+            var userId = $(this).attr('data-user_id');
+            var userName = $(this).attr('data-user_name');
+            var userNis = $(this).attr('data-user_nis');
 
             // Masukkan nilai ke input
-            $("#fnis").val(userNis + ' - ' + userName); // Tampilkan NIS - Nama di box
-            $("#user_id").val(userId); // Simpan ID di hidden input
+            $("#fnis").val(userNis + ' - ' + userName); // Tampilkan NIS - Nama di box pencarian utama
+            $("#user_id").val(userId); // Simpan ID di hidden input untuk keperluan Filter (Submit)
 
-            // Sembunyikan list
+            // Sembunyikan list dropdown
             $("#student-list").slideUp(200);
         });
 
@@ -228,6 +220,14 @@
             var btn = $("#fnis_btn");
             if (!container.is(e.target) && container.has(e.target).length === 0 && !btn.is(e.target)) {
                 container.slideUp(200);
+            }
+        });
+
+        // 4. (Opsional) Trigger pencarian jika user menekan tombol 'Enter' pada kotak teks
+        $("#fnis").keypress(function(e) {
+            if(e.which == 13) {
+                e.preventDefault(); // Mencegah form langsung submit
+                $("#fnis_btn").click();
             }
         });
 

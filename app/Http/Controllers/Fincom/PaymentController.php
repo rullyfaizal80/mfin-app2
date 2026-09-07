@@ -641,4 +641,121 @@ class PaymentController extends Controller
         // Jangan lupa variabel $blmLunas juga dihapus dari compact()
         return view('fincom.payment.reportall', compact('payment', 'items', 'returs'));
     }
-}
+
+    /**
+     * LAPORAN REKAP PEMBAYARAN TAHUNAN (12 BULAN)
+     */
+    public function recapYear($userId, $year = null)
+    {
+        if (!$year) $year = date('Y');
+
+        // 1. Ambil Data Siswa beserta Kelas & Grupnya
+        $student = DB::table('sis_user as u')
+            ->leftJoin('sis_class_user as cu', 'u.id', '=', 'cu.user_id')
+            ->leftJoin('sis_class_list as cl', 'cu.class_list_id', '=', 'cl.id')
+            ->leftJoin('sis_cgroup as cg', 'cl.cgroup_id', '=', 'cg.id')
+            ->leftJoin('sis_csubject as cs', 'cl.csubject_id', '=', 'cs.id')
+            ->select('u.fullname', 'cl.title as kelas', 'cg.title as tgroup', 'cs.title as tsubject')
+            ->where('u.id', $userId)
+            ->first();
+
+        if (!$student) abort(404, 'Data Siswa tidak ditemukan.');
+
+        // 2. Query Agregasi Bulanan (Sangat Cepat Berkat USE INDEX)
+        // Setara dengan query CI2 yang mengabaikan status 'retur' dan mencari 'tuition'
+        $rcvs = DB::table(DB::raw('sis_receivable USE INDEX (user_id)'))
+            ->join('sis_payitem as p', 'p.id', '=', 'sis_receivable.payitem_id')
+            ->select(
+                'p.id as payitem_id',
+                'p.title',
+                DB::raw('MONTH(sis_receivable.tdate) as mon'),
+                DB::raw('SUM(sis_receivable.credit) as payment')
+            )
+            ->where('sis_receivable.user_id', $userId)
+            ->where('sis_receivable.credit', '>', 0)
+            ->where('p.payitem_type', 'tuition')
+            ->whereYear('sis_receivable.tdate', $year)
+            ->where('sis_receivable.tstat', '!=', 'retur')
+            ->groupBy('p.id', 'p.title', DB::raw('MONTH(sis_receivable.tdate)'))
+            ->orderBy('sis_receivable.tdate', 'asc')
+            ->get();
+
+        // 3. Transformasi ke format Array 12 Bulan (Sama seperti logika array $lrcv di CI2)
+        $lrcv = [];
+        foreach ($rcvs as $rcv) {
+            // Jika ID payitem belum ada di array, buat default 12 bulan berisi angka 0
+            if (!isset($lrcv[$rcv->payitem_id])) {
+                $lrcv[$rcv->payitem_id] = [
+                    'title' => $rcv->title,
+                    'mons'  => array_fill(1, 12, 0) 
+                ];
+            }
+            // Isi bulan yang sesuai dengan nominal pembayarannya
+            $lrcv[$rcv->payitem_id]['mons'][(int)$rcv->mon] += $rcv->payment;
+        }
+
+        $page_title = "Rekap Pembayaran Siswa Tahunan";
+
+        return view('fincom.payment.recapyear', compact('student', 'year', 'lrcv', 'page_title'));
+    }
+
+    /**
+     * TAMPILAN FILTER & DATA REKAP PEMBAYARAN PER KOMPONEN
+     */
+    public function recapItem(Request $request)
+    {
+        $month = $request->input('month', date('m'));
+        $year = $request->input('year', date('Y'));
+        $fpayitem = $request->input('fpayitem', '0');
+        
+        // Cek apakah user sudah mengklik tombol filter
+        $isFilter = $request->input('filter'); 
+
+        // 1. Ambil daftar komponen untuk dropdown
+        $payitems = DB::table('sis_payitem')
+            ->select('id', 'title')
+            ->where('payitem_user', 'student')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $reports = collect(); // Default kosong
+        $grandTotal = 0;
+
+        // 2. Hanya jalankan Query jika tombol "Tampilkan" sudah diklik
+        if ($isFilter) {
+            $query = DB::table('sis_receivable as r')
+                ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+                ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+                ->leftJoin('sis_v_classuser as vc', 'vc.user_id', '=', 'u.id')
+                ->select(
+                    'r.id', 'r.ref_no', 'r.note', 'p.title as payitem', 
+                    'u.fullname', 'r.tdate', 'r.credit as payment', 'vc.class_title'
+                )
+                ->where('r.credit', '>', 0)
+                ->where('r.tstat', '!=', 'retur')
+                // [PENCEGAHAN LOAN] Hanya ambil data yang referensinya pembayaran (PYM)
+                ->where('r.ref_no', 'like', 'PYM%') 
+                ->whereMonth('r.tdate', $month)
+                ->whereYear('r.tdate', $year);
+
+            // Filter komponen jika tidak "Semua"
+            if ($fpayitem != '0') {
+                $query->where('p.id', $fpayitem);
+            }
+
+            // Hitung Grand Total sebelum data dipotong oleh pagination
+            $grandTotal = $query->sum('r.credit');
+
+            // Gunakan pagination (misal 50 baris per halaman) dan bawa parameter pencarian di URL
+            $reports = $query->orderBy('vc.class_title', 'asc')
+                             ->orderBy('u.fullname', 'asc')
+                             ->paginate(10)->withQueryString();
+        }
+
+        $page_title = "Rekap Pembayaran per Komponen";
+
+        return view('fincom.payment.recapitem', compact(
+            'month', 'year', 'fpayitem', 'payitems', 'page_title', 'reports', 'grandTotal', 'isFilter'
+        ));
+    }
+} // <-- Ini adalah kurung kurawal penutup class PaymentController

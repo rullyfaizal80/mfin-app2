@@ -381,5 +381,9 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     
     // TAMBAHKAN INI UNTUK STRUK PRINT
     Route::get('/reportall/{id}', [PaymentController::class, 'reportall'])->name('reportall');
+
+    // Rute Laporan Rekap Pembayaran per Komponen (Filter View)
+    Route::get('/recapitem', [PaymentController::class, 'recapItem'])->name('recapitem');
+    Route::post('/recapitem', [PaymentController::class, 'recapItem'])->name('recapitem.filter');
 });
 });
