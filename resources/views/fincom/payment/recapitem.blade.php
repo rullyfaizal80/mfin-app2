@@ -83,9 +83,9 @@
                     
                     {{-- Tombol Cetak hanya muncul di sebelah filter jika ada data --}}
                     @if($isFilter && count($reports) > 0)
-                        <button type="button" onclick="window.print()" class="btn btn-secondary btn-sm w-100" title="Cetak Laporan">
+                        <a href="{{ route('fincom.payment.recapitem.print', ['month' => $month, 'year' => $year, 'fpayitem' => $fpayitem]) }}" target="_blank" class="btn btn-secondary btn-sm w-100" title="Cetak Laporan">
                             <i class="bi bi-printer"></i> Cetak
-                        </button>
+                        </a>
                     @endif
                 </div>
             </div>

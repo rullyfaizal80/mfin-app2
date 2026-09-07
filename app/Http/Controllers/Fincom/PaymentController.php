@@ -758,4 +758,45 @@ class PaymentController extends Controller
             'month', 'year', 'fpayitem', 'payitems', 'page_title', 'reports', 'grandTotal', 'isFilter'
         ));
     }
+
+    /**
+     * CETAK LAPORAN REKAP PEMBAYARAN PER KOMPONEN (SEMUA DATA TANPA PAGINATION)
+     */
+    public function printRecapItem(Request $request)
+    {
+        $month = $request->input('month', date('m'));
+        $year = $request->input('year', date('Y'));
+        $fpayitem = $request->input('fpayitem', '0');
+
+        $query = DB::table('sis_receivable as r')
+            ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+            ->join('sis_payitem as p', 'p.id', '=', 'r.payitem_id')
+            ->leftJoin('sis_v_classuser as vc', 'vc.user_id', '=', 'u.id')
+            ->select(
+                'r.id', 'r.ref_no', 'r.note', 'p.title as payitem', 
+                'u.fullname', 'r.tdate', 'r.credit as payment', 'vc.class_title'
+            )
+            ->where('r.credit', '>', 0)
+            ->where('r.tstat', '!=', 'retur')
+            ->where('r.ref_no', 'like', 'PYM%') // Hanya yang berawalan PYM (Payment)
+            ->whereMonth('r.tdate', $month)
+            ->whereYear('r.tdate', $year);
+
+        if ($fpayitem != '0') {
+            $query->where('p.id', $fpayitem);
+        }
+
+        // Ambil SEMUA data (tanpa limit/paginate)
+        $reports = $query->orderBy('vc.class_title', 'asc')
+                         ->orderBy('u.fullname', 'asc')
+                         ->get();
+
+        $grandTotal = $reports->sum('payment');
+        $page_title = "Rekap Pembayaran per Komponen";
+
+        // Mengarahkan ke file print_recapitem.blade.php yang baru saja dibuat
+        return view('fincom.payment.print_recapitem', compact(
+            'month', 'year', 'fpayitem', 'page_title', 'reports', 'grandTotal'
+        ));
+    }
 } // <-- Ini adalah kurung kurawal penutup class PaymentController
