@@ -222,6 +222,10 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::get('/{id}/edit', [TransexpenseController::class, 'edit'])->name('edit');
         Route::put('/{id}', [TransexpenseController::class, 'update'])->name('update');
         Route::delete('/{id}', [TransexpenseController::class, 'destroy'])->name('destroy');
+
+        // TAMBAHKAN DUA RUTE INI
+        Route::get('/tuitsaving', [TransexpenseController::class, 'tuitSaving'])->name('tuitsaving');
+        Route::get('/tuitsaving/print', [TransexpenseController::class, 'printTuitSaving'])->name('tuitsaving.print');
     });
 
     Route::prefix('fincom/transincome')->name('fincom.transincome.')->group(function () {
@@ -395,4 +399,5 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     // TAMBAHKAN RUTE INI: Rute Daftar Pembayaran Rinci Per Siswa
     Route::get('/listyear/{user_id}/{year?}', [PaymentController::class, 'listYear'])->name('listyear');
 });
+
 });

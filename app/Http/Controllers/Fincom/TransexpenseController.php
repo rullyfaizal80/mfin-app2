@@ -644,4 +644,202 @@ class TransexpenseController extends Controller
             return redirect()->back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
     }
+
+    /**
+     * TAMPILAN FILTER & DATA REKAP PENERIMAAN DAN TABUNGAN
+     */
+    public function tuitSaving(Request $request)
+    {
+        $awal = $request->input('awal', date('Y-m-d'));
+        $akhir = $request->input('akhir', date('Y-m-d'));
+        $fpayitem = $request->input('fpayitem', '0');
+        $cas_id = $request->input('cas_id', '0');
+        $iscash = $request->input('iscash', 'all');
+        
+        $isFilter = $request->has('filter');
+
+        $cass = DB::table('sis_user')
+            ->join('sis_usergroup', 'sis_user.id', '=', 'sis_usergroup.user_id')
+            ->join('sis_group', 'sis_usergroup.group_id', '=', 'sis_group.id')
+            ->select('sis_user.id', 'sis_user.fullname')
+            ->groupBy('sis_user.id', 'sis_user.fullname')
+            ->orderBy('sis_user.fullname', 'asc')
+            ->get();
+
+        $payitems = DB::table('sis_payitem')
+            ->select('id', 'title')
+            ->where('payitem_user', 'student')
+            ->orWhere('payitem_type', 'saving')
+            ->orderBy('title', 'asc')
+            ->get();
+
+        // Inisialisasi Koleksi & Total
+        $terima = collect(); $totalTerima = 0;
+        $keluar = collect(); $totalKeluar = 0;
+        $retur  = collect(); $totalRetur  = 0;
+        
+        if ($isFilter) {
+            // 1. Query Data Penerimaan (Kredit, Non-Retur)
+            $qTerima = DB::table('sis_receivable as r')
+                ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+                ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+                ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
+                ->select(
+                    'r.ref_no', 'r.note', 'p.title as payitem',
+                    'u.fullname', 'tr.tdate', 'r.credit as nominal'
+                )
+                ->where('r.credit', '>', 0)
+                ->where('r.tstat', '!=', 'retur')
+                ->whereDate('tr.mdate', '>=', $awal)
+                ->whereDate('tr.mdate', '<=', $akhir);
+
+            if ($fpayitem != '0') $qTerima->where('r.payitem_id', $fpayitem);
+            if ($cas_id != '0') $qTerima->where('tr.mdate_by', $cas_id);
+            if ($iscash != 'all') $qTerima->where('r.is_cash', $iscash);
+
+            $totalTerima = $qTerima->sum('r.credit');
+            $terima = $qTerima->orderBy('tr.tdate', 'asc')->orderBy('u.fullname', 'asc')
+                              ->paginate(10, ['*'], 'terima_page')->withQueryString();
+
+            // 2. Query Data Pengeluaran Tabungan (Debit)
+            $qKeluar = DB::table('sis_receivable as r')
+                ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+                ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+                ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
+                ->select(
+                    'r.ref_no', 'r.note', 'p.title as payitem',
+                    'u.fullname', 'tr.tdate', 'r.debit as nominal'
+                )
+                ->where('r.debit', '>', 0)
+                ->where('p.payitem_type', 'saving') 
+                ->whereDate('tr.mdate', '>=', $awal)
+                ->whereDate('tr.mdate', '<=', $akhir);
+
+            if ($fpayitem != '0') $qKeluar->where('r.payitem_id', $fpayitem);
+            if ($cas_id != '0') $qKeluar->where('tr.mdate_by', $cas_id);
+
+            $totalKeluar = $qKeluar->sum('r.debit');
+            $keluar = $qKeluar->orderBy('tr.tdate', 'asc')->orderBy('u.fullname', 'asc')
+                              ->paginate(10, ['*'], 'keluar_page')->withQueryString();
+
+            // 3. Query Data RETUR (Kredit, Tapi Status = Retur)
+            $qRetur = DB::table('sis_receivable as r')
+                ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+                ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+                ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
+                ->select(
+                    'r.ref_no', 'r.note', 'p.title as payitem',
+                    'u.fullname', 'tr.tdate', 'r.credit as nominal'
+                )
+                ->where('r.credit', '>', 0)
+                ->where('r.tstat', 'retur')
+                ->whereDate('tr.mdate', '>=', $awal)
+                ->whereDate('tr.mdate', '<=', $akhir);
+
+            if ($fpayitem != '0') $qRetur->where('r.payitem_id', $fpayitem);
+            if ($cas_id != '0') $qRetur->where('tr.mdate_by', $cas_id);
+            if ($iscash != 'all') $qRetur->where('r.is_cash', $iscash);
+
+            $totalRetur = $qRetur->sum('r.credit');
+            $retur = $qRetur->orderBy('tr.tdate', 'asc')->orderBy('u.fullname', 'asc')
+                            ->paginate(10, ['*'], 'retur_page')->withQueryString();
+        }
+
+        $page_title = "Rekap Penerimaan dan Tabungan";
+
+        return view('fincom.transexpense.tuitsaving', compact(
+            'awal', 'akhir', 'fpayitem', 'cas_id', 'iscash', 'cass', 'payitems', 
+            'page_title', 'isFilter', 'terima', 'keluar', 'retur', 
+            'totalTerima', 'totalKeluar', 'totalRetur'
+        ));
+    }
+
+    /**
+     * FUNGSI CETAK LAPORAN REKAP PENERIMAAN & TABUNGAN (FORMAT A4)
+     */
+    public function printTuitSaving(Request $request)
+    {
+        $awal = $request->input('awal', date('Y-m-d'));
+        $akhir = $request->input('akhir', date('Y-m-d'));
+        $fpayitem = $request->input('fpayitem', '0');
+        $cas_id = $request->input('cas_id', '0');
+        $iscash = $request->input('iscash', 'all');
+
+        // Label untuk Header Laporan
+        $kasirName = 'Semua Kasir';
+        if ($cas_id != '0') {
+            $kasir = DB::table('sis_user')->where('id', $cas_id)->first();
+            if ($kasir) $kasirName = $kasir->fullname;
+        }
+
+        $payitemName = 'Semua Komponen';
+        if ($fpayitem != '0') {
+            $pitem = DB::table('sis_payitem')->where('id', $fpayitem)->first();
+            if ($pitem) $payitemName = $pitem->title;
+        }
+
+        $tipeName = $iscash == 'yes' ? 'Tunai' : ($iscash == 'no' ? 'Non-Tunai' : 'Semua');
+
+        // 1. Query Data Penerimaan (Tanpa Paginasi, ambil semua untuk dicetak)
+        $qTerima = DB::table('sis_receivable as r')
+            ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+            ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
+            ->select('r.ref_no', 'r.note', 'p.title as payitem', 'u.fullname', 'tr.tdate', 'r.credit as nominal')
+            ->where('r.credit', '>', 0)
+            ->where('r.tstat', '!=', 'retur')
+            ->whereDate('tr.mdate', '>=', $awal)
+            ->whereDate('tr.mdate', '<=', $akhir);
+
+        if ($fpayitem != '0') $qTerima->where('r.payitem_id', $fpayitem);
+        if ($cas_id != '0') $qTerima->where('tr.mdate_by', $cas_id);
+        if ($iscash != 'all') $qTerima->where('r.is_cash', $iscash);
+
+        $terima = $qTerima->orderBy('tr.tdate', 'asc')->orderBy('u.fullname', 'asc')->get();
+        $totalTerima = $terima->sum('nominal');
+
+        // 2. Query Data Pengeluaran Tabungan
+        $qKeluar = DB::table('sis_receivable as r')
+            ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+            ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
+            ->select('r.ref_no', 'r.note', 'p.title as payitem', 'u.fullname', 'tr.tdate', 'r.debit as nominal')
+            ->where('r.debit', '>', 0)
+            ->where('p.payitem_type', 'saving')
+            ->whereDate('tr.mdate', '>=', $awal)
+            ->whereDate('tr.mdate', '<=', $akhir);
+
+        if ($fpayitem != '0') $qKeluar->where('r.payitem_id', $fpayitem);
+        if ($cas_id != '0') $qKeluar->where('tr.mdate_by', $cas_id);
+
+        $keluar = $qKeluar->orderBy('tr.tdate', 'asc')->orderBy('u.fullname', 'asc')->get();
+        $totalKeluar = $keluar->sum('nominal');
+
+        // 3. Query Data Retur
+        $qRetur = DB::table('sis_receivable as r')
+            ->join('sis_user as u', 'u.id', '=', 'r.user_id')
+            ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->join('sis_treceivable as tr', 'r.treceivable_id', '=', 'tr.id')
+            ->select('r.ref_no', 'r.note', 'p.title as payitem', 'u.fullname', 'tr.tdate', 'r.credit as nominal')
+            ->where('r.credit', '>', 0)
+            ->where('r.tstat', 'retur')
+            ->whereDate('tr.mdate', '>=', $awal)
+            ->whereDate('tr.mdate', '<=', $akhir);
+
+        if ($fpayitem != '0') $qRetur->where('r.payitem_id', $fpayitem);
+        if ($cas_id != '0') $qRetur->where('tr.mdate_by', $cas_id);
+        if ($iscash != 'all') $qRetur->where('r.is_cash', $iscash);
+
+        $retur = $qRetur->orderBy('tr.tdate', 'asc')->orderBy('u.fullname', 'asc')->get();
+        $totalRetur = $retur->sum('nominal');
+
+        $page_title = "Laporan Transaksi Kasir";
+
+        return view('fincom.transexpense.p_tuitsaving', compact(
+            'awal', 'akhir', 'kasirName', 'payitemName', 'tipeName',
+            'page_title', 'terima', 'keluar', 'retur', 
+            'totalTerima', 'totalKeluar', 'totalRetur'
+        ));
+    }
+
 }
