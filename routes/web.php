@@ -413,4 +413,10 @@ Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
     Route::match(['get', 'post'], '/catering', [PaymentController::class, 'catering'])->name('catering');
 });
 
+Route::prefix('fincom/expense')->name('fincom.expense.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Fincom\ExpenseController::class, 'index'])->name('index');
+    Route::post('/store', [\App\Http\Controllers\Fincom\ExpenseController::class, 'store'])->name('store');
+    Route::delete('/{id}', [\App\Http\Controllers\Fincom\ExpenseController::class, 'destroy'])->name('destroy');
+});
+
 });
