@@ -13,21 +13,21 @@ class ExpenseController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Cek apakah sedang mode Edit (berdasarkan query parameter ?edit=ID)
         $editId = $request->query('edit');
         $details = null;
         if ($editId) {
             $details = DB::table('sis_payitem')->where('id', $editId)->first();
         }
 
-        // 2. Ambil data dropdown Chart of Accounts (COA)
+        // Ambil list semua nama COA berdasarkan coa_code (seperti fungsi coa_list() di CI2)
+        $coa_list = DB::table('sis_coa')->pluck('title', 'coa_code')->toArray();
+
         $coa_cash       = DB::table('sis_coa')->where('title', 'like', '%KAS%')->select('coa_code', 'title')->get();
         $coa_cost       = DB::table('sis_coa')->where('title', 'like', '%BIAYA%')->select('coa_code', 'title')->get();
         $coa_payable    = DB::table('sis_coa')->where('title', 'like', '%HUTANG%')->select('coa_code', 'title')->get();
         $coa_receivable = DB::table('sis_coa')->where('title', 'like', '%PIUTANG%')->select('coa_code', 'title')->get();
         $coa_revenue    = DB::table('sis_coa')->where('title', 'like', '%PENDAPATAN%')->select('coa_code', 'title')->get();
 
-        // 3. Ambil data tabel (Pagination menggantikan DataTables CI2)
         $search = $request->query('search');
         
         $query = DB::table('sis_payitem')->whereIn('payitem_type', ['expense', 'income']);
@@ -45,7 +45,7 @@ class ExpenseController extends Controller
                           ->withQueryString();
 
         return view('fincom.expense.index', compact(
-            'payitems', 'details', 'coa_cash', 'coa_cost', 'coa_payable', 'coa_receivable', 'coa_revenue', 'search'
+            'payitems', 'details', 'coa_cash', 'coa_cost', 'coa_payable', 'coa_receivable', 'coa_revenue', 'coa_list', 'search'
         ));
     }
 

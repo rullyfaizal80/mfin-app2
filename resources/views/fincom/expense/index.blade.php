@@ -25,7 +25,7 @@
         {{-- BAGIAN KIRI: TABEL DAFTAR KOMPONEN --}}
         <div class="col-lg-7 mb-4">
             <div class="card">
-                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-2">
                     <h6 class="mb-0 fw-bold">Daftar Komponen</h6>
                     <form action="{{ route('fincom.expense.index') }}" method="GET" class="d-flex">
                         <div class="input-group input-group-sm">
@@ -36,34 +36,61 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover table-striped table-sm mb-0">
+                        {{-- Ukuran font diperbesar sedikit menjadi 12px --}}
+                        <table class="table table-hover table-striped table-sm align-middle mb-0" style="font-size: 12px;">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Kode</th>
+                                    <th class="px-3" width="22%">Kode</th>
                                     <th>Nama Komponen</th>
-                                    <th class="text-center">Tipe</th>
-                                    <th class="text-center">Urutan</th>
-                                    <th class="text-center" width="90">Aksi</th>
+                                    <th class="text-center" width="12%">Tipe</th>
+                                    <th class="text-center" width="12%">Pemakai</th>
+                                    <th class="text-center" width="8%">#</th>
+                                    <th class="text-center" width="12%">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse ($payitems as $item)
                                     <tr>
-                                        <td class="fw-bold">{{ $item->payitem_code }}</td>
+                                        {{-- KODE dengan padding px-3 agar tidak mepet garis --}}
+                                        <td class="fw-bold px-3">{{ $item->payitem_code }}</td>
+                                        
+                                        {{-- NAMA & AKUN COA --}}
                                         <td>
-                                            <strong>{{ $item->title }}</strong>
-                                            <div class="small text-muted" style="font-size: 10px;">
-                                                @if($item->coa_cash != '0') Kas: {{ $item->coa_cash }} @endif
-                                                @if($item->coa_cost != '0') | Biaya: {{ $item->coa_cost }} @endif
-                                                @if($item->coa_revenue != '0') | Pendapatan: {{ $item->coa_revenue }} @endif
+                                            <strong style="font-size: 13px;">{{ $item->title }}</strong>
+                                            {{-- text-muted menyesuaikan dark mode, font diperbesar menjadi 11px --}}
+                                            <div class="text-muted mt-1" style="font-size: 11px; line-height: 1.4;">
+                                                @if($item->coa_cash != '0' && isset($coa_list[$item->coa_cash]))
+                                                    {{ strtoupper($coa_list[$item->coa_cash]) }}<br>
+                                                @endif
+                                                @if($item->coa_receivable != '0' && isset($coa_list[$item->coa_receivable]))
+                                                    {{ strtoupper($coa_list[$item->coa_receivable]) }}<br>
+                                                @endif
+                                                @if($item->coa_cost != '0' && isset($coa_list[$item->coa_cost]))
+                                                    {{ strtoupper($coa_list[$item->coa_cost]) }}<br>
+                                                @endif
+                                                @if($item->coa_payable != '0' && isset($coa_list[$item->coa_payable]))
+                                                    {{ strtoupper($coa_list[$item->coa_payable]) }}<br>
+                                                @endif
+                                                @if($item->coa_revenue != '0' && isset($coa_list[$item->coa_revenue]))
+                                                    {{ strtoupper($coa_list[$item->coa_revenue]) }}<br>
+                                                @endif
                                             </div>
                                         </td>
+
+                                        {{-- TIPE (Badge warna) --}}
                                         <td class="text-center">
                                             <span class="badge {{ $item->payitem_type == 'expense' ? 'bg-danger' : ($item->payitem_type == 'income' ? 'bg-success' : 'bg-secondary') }}">
                                                 {{ strtoupper($item->payitem_type) }}
                                             </span>
                                         </td>
-                                        <td class="text-center">{{ $item->ordering }}</td>
+
+                                        {{-- PEMAKAI --}}
+                                        <td class="text-center text-muted">{{ strtolower($item->payitem_user ?? '-') }}</td>
+
+                                        {{-- URUTAN (#) --}}
+                                        <td class="text-center fw-bold">{{ $item->ordering }}</td>
+
+                                        {{-- AKSI --}}
                                         <td class="text-center">
                                             <a href="{{ route('fincom.expense.index', ['edit' => $item->id] + request()->except('edit')) }}" class="btn btn-xs btn-outline-primary py-0" title="Edit">
                                                 <i class="bi bi-pencil"></i>
@@ -79,14 +106,14 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted py-3">Tidak ada data komponen.</td>
+                                        <td colspan="6" class="text-center text-muted py-3">Tidak ada data komponen.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="card-footer">
+                <div class="card-footer py-2">
                     {{ $payitems->links() }}
                 </div>
             </div>
