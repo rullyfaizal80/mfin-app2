@@ -77,11 +77,10 @@ class PaymentController extends Controller
     }
 
     /**
-     * SIMPAN DATA PEMBAYARAN BARU
+     * SIMPAN DATA PEMBAYARAN BARU & GENERATE JURNAL AKUNTANSI
      */
     public function store(Request $request)
     {
-        // 1. Pastikan siswa sudah dipilih (user_id tidak boleh kosong)
         $request->validate([
             'user_id' => 'required|integer',
             'tdate'   => 'required|date',
@@ -93,10 +92,11 @@ class PaymentController extends Controller
         $userId = $request->input('user_id');
         $tdate = $request->input('tdate');
         $payvalue = (float) str_replace('.', '', $request->input('payvalue', 0));
+        $note = $request->input('note') ?? '';
 
         DB::beginTransaction();
         try {
-            // Generate Ulang + Kunci tabel agar nomor referensi tidak ganda jika ada 2 kasir
+            // 1. Generate Ref No Pembayaran (PYM)
             $lastRecord = DB::table('sis_treceivable')
                 ->where('ref_no', 'like', 'PYM/%')
                 ->orderBy('id', 'desc')
@@ -115,57 +115,103 @@ class PaymentController extends Controller
             $nextSeqFormatted = str_pad($nextSeqNum, 6, '0', STR_PAD_LEFT);
             $refNo = "PYM/" . date('Y') . "/" . date('M') . "/" . date('d') . "/" . $nextSeqFormatted;
 
-            // Insert Header (sis_treceivable)
+            // 2. MENGGANTIKAN LIBPAYITEM: Buat Header Jurnal Transaksi di sis_trans
+            $tid = DB::table('sis_trans')->insertGetId([
+                'user_id'   => $userId,
+                'ttype'     => 'CR', // CR = Cash Receipt (Penerimaan Kas)
+                'ref_no'    => $refNo,
+                'tdate'     => $tdate,
+                'tvalue'    => $payvalue,
+                'note'      => $note,
+                'is_posted' => 'yes',
+                'cdate'     => now(),
+                'mdate'     => now(),
+                'mdate_by'  => Auth::id() ?? 1,
+                'ucode'     => mt_rand(100000, 999999) . date('YmdHis'),
+            ]);
+
+            // 3. Insert Header Pembayaran (sis_treceivable) dengan mengaitkan $tid
             $trId = DB::table('sis_treceivable')->insertGetId([
                 'user_id'   => $userId,
                 'ref_no'    => $refNo,
                 'tdate'     => $tdate,
                 'tvalue'    => $payvalue,
-                'note'      => $request->input('note') ?? '', // Cegah Null
+                'note'      => $note,
                 'is_posted' => 'yes',
                 'cdate'     => now(),
                 'mdate'     => now(),
                 'mdate_by'  => Auth::id() ?? 1,
                 'ttype'     => 'tuition_payment',
-                'tid'       => 0, // [Perbaikan] Warisan CI2, harus didefinisikan agar tidak error
+                'tid'       => $tid, // TID terisi sesuai data sis_trans
                 'ucode'     => mt_rand(100000, 999999) . date('YmdHis'),
             ]);
 
-            // 2. Insert Detail Pembayaran (sis_receivable)
+            // 4. Insert Detail Pembayaran & Jurnal Buku Besar (sis_ledger)
             $inputs = $request->all();
             foreach ($inputs as $key => $value) {
-                // Deteksi input checkbox dari AJAX
                 if (str_starts_with($key, 'cheked_')) {
                     $n = str_replace('cheked_', '', $key);
                     
                     $payitemId = $inputs["userpayitem_id_$n"] ?? 0;
                     $nominal = (float) str_replace('.', '', $inputs["tvaluee_$n"] ?? 0);
-                    
-                    // [PERBAIKAN] Ambil tanggal TAGIHAN ASLI, bukan tanggal bayar hari ini
                     $originalBillDate = $inputs["tdatee_$n"] ?? $tdate; 
                     
                     if ($nominal > 0) {
+                        // A. Masukkan ke rincian tagihan lunas (sis_receivable)
                         DB::table('sis_receivable')->insert([
                             'treceivable_id' => $trId,
                             'user_id'        => $userId,
                             'ref_no'         => $refNo,
-                            
-                            // Gunakan tanggal tagihan asli agar query SUM(debit)-SUM(credit) sinkron
                             'tdate'          => $originalBillDate, 
                             'payitem_id'     => $payitemId,
                             'payfor'         => $originalBillDate, 
-                            
                             'credit'         => $nominal,
                             'note'           => $inputs["tnotee_$n"] ?? '',
                             'cdate'          => now(),
                             'mdate'          => now(),
                             'mdate_by'       => Auth::id() ?? 1,
                             'tstat'          => 'paid',
-                            'mode'           => '',
                             'is_cash'        => isset($inputs["is_cash_$n"]) ? 'yes' : 'no',
-                            'tid'            => 0,
+                            'tid'            => 0, // di detail biasanya tetap 0, acuan utama di treceivable
                             'debit'          => 0, 
                         ]);
+
+                        // B. MENGGANTIKAN LIBPAYITEM: Inject Jurnal ke Buku Besar (sis_ledger)
+                        $payitemMaster = DB::table('sis_payitem')->where('id', $payitemId)->first();
+                        
+                        if ($payitemMaster) {
+                            // JURNAL DEBIT: KAS BERTAMBAH
+                            if ($payitemMaster->coa_cash > 0) {
+                                DB::table('sis_ledger')->insert([
+                                    'tdate'      => $tdate,
+                                    'coa_code'   => $payitemMaster->coa_cash,
+                                    'ttype'      => 'CR',
+                                    'ref_no'     => $refNo,
+                                    'note'       => 'Penerimaan: ' . $payitemMaster->title . ' ' . $note,
+                                    'tid'        => $tid,
+                                    'is_posted'  => 'yes',
+                                    'debit'      => $nominal,
+                                    'credit'     => 0,
+                                    'payitem_id' => $payitemId,
+                                ]);
+                            }
+
+                            // JURNAL KREDIT: PIUTANG BERKURANG
+                            if ($payitemMaster->coa_receivable > 0) {
+                                DB::table('sis_ledger')->insert([
+                                    'tdate'      => $tdate,
+                                    'coa_code'   => $payitemMaster->coa_receivable,
+                                    'ttype'      => 'CR',
+                                    'ref_no'     => $refNo,
+                                    'note'       => 'Pelunasan: ' . $payitemMaster->title . ' ' . $note,
+                                    'tid'        => $tid,
+                                    'is_posted'  => 'yes',
+                                    'debit'      => 0,
+                                    'credit'     => $nominal,
+                                    'payitem_id' => $payitemId,
+                                ]);
+                            }
+                        }
                     }
                 }
             }
@@ -175,11 +221,10 @@ class PaymentController extends Controller
             if ($request->input('action') === 'save_print') {
                 return redirect('fincom/payment/reportall/' . $trId);
             }
-            return redirect('fincom/payment')->with('success', 'Pembayaran berhasil disimpan.');
+            return redirect('fincom/payment')->with('success', 'Pembayaran & Jurnal Akuntansi berhasil disimpan.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            // Akan melempar error ke session 'error' yang baru saja kita pasang di Blade
             return back()->with('error', $e->getMessage());
         }
     }
@@ -218,12 +263,22 @@ class PaymentController extends Controller
         if ($action === 'delete') {
             DB::beginTransaction();
             try {
+                // Cari data header pembayaran untuk mengambil tid (Transaction ID Akuntansi)
+                $paymentHeader = DB::table('sis_treceivable')->where('id', $id)->first();
+                
+                if ($paymentHeader && $paymentHeader->tid > 0) {
+                    // Hapus data dari Buku Besar dan Header Transaksi Akuntansi
+                    DB::table('sis_ledger')->where('tid', $paymentHeader->tid)->delete();
+                    DB::table('sis_trans')->where('id', $paymentHeader->tid)->delete();
+                }
+
+                // Hapus data fisik Modul Pembayaran Kasir
                 DB::table('sis_receivable')->where('treceivable_id', $id)->delete();
                 DB::table('sis_treceivable')->where('id', $id)->delete();
                 
                 DB::commit();
                 session()->forget("unlocked_payment_{$id}"); 
-                return redirect('fincom/payment')->with('success', 'Data Transaksi berhasil dihapus sepenuhnya.');
+                return redirect('fincom/payment')->with('success', 'Data Transaksi & Jurnal Akuntansi berhasil dihapus sepenuhnya.');
             } catch (\Exception $e) {
                 DB::rollBack();
                 return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
