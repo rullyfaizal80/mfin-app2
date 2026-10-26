@@ -92,13 +92,16 @@
                                     @if($row->debit > 0) {{ number_format($row->debit, 0, ',', '.') }} @else - @endif
                                 </td>
                                 <td class="text-center">
-                                    <form action="{{ route('savings.destroy', $row->id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus transaksi ini? Saldo akan dikembalikan.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-xs btn-outline-danger py-0" title="Hapus">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <form action="{{ route('savings.destroy', $row->treceivable_id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus transaksi ini? Saldo akan dikembalikan.');">
+    @csrf
+    @method('DELETE')
+    {{-- Ganti form hapus sebelumnya dengan tombol ini --}}
+<button type="button" class="btn btn-xs btn-outline-danger py-0" title="Hapus" 
+        data-bs-toggle="modal" data-bs-target="#deleteModal" 
+        data-id="{{ $row->treceivable_id }}">
+    <i class="bi bi-trash"></i>
+</button>
+</form>
                                 </td>
                             </tr>
                         @empty
@@ -117,6 +120,37 @@
             </div>
         </div>
     </div>
+
+    {{-- Tambahkan Modal ini di bagian paling bawah sebelum @endsection --}}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="deleteModalLabel">Otorisasi Hapus Transaksi</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="formDeleteTransaction" method="POST" action="">
+          @csrf
+          @method('DELETE')
+          <div class="modal-body">
+              <p>Masukkan username dan kata sandi Admin Anda untuk membatalkan dan menghapus transaksi ini. Saldo akan dikalkulasi ulang.</p>
+              <div class="mb-3">
+                  <label class="form-label">Username Admin</label>
+                  <input type="text" name="admin_username" class="form-control" required autocomplete="off">
+              </div>
+              <div class="mb-3">
+                  <label class="form-label">Password Admin</label>
+                  <input type="password" name="admin_password" class="form-control" required autocomplete="off">
+              </div>
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+              <button type="submit" class="btn btn-danger">Hapus Transaksi</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -141,6 +175,18 @@
             paginations.forEach(link => {
                 link.addEventListener('click', () => loader.style.display = 'flex');
             });
+
+            const deleteModal = document.getElementById('deleteModal');
+if (deleteModal) {
+    deleteModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const recordId = button.getAttribute('data-id');
+        const form = document.getElementById('formDeleteTransaction');
+        
+        // PERBAIKAN: Sesuaikan awalan URL dengan route di web.php
+        form.action = `/fincom/savings/delete/${recordId}`; 
+    });
+}
         });
 
         // Fix Back Button Browser

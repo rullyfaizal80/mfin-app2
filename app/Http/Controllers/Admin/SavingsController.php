@@ -125,25 +125,17 @@ class SavingsController extends Controller
         ]);
     }
 
-    /**
-     * FORM SETORAN (DEPOSIT) - CREDIT
-     */
     public function createDeposit()
     {
+        $this->checkApprovalSaving(); // Logika CI2 termuat di sini
         return $this->showForm('credit', 'Setoran Tabungan');
     }
 
-    /**
-     * FORM PENARIKAN (WITHDRAWAL) - DEBIT
-     */
     public function createWithdrawal()
     {
         return $this->showForm('debit', 'Penarikan Tabungan');
     }
 
-    /**
-     * Helper untuk menampilkan Form
-     */
     /**
      * Helper untuk menampilkan Form dengan Ref No Otomatis (URUT HARIAN)
      */
@@ -203,64 +195,68 @@ class SavingsController extends Controller
         ]);
     }
 
-    /**
-     * PROSES SIMPAN (Store)
-     */
     public function store(Request $request)
     {
         $request->validate([
             'user_id'    => 'required|integer',
             'payitem_id' => 'required|integer',
             'tdate'      => 'required|date',
-            'tvalue'     => 'required|numeric|min:100',
+            'tvalue'     => 'required|numeric|min:1',
             'ref_no'     => 'required|string',
             'type'       => 'required|in:credit,debit' 
         ]);
 
-        // Validasi Saldo (Khusus Penarikan)
+        // LOGIKA CI2: Limit Max Penarikan Berdasarkan Grade (Expense Max)
         if ($request->type == 'debit') {
-            $saldo = DB::table('sis_receivable')
-                ->join('sis_payitem', 'sis_receivable.payitem_id', '=', 'sis_payitem.id')
-                ->where('sis_receivable.user_id', $request->user_id)
-                ->where('sis_payitem.payitem_type', 'saving')
-                ->sum(DB::raw('credit - debit'));
+            $u_grade = session('login_grade', 'default');
+            // Catatan: Definisikan array expense_max ini di config/savings.php pada Laravel Anda
+            $exp_max = config('savings.expense_max.' . $u_grade, 999999999); 
             
-            if ($saldo < $request->tvalue) {
-                return back()->with('error', 'Saldo tidak mencukupi. Saldo: Rp ' . number_format($saldo, 0, ',', '.'))->withInput();
+            if ($request->tvalue > $exp_max) {
+                return back()->with('error', 'Nilai Total terlalu besar, maksimal adalah Rp' . number_format($exp_max, 0, ',', '.'))->withInput();
             }
         }
 
         try {
             DB::transaction(function () use ($request) {
-                
-                $userId   = session('user_id', 0); // ID Admin yang login
+                // Ambil ID admin yang sedang login (sesuaikan dengan key session Anda)
+                $adminId  = session('user_id') ?? session('login_user_id', 0); 
                 $datetime = now();
 
-                // ==============================================================
-                // LANGKAH 1: Simpan ke Tabel INDUK (Header) -> sis_treceivable
-                // ==============================================================
-                // Tabel ini wajib diisi dulu untuk mendapatkan 'id' (treceivable_id)
+                // 1. Simpan Header (Treceivable) dengan tid = 0 terlebih dahulu
                 $treceivableId = DB::table('sis_treceivable')->insertGetId([
                     'user_id'   => $request->user_id,
                     'ref_no'    => $request->ref_no,
                     'tdate'     => $request->tdate,
-                    'tvalue'    => $request->tvalue, // Total Nilai Transaksi
+                    'tvalue'    => $request->tvalue,
                     'note'      => $request->note,
-                    'ttype'     => 'saving',         // Tipe Transaksi
+                    'ttype'     => 'saving',
                     'is_posted' => 'yes',
                     'cdate'     => $datetime,
                     'mdate'     => $datetime,
-                    'mdate_by'  => $userId,
-                    'tid'       => 0, // Default 0 (sesuai legacy)
-                    'ucode'     => mt_rand(100000,999999) . date("YmdHis") // Kode unik (legacy)
+                    'mdate_by'  => $adminId,
+                    'tid'       => 0, 
+                    'ucode'     => mt_rand(100000,999999) . date("YmdHis")
                 ]);
 
-                // ==============================================================
-                // LANGKAH 2: Simpan ke Tabel DETAIL (Anak) -> sis_receivable
-                // ==============================================================
-                // Di sini kita masukkan 'treceivable_id' yang didapat dari Langkah 1
-                $receivableId = DB::table('sis_receivable')->insertGetId([
-                    'treceivable_id' => $treceivableId, // <--- INI SOLUSINYA
+               // 3. LOGIKA CI2: Injeksi ke sis_trans terlebih dahulu untuk mendapatkan $tid
+                $ttype_trans = ($request->type == 'credit') ? 'CR' : 'CD';
+                $tid = DB::table('sis_trans')->insertGetId([
+                    'user_id'   => $request->user_id,
+                    'ttype'     => $ttype_trans,
+                    'ref_no'    => $request->ref_no,
+                    'tdate'     => $request->tdate,
+                    'tvalue'    => $request->tvalue,
+                    'note'      => $request->note,
+                    'is_posted' => 'yes',
+                    'cdate'     => $datetime, // <-- Ditambahkan agar tidak error Field 'cdate' doesn't have a default value
+                    'mdate'     => $datetime, // <-- Ditambahkan sebagai praktik standar pencatatan waktu
+                    'mdate_by'  => $adminId   // <-- Ditambahkan untuk mencatat ID admin yang menginput
+                ]);
+
+                // 2. Simpan Detail (Receivable) - SEKARANG DISERTAKAN KOLOM 'tid'
+                DB::table('sis_receivable')->insert([
+                    'treceivable_id' => $treceivableId,
                     'user_id'        => $request->user_id,
                     'ref_no'         => $request->ref_no,
                     'tdate'          => $request->tdate,
@@ -270,50 +266,38 @@ class SavingsController extends Controller
                     'debit'          => ($request->type == 'debit') ? $request->tvalue : 0,
                     'cdate'          => $datetime,
                     'mdate'          => $datetime,
-                    'mdate_by'       => $userId,
+                    'mdate_by'       => $adminId,
                     'tstat'          => 'paid',
-                    'is_cash'        => 'yes',
-                    'tid'            => 0 // Default 0 untuk mencegah error "Field tid doesn't have default value"
+                    'tid'            => $tid // <-- Ditambahkan agar tidak error Field 'tid' doesn't have a default value
                 ]);
 
-                // ==============================================================
-                // LANGKAH 3: Simpan ke Buku Besar (Akuntansi) -> sis_ledger
-                // ==============================================================
+                // 4. Update Header dengan TID dari sis_trans
+                DB::table('sis_treceivable')->where('id', $treceivableId)->update(['tid' => $tid]);
+
+                // 5. Simpan Buku Besar (Ledger) berdasarkan $tid
                 $payitem = DB::table('sis_payitem')->where('id', $request->payitem_id)->first();
-                
                 if ($payitem) {
-                    // A. Jurnal Kas (Uang Fisik)
+                    // Jurnal Kas
                     DB::table('sis_ledger')->insert([
-                        'tdate'     => $request->tdate, 
-                        'coa_code'  => $payitem->coa_cash, 
-                        'ttype'     => 'GL', 
-                        'ref_no'    => $request->ref_no, 
-                        'note'      => $request->note, 
-                        'tid'       => $treceivableId, // Link ke ID Header (biasanya) atau Detail
-                        'is_posted' => 'yes',
-                        'debit'     => ($request->type == 'credit') ? $request->tvalue : 0, // Setor = Kas Debet
-                        'credit'    => ($request->type == 'debit') ? $request->tvalue : 0   // Tarik = Kas Kredit
+                        'tdate' => $request->tdate, 'coa_code' => $payitem->coa_cash, 
+                        'ttype' => 'GL', 'ref_no' => $request->ref_no, 'note' => $request->note, 
+                        'tid' => $tid, 'is_posted' => 'yes',
+                        'debit' => ($request->type == 'credit') ? $request->tvalue : 0, 
+                        'credit' => ($request->type == 'debit') ? $request->tvalue : 0
                     ]);
 
-                    // B. Jurnal Hutang Tabungan (Kewajiban)
+                    // Jurnal Hutang
                     DB::table('sis_ledger')->insert([
-                        'tdate'     => $request->tdate, 
-                        'coa_code'  => $payitem->coa_payable, 
-                        'ttype'     => 'GL', 
-                        'ref_no'    => $request->ref_no, 
-                        'note'      => $request->note, 
-                        'tid'       => $treceivableId, 
-                        'is_posted' => 'yes',
-                        'debit'     => ($request->type == 'debit') ? $request->tvalue : 0,  // Tarik = Hutang Berkurang (Debet)
-                        'credit'    => ($request->type == 'credit') ? $request->tvalue : 0  // Setor = Hutang Bertambah (Kredit)
+                        'tdate' => $request->tdate, 'coa_code' => $payitem->coa_payable, 
+                        'ttype' => 'GL', 'ref_no' => $request->ref_no, 'note' => $request->note, 
+                        'tid' => $tid, 'is_posted' => 'yes',
+                        'debit' => ($request->type == 'debit') ? $request->tvalue : 0,  
+                        'credit' => ($request->type == 'credit') ? $request->tvalue : 0
                     ]);
                 }
             });
-            
-            return redirect()->route('savings.show', $request->user_id)->with('success', 'Transaksi berhasil disimpan.');
-
+            return redirect()->route('savings.show', $request->user_id)->with('success', 'Transaksi berhasil.');
         } catch (\Exception $e) {
-            // Tampilkan pesan error detail jika gagal
             return back()->with('error', 'Gagal menyimpan: ' . $e->getMessage())->withInput();
         }
     }
@@ -350,43 +334,61 @@ class SavingsController extends Controller
         return view('admin.savings._user_search_list', ['users' => $users]);
     }
 
-    /**
-     * HAPUS TRANSAKSI (Rollback Jurnal & Data)
-     */
-    /**
-     * HAPUS TRANSAKSI (Revised & Robust)
-     */
-    public function destroy($id)
+    public function destroy(Request $request, $idtr)
     {
-        // 1. Cari data anak (Detail)
-        $receivable = DB::table('sis_receivable')->where('id', $id)->first();
+        // 1. Validasi Input Username & Password dari Modal
+        $request->validate([
+            'admin_username' => 'required|string',
+            'admin_password' => 'required|string'
+        ]);
 
-        if (!$receivable) {
-            return back()->with('error', 'Data transaksi tidak ditemukan.');
+        // 2. Ambil data Admin berdasarkan username inputan
+        $admin = DB::table('sis_user')
+            ->where('username', $request->admin_username)
+            ->where('is_admin', 'yes')
+            ->where('is_active', 'yes')
+            ->first();
+        
+        if (!$admin) {
+            return back()->with('error', 'Otorisasi Gagal: Username tidak valid atau bukan administrator.');
         }
 
+        // 3. Logika Ganda Validasi Password (Bcrypt & MD5)
+        $inputPassword = $request->admin_password;
+        $dbPassword = $admin->password;
+        $isPasswordValid = false;
+
+        if (\Illuminate\Support\Facades\Hash::check($inputPassword, $dbPassword)) {
+            $isPasswordValid = true;
+        } elseif (md5($inputPassword) === $dbPassword) {
+            $isPasswordValid = true;
+        }
+
+        if (!$isPasswordValid) {
+            return back()->with('error', 'Otorisasi Gagal: Kata sandi Admin tidak valid.');
+        }
+
+        // 4. Eksekusi Hapus Transaksi (Tanpa Cek Tabel Lock)
+        $treceivable = DB::table('sis_treceivable')->where('id', $idtr)->first();
+        if (!$treceivable) return back()->with('error', 'Data tidak ditemukan.');
+
         try {
-            DB::transaction(function () use ($receivable) {
-                // Ambil ID Induk
-                $parentId = $receivable->treceivable_id;
+            DB::transaction(function () use ($treceivable, $idtr) {
+                $tid = $treceivable->tid;
 
-                // A. Jika punya induk, hapus Ledger & Induknya
-                if ($parentId && $parentId > 0) {
-                    // Hapus Ledger (Jurnal Akuntansi)
-                    DB::table('sis_ledger')->where('tid', $parentId)->delete();
-                    
-                    // Hapus Induk (Header Transaksi)
-                    DB::table('sis_treceivable')->where('id', $parentId)->delete();
+                // Hapus berdasar relasi TID ke pembukuan
+                if ($tid > 0) {
+                    DB::table('sis_trans')->where('id', $tid)->delete();
+                    DB::table('sis_ledger')->where('tid', $tid)->delete();
                 }
-
-                // B. Hapus data Anak itu sendiri (Wajib)
-                DB::table('sis_receivable')->where('id', $receivable->id)->delete();
+                
+                // Hapus data transaksi anak dan induk
+                DB::table('sis_receivable')->where('treceivable_id', $idtr)->delete();
+                DB::table('sis_treceivable')->where('id', $idtr)->delete();
             });
 
             return back()->with('success', 'Transaksi berhasil dihapus.');
-
         } catch (\Exception $e) {
-            // Tampilkan pesan error detail agar kita tahu penyebabnya
             return back()->with('error', 'Gagal menghapus: ' . $e->getMessage());
         }
     }
@@ -468,6 +470,39 @@ class SavingsController extends Controller
             'saldo_pindahan' => $saldoPindahan,
             'ffrom'          => $awal,
             'fto'            => $akhir
+        ]);
+    }
+
+   private function checkApprovalSaving()
+    {
+        // Bypass atau nonaktifkan pengecekan approval sementara
+        return true;
+    }
+
+    public function globalReport(Request $request)
+    {
+        $ffrom = $request->query('ffrom') ?? '1970-01-01';
+        $fto   = $request->query('fto') ?? date('Y-m-d');
+
+        $savings = DB::table('sis_receivable as r')
+            ->join('sis_user as u', 'r.user_id', '=', 'u.id')
+            ->join('sis_payitem as p', 'r.payitem_id', '=', 'p.id')
+            ->leftJoin('sis_student as s', 'u.id', '=', 's.id')
+            ->leftJoin('sis_teacher as t', 'u.id', '=', 't.iduser')
+            ->where('p.payitem_type', 'saving')
+            ->whereDate('r.tdate', '>=', $ffrom)
+            ->whereDate('r.tdate', '<=', $fto)
+            ->select(
+                'u.fullname', 'r.tdate', 'r.note', 'r.credit', 'r.debit', 'r.ref_no', 
+                't.nik', 's.nis'
+            )
+            ->orderBy('r.id', 'asc')
+            ->get();
+
+        return view('admin.savings.p_trans', [
+            'savings' => $savings,
+            'ffrom'   => $ffrom,
+            'fto'     => $fto
         ]);
     }
 

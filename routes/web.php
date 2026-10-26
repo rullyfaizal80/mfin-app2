@@ -157,6 +157,9 @@ Route::middleware(['custom.auth'])->group(function () {
         // 1. Halaman Utama (Daftar Transaksi)
         Route::get('/savings', [SavingsController::class, 'index'])->name('savings.index');
         
+        // --- TAMBAHKAN RUTE GLOBAL REPORT DI SINI ---
+        Route::get('/savings/global-report', [SavingsController::class, 'globalReport'])->name('savings.global_report');
+        
         // 2. Halaman Form (Sesuai URL Legacy) - WAJIB DI ATAS '{user_id}'
         // URL: .../fincom/savings/create_new -> Setoran
         Route::get('/savings/create_new', [SavingsController::class, 'createDeposit'])->name('savings.create_new');
@@ -168,9 +171,11 @@ Route::middleware(['custom.auth'])->group(function () {
         Route::post('/savings', [SavingsController::class, 'store'])->name('savings.store');
         Route::get('/savings/ajax-user', [SavingsController::class, 'ajaxSearchUser'])->name('savings.ajax_user');
         
-        Route::delete('/savings/delete/{id}', [SavingsController::class, 'destroy'])->name('savings.destroy');
+        // PERBAIKAN: Ubah {id} menjadi {idtr} agar sesuai parameter controller
+        Route::delete('/savings/delete/{idtr}', [SavingsController::class, 'destroy'])->name('savings.destroy');
         
         Route::get('/savings/print/{user_id}', [SavingsController::class, 'printRecap'])->name('savings.print');
+        
         // 4. Halaman Rincian (Parameter {user_id}) - WAJIB PALING BAWAH
         Route::get('/savings/{user_id}', [SavingsController::class, 'show'])->name('savings.show');
     });

@@ -28,14 +28,25 @@
         <div class="card-header bg-body-tertiary">
             {{-- Form Search Sederhana --}}
             <form action="{{ route('savings.index') }}" method="GET" class="row g-2" id="search-form">
-                <div class="col-md-6">
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control" name="search" placeholder="Cari Nama Nasabah..." value="{{ request('search') }}">
-                        <button class="btn btn-primary" type="submit">Cari</button>
-                    </div>
-                </div>
-            </form>
+    <div class="col-md-5">
+        <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" name="search" placeholder="Cari Nama Nasabah..." value="{{ request('search') }}">
+        </div>
+    </div>
+    <div class="col-md-7 text-end">
+        <div class="input-group input-group-sm d-inline-flex w-auto">
+            <span class="input-group-text">Dari</span>
+            <input type="date" class="form-control" name="ffrom" value="{{ request('ffrom') }}">
+            <span class="input-group-text">Sampai</span>
+            <input type="date" class="form-control" name="fto" value="{{ request('fto') }}">
+            <button class="btn btn-primary" type="submit">Filter</button>
+            <a href="{{ route('savings.global_report', ['ffrom' => request('ffrom'), 'fto' => request('fto')]) }}" target="_blank" class="btn btn-outline-secondary">
+                <i class="bi bi-printer"></i> Cetak Global
+            </a>
+        </div>
+    </div>
+</form>
         </div>
 
         <div class="card-body">
