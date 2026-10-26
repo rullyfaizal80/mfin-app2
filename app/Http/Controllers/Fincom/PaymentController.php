@@ -991,4 +991,147 @@ class PaymentController extends Controller
             'year', 'payitemName', 'page_title', 'receivables', 'grandTotal'
         ));
     }
+
+    /**
+     * MODUL JEMPUTAN
+     */
+    public function jemputan(Request $request)
+    {
+        // Menggantikan my_get_option() CI2 dengan Query Builder ke sis_option
+        $classId = DB::table('sis_option')->where('option_name', 'jemputan_class_id')->value('option_value');
+        $payitemId = DB::table('sis_option')->where('option_name', 'jemputan_payitem_id')->value('option_value');
+
+        if (!$classId || !$payitemId) {
+            return back()->with('error', 'Set jemputan_class_id dan jemputan_payitem_id di tabel sis_option terlebih dahulu.');
+        }
+
+        if ($request->isMethod('post')) {
+            DB::beginTransaction();
+            try {
+                // Aksi: Simpan Default
+                if ($request->has('save')) {
+                    // Menerima request berbentuk array: def[id_classuser] = nominal
+                    foreach ($request->input('def', []) as $cuId => $val) {
+                        $nominal = (float) str_replace('.', '', $val);
+                        DB::table('sis_class_user')->where('id', $cuId)->update(['jemp_def' => $nominal]);
+                    }
+                    $msg = 'Default Jemputan berhasil disimpan.';
+                }
+                // Aksi: Kalkulasi Aktual
+                elseif ($request->has('calc')) {
+                    $percent = (float) $request->input('percent', 100);
+                    foreach ($request->input('def', []) as $cuId => $val) {
+                        $nominal = (float) str_replace('.', '', $val);
+                        $act = $nominal * ($percent / 100);
+                        DB::table('sis_class_user')->where('id', $cuId)->update(['jemp_act' => $act]);
+                    }
+                    $msg = 'Nilai Aktual Jemputan berhasil dihitung.';
+                }
+                // Aksi: Sinkronisasi ke Tagihan Siswa
+                elseif ($request->has('sync')) {
+                    $acts = $request->input('act', []);
+                    $users = $request->input('user', []);
+                    foreach ($acts as $cuId => $val) {
+                        if (isset($users[$cuId])) {
+                            $nominal = (float) str_replace('.', '', $val);
+                            DB::table('sis_userpayitem')
+                                ->where('user_id', $users[$cuId])
+                                ->where('payitem_id', $payitemId)
+                                ->update(['payvalue' => $nominal]);
+                        }
+                    }
+                    $msg = 'Sinkronisasi Jemputan ke Komponen Tagihan berhasil.';
+                }
+
+                DB::commit();
+                return redirect()->route('fincom.payment.jemputan')->with('success', $msg);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            }
+        }
+
+        // Tampilkan Data untuk View
+        $jemps = DB::table('sis_class_user as cu')
+            ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
+            ->leftJoin('sis_v_classuser as vc', 'u.id', '=', 'vc.user_id')
+            ->select('u.fullname', 'cu.user_id', 'cu.jemp_def', 'cu.jemp_act', 'cu.updated', 'cu.id as classuser_id', 'vc.class_title')
+            ->where('cu.class_list_id', $classId)
+            ->orderBy('vc.class_title', 'asc')
+            ->orderBy('u.fullname', 'asc')
+            ->get();
+
+        return view('fincom.payment.jemputan', compact('jemps'));
+    }
+
+    /**
+     * MODUL KATERING
+     */
+    public function catering(Request $request)
+    {
+        $classId = DB::table('sis_option')->where('option_name', 'catering_class_id')->value('option_value');
+        $payitemId = DB::table('sis_option')->where('option_name', 'catering_payitem_id')->value('option_value');
+
+        if (!$classId || !$payitemId) {
+            return back()->with('error', 'Set catering_class_id dan catering_payitem_id di tabel sis_option terlebih dahulu.');
+        }
+
+        if ($request->isMethod('post')) {
+            DB::beginTransaction();
+            try {
+                if ($request->has('save')) {
+                    foreach ($request->input('def', []) as $cuId => $val) {
+                        $nominal = (float) str_replace('.', '', $val);
+                        DB::table('sis_class_user')->where('id', $cuId)->update(['cat_def' => $nominal]);
+                    }
+                    $msg = 'Default Katering (Harian) berhasil disimpan.';
+                }
+                elseif ($request->has('calc')) {
+                    // Mengambil input 'days' (pengali/jumlah hari), default 20 jika kosong
+                    $days = (float) $request->input('days', 20);
+                    foreach ($request->input('def', []) as $cuId => $val) {
+                        $nominal = (float) str_replace('.', '', $val);
+                        // Kalkulasi Aktual: Nominal Harian * Jumlah Hari
+                        $act = $nominal * $days;
+                        DB::table('sis_class_user')->where('id', $cuId)->update(['cat_act' => $act]);
+                    }
+                    $msg = 'Nilai Aktual Katering berhasil dihitung.';
+                }
+                elseif ($request->has('sync')) {
+                    $acts = $request->input('act', []);
+                    $users = $request->input('user', []);
+                    foreach ($acts as $cuId => $val) {
+                        if (isset($users[$cuId])) {
+                            $nominal = (float) str_replace('.', '', $val);
+                            DB::table('sis_userpayitem')
+                                ->where('user_id', $users[$cuId])
+                                ->where('payitem_id', $payitemId)
+                                ->update(['payvalue' => $nominal]);
+                        }
+                    }
+                    $msg = 'Sinkronisasi Katering ke Komponen Tagihan berhasil.';
+                }
+
+                DB::commit();
+                return redirect()->route('fincom.payment.catering')->with('success', $msg);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+            }
+        }
+
+        $caterings = DB::table('sis_class_user as cu')
+            ->join('sis_user as u', 'cu.user_id', '=', 'u.id')
+            ->leftJoin('sis_v_classuser as vc', 'u.id', '=', 'vc.user_id')
+            ->select('u.fullname', 'cu.user_id', 'cu.cat_def', 'cu.cat_act', 'cu.updated', 'cu.id as classuser_id', 'vc.class_title')
+            ->where('cu.class_list_id', $classId)
+            ->orderBy('vc.class_title', 'asc')
+            ->orderBy('u.fullname', 'asc')
+            ->get();
+
+        return view('fincom.payment.catering', compact('caterings'));
+    }
+
 } // <-- Ini adalah kurung kurawal penutup class PaymentController

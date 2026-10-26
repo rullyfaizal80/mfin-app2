@@ -359,7 +359,7 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     });
 });
 
-    Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
+Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
     // Rute CRUD Utama (Tidak ada perubahan, sudah benar)
     Route::get('/', [PaymentController::class, 'index'])->name('index');
     Route::get('/create', [PaymentController::class, 'create'])->name('create');
@@ -402,6 +402,10 @@ Route::prefix('fincom')->name('fincom.')->group(function () {
     // Rute Laporan Rekap Piutang
     Route::get('/recaprec', [PaymentController::class, 'recapRec'])->name('recaprec');
     Route::get('/recaprec/print', [PaymentController::class, 'printRecapRec'])->name('recaprec.print');
+
+    // Rute Modul Jemputan & Katering
+    Route::match(['get', 'post'], '/jemputan', [PaymentController::class, 'jemputan'])->name('jemputan');
+    Route::match(['get', 'post'], '/catering', [PaymentController::class, 'catering'])->name('catering');
 });
 
 });
