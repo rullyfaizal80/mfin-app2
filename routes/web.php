@@ -414,8 +414,16 @@ Route::prefix('fincom/payment')->name('fincom.payment.')->group(function () {
 });
 
 Route::prefix('fincom/expense')->name('fincom.expense.')->group(function () {
+    // 1. Rute Utama
     Route::get('/', [\App\Http\Controllers\Fincom\ExpenseController::class, 'index'])->name('index');
     Route::post('/store', [\App\Http\Controllers\Fincom\ExpenseController::class, 'store'])->name('store');
+    
+    // 2. Rute Spesifik (WAJIB DI ATAS RUTE DINAMIS {id})
+    // Menggunakan URL /listbyacc sesuai dengan yang Anda panggil di browser
+    Route::get('/listbyacc', [\App\Http\Controllers\Fincom\ExpenseReportController::class, 'index'])->name('report.index');
+    Route::get('/listbyacc/print', [\App\Http\Controllers\Fincom\ExpenseReportController::class, 'print'])->name('report.print');
+
+    // 3. Rute Dinamis dengan parameter {id} (WAJIB DI PALING BAWAH)
     Route::delete('/{id}', [\App\Http\Controllers\Fincom\ExpenseController::class, 'destroy'])->name('destroy');
 });
 
