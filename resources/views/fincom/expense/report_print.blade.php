@@ -197,7 +197,7 @@
                     <th class="col-ref">Ref No</th>
                     <th>Nama</th>
                     <th>Keterangan</th>
-                    <th width="10%" class="text-center">Tipe</th>
+                    <th width="10%" class="text-center"></th>
                     <th width="12%" class="text-right">Nilai (Rp)</th>
                 </tr>
             </thead>
@@ -225,6 +225,7 @@
                             @endphp
                             {{ $ketTerima }}
                         </td>
+                        {{-- Kolom tipe identik CI2: hanya cetak 'Siswa' jika is_student == 'yes', jika tidak kosong --}}
                         <td class="text-center">{{ $res->is_student == 'yes' ? 'Siswa' : '' }}</td>
                         <td class="text-right text-green nowrap">{{ number_format($res->debit, 0, ',', '.') }}</td>
                     </tr>
@@ -240,19 +241,20 @@
             </tfoot>
         </table>
 
-        {{-- TABEL PENGELUARAN --}}
+        {{-- TABEL PENGELUARAN (Telah diperbaiki: Tambah Kolom Alokasi Kelas) --}}
         <table class="data-table">
             <thead>
                 <tr class="cat-header cat-keluar">
-                    <th colspan="7" class="text-center">DAFTAR PENGELUARAN</th>
+                    <th colspan="8" class="text-center">DAFTAR PENGELUARAN</th>
                 </tr>
                 <tr>
                     <th class="col-no">No</th>
-                    <th class="col-ref">Ref No</th>
                     <th class="col-date">Tanggal</th>
+                    <th class="col-ref">Ref No</th>
                     <th>Nama</th>
                     <th>Keterangan</th>
-                    <th width="10%" class="text-center">Tipe</th>
+                    <th>Alokasi Kelas</th>
+                    <th width="10%" class="text-center"></th>
                     <th width="12%" class="text-right">Nilai (Rp)</th>
                 </tr>
             </thead>
@@ -262,23 +264,29 @@
                     @php $tot_keluar += $res->credit; @endphp
                     <tr>
                         <td class="text-center">{{ $index + 1 }}</td>
+                        <td class="text-center nowrap">{{ date('d M y', strtotime($res->tdate)) }}</td>
                         <td class="font-mono nowrap">{{ $res->ref_no }}</td>
-                        <td class="text-center nowrap">{{ date('d-m-Y', strtotime($res->tdate)) }}</td>
                         <td>
                             <strong>{{ $res->fullname }}</strong>
-                            <div style="font-size: 9px; color: #777;">{{ $res->class }} {{ $res->school }}</div>
+                            @if(!empty($res->class) || !empty($res->school))
+                                <div style="font-size: 9px; color: #777;">
+                                    {{ trim(($res->class ?? '') . ' ' . ($res->school ?? '')) }}
+                                </div>
+                            @endif
                         </td>
                         <td>{{ $res->note }}</td>
-                        <td class="text-center">{{ $res->is_student == 'yes' ? 'Siswa' : 'Umum' }}</td>
+                        <td class="nowrap">{{ $res->ledger_class ?? '' }}</td>
+                        {{-- Kolom tipe identik CI2: hanya cetak 'Siswa' jika is_student == 'yes', jika tidak kosong --}}
+                        <td class="text-center">{{ $res->is_student == 'yes' ? 'Siswa' : '' }}</td>
                         <td class="text-right text-red nowrap">{{ number_format($res->credit, 0, ',', '.') }}</td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="text-center" style="padding:15px; color:#999;">Tidak ada transaksi pengeluaran pada periode ini.</td></tr>
+                    <tr><td colspan="8" class="text-center" style="padding:15px; color:#999;">Tidak ada transaksi pengeluaran pada periode ini.</td></tr>
                 @endforelse
             </tbody>
             <tfoot>
                 <tr class="footer-total">
-                    <td colspan="6" class="text-right">TOTAL PENGELUARAN</td>
+                    <td colspan="7" class="text-right">TOTAL PENGELUARAN</td>
                     <td class="text-right text-red nowrap">{{ number_format($tot_keluar, 0, ',', '.') }}</td>
                 </tr>
             </tfoot>

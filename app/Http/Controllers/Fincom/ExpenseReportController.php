@@ -8,10 +8,14 @@ use Illuminate\Support\Facades\DB;
 
 class ExpenseReportController extends Controller
 {
-   public function index()
+    public function index()
     {
+        // Filter COA hanya untuk akun yang berelasi dengan kelas 'kas'
         $coas = DB::table('sis_coa')
-            ->orderBy('coa_code')
+            ->join('sis_coaclass', 'sis_coa.coaclass_id', '=', 'sis_coaclass.id')
+            ->where('sis_coaclass.title', 'like', '%kas%')
+            ->select('sis_coaclass.title as class', 'sis_coa.coa_code', 'sis_coa.title')
+            ->orderBy('sis_coa.title')
             ->get();
 
         $schools  = DB::table('sis_cschool')->orderBy('name')->get();
@@ -24,7 +28,6 @@ class ExpenseReportController extends Controller
             ->orderBy('sis_class_list.title')
             ->get();
 
-        // Mengambil daftar unit unik langsung dari data transaksi expense yang ada
         $sunits = DB::table('sis_expense')
             ->whereNotNull('sunit')
             ->where('sunit', '<>', '')
@@ -51,14 +54,33 @@ class ExpenseReportController extends Controller
         }
 
         // ==========================================
+        // PERBAIKAN BUG DUPLIKASI DATA SISWA TRANSISI
+        // Membuat sub-kueri yang memaksa data kelas aktif per siswa (user_id) 
+        // disusutkan (grouped) menjadi tepat 1 baris.
+        // ==========================================
+        $vacSub = DB::table('sis_v_activeclass')
+            ->select(
+                'user_id',
+                DB::raw('MAX(class) as class'),
+                DB::raw('MAX(school) as school'),
+                DB::raw('MAX(school_id) as school_id'),
+                DB::raw('MAX(class_id) as class_id')
+            )
+            ->groupBy('user_id');
+
+        // ==========================================
         // BASE QUERY (Mengikuti logika sis_ledger & sis_trans aplikasi lama)
         // ==========================================
         $baseQuery = DB::table('sis_ledger as l')
             ->join('sis_trans as t', 't.id', '=', 'l.tid')
             ->leftJoin('sis_user as u', 't.user_id', '=', 'u.id')
-            ->leftJoin('sis_v_activeclass as vac', 't.user_id', '=', 'vac.user_id')
+            // Mengganti leftJoin biasa dengan leftJoinSub untuk menyambung ke $vacSub
+            ->leftJoinSub($vacSub, 'vac', function ($join) {
+                $join->on('t.user_id', '=', 'vac.user_id');
+            })
             ->leftJoin('sis_class_list as scl', 'scl.id', '=', 'l.class_id')
-            ->whereBetween('t.tdate', [$awal, $akhir])
+            ->where('t.tdate', '>=', $awal)
+            ->where('t.tdate', '<=', $akhir . ' 23:59:59')
             ->select(
                 'l.coa_code',
                 'l.ref_no',
@@ -97,10 +119,14 @@ class ExpenseReportController extends Controller
             }
             $class_ids = $classListsQuery->pluck('cl.id')->toArray();
 
-            $baseQuery->where(function($q) use ($class_ids) {
-                $q->whereIn('l.class_id', $class_ids)
-                  ->orWhereIn('vac.class_id', $class_ids);
-            });
+            if (!empty($class_ids)) {
+                $baseQuery->where(function($q) use ($class_ids) {
+                    $q->whereIn('l.class_id', $class_ids)
+                      ->orWhereIn('vac.class_id', $class_ids);
+                });
+            } else {
+                $baseQuery->whereRaw('1 = 0'); // Hindari hasil acak jika filter kelas kosong
+            }
         }
 
         if ($sunit !== 'all' && !empty($sunit)) {
