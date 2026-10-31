@@ -231,6 +231,9 @@ Route::middleware(['custom.auth'])->group(function () {
         // TAMBAHKAN DUA RUTE INI
         Route::get('/tuitsaving', [TransexpenseController::class, 'tuitSaving'])->name('tuitsaving');
         Route::get('/tuitsaving/print', [TransexpenseController::class, 'printTuitSaving'])->name('tuitsaving.print');
+
+        // Rute AJAX untuk menarik default nominal berdasarkan komponen
+        Route::get('/ax_getexpensedata/{id}', [TransexpenseController::class, 'axGetExpenseData'])->name('ax_getexpensedata');
     });
 
     Route::prefix('fincom/transincome')->name('fincom.transincome.')->group(function () {

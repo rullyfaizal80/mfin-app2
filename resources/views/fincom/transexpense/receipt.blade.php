@@ -7,7 +7,7 @@
         /* Background untuk layar komputer */
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px; /* Ukuran font standar A6 */
+            font-size: 11px; /* Ukuran font diperkecil sedikit dari 12px ke 11px */
             color: #000;
             margin: 0;
             padding: 20px 0;
@@ -60,8 +60,8 @@
                     <img src="{{ asset('images/logo.jpg') }}" alt="Logo" style="width: 30px; height: auto;" onerror="this.style.display='none'">
                 </td>
                 <td align="left" valign="middle">
-                    <h2 style="margin: 0; font-size: 12px; font-weight: 800; color: #000; text-transform: uppercase;">Yayasan Fathul Huda Bandung</h2>
-                    <p style="margin: 2px 0 0 0; font-size: 10px; color: #444; font-weight: 600;">Jl.Cikadut 252 Bandung 40194 Telp. 022-7212600</p>
+                    <h2 style="margin: 0; font-size: 11px; font-weight: 800; color: #000; text-transform: uppercase;">Yayasan Fathul Huda Bandung</h2>
+                    <p style="margin: 2px 0 0 0; font-size: 9px; color: #444; font-weight: 600;">Jl.Cikadut 252 Bandung 40194 Telp. 022-7212600</p>
                 </td>
             </tr>
         </table>
@@ -69,8 +69,8 @@
         <table border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 15px;">
             <tr>
                 <td align="center">
-                    <span style="font-size: 14px; font-weight: bold; ">{{ strtoupper($page_title) }}</span><br>
-                    <span style="font-size: 11px;">Tanggal: {{ date("d F Y", strtotime($exp->tdate)) }}</span>
+                    <span style="font-size: 13px; font-weight: bold; ">{{ strtoupper($page_title) }}</span><br>
+                    <span style="font-size: 10px;">Tanggal: {{ date("d F Y", strtotime($exp->tdate)) }}</span>
                 </td>
             </tr>
         </table>
@@ -82,7 +82,7 @@
             </tr>
             <tr>
                 <td align="left"><strong>Dari</strong></td>
-                <td align="left">: {{ $exp->fullname ?? '-' }}</td>
+                <td align="left">: Yayasan Fathul Huda Bandung</td>
             </tr>
             <tr>  
                 <td align="left"><strong>Kepada</strong></td>
@@ -110,7 +110,7 @@
                     <tr>
                         <td align="center" style="padding-top: 5px;">{{ $index + 1 }}</td>
                         <td align="left" style="padding-top: 5px;">{{ $item->title ?? '-' }}</td>
-                        <td align="left" style="padding-top: 5px; font-size: 11px;">{{ $item->note }}</td>
+                        <td align="left" style="padding-top: 5px; font-size: 10px;">{{ $item->note }}</td>
                         <td align="right" style="padding-top: 5px;">{{ number_format($item->debit, 0, ',', '.') }}</td>
                     </tr>
                     @php $tot += $item->debit; @endphp
@@ -129,24 +129,23 @@
             </tbody>
         </table>
 
-        <table border="0" cellspacing="0" cellpadding="2" style="margin-top: 30px; text-align: center; font-size: 11px;">
+        <!-- Kolom tanda tangan diubah menjadi dua bagian (50% Kasir, 50% Penerima) -->
+        <table border="0" cellspacing="0" cellpadding="2" style="margin-top: 30px; text-align: center; font-size: 10px;">
             <tr>
-                <td width="33%"><strong>Kasir</strong></td>
-                <td width="33%"><strong>Penerima</strong></td>
-                <td width="33%"><strong>Mengetahui</strong></td>
+                <td width="50%"><strong>Kasir</strong></td>
+                <td width="50%"><strong>Penerima</strong></td>
             </tr>
             <tr>
                 <td style="height: 50px;">&nbsp;</td>
                 <td>&nbsp;</td>
-                <td>&nbsp;</td>
             </tr>
             <tr>
-                <td>( ......................... )</td>
-                <td>( ......................... )</td>
+                <!-- Mencetak nama kasir di area tanda tangan -->
+                <td>( {{ $exp->fullname ?? '.........................' }} )</td>
                 <td>( ......................... )</td>
             </tr>
         </table>
 
     </div>
-    </body>
+</body>
 </html>
