@@ -4,8 +4,8 @@
 
 @section('content')
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h3">Edit Transaksi Pengeluaran</h1>
-    <a href="{{ route('fincom.transexpense.index') }}" class="btn btn-secondary btn-sm">
+    <h1 class="h3">Transaksi Pengeluaran</h1>
+    <a href="{{ route('fincom.transexpense.cancel', $header->id) }}" class="btn btn-secondary btn-sm">
         <i class="bi bi-arrow-left"></i> Kembali ke Daftar
     </a>
 </div>
@@ -168,7 +168,7 @@
             <button type="submit" class="btn btn-primary px-4 fw-bold">
                 <i class="fas fa-save"></i> Simpan
             </button>
-            <a href="{{ route('fincom.transexpense.index') }}" class="btn btn-secondary">Batal</a>
+            <a href="{{ route('fincom.transexpense.cancel', $header->id) }}" class="btn btn-secondary">Batal</a>
         </div>
 
         <button type="button" class="btn btn-outline-danger fw-bold" onclick="deleteTransaction()">
@@ -259,13 +259,11 @@
                 </div>
             </td>
             <td>
-                <td>
-    <select name="items[${rowIdx}][sunit]" class="form-select form-select-sm">
-        @foreach($sunits as $su)
-            <option value="{{ $su }}">{{ $su }}</option>
-        @endforeach
-    </select>
-</td>
+                <select name="items[${rowIdx}][sunit]" class="form-select form-select-sm">
+                    @foreach($sunits as $su)
+                        <option value="{{ $su }}">{{ $su }}</option>
+                    @endforeach
+                </select>
             </td>
             <td class="text-center align-middle">
                 <button type="button" class="btn btn-sm btn-danger btn-remove" onclick="removeRow(this)"><i class="bi bi-trash"></i></button>
@@ -292,13 +290,13 @@
         }
     }
 
-    function removeRow(btn) {
+   function removeRow(btn) {
         let rowCount = document.querySelectorAll('#detailTable tbody .item-row').length;
         if (rowCount > 1) {
             btn.closest('tr').remove();
             calculateTotal();
         } else {
-            alert('Minimal harus ada 1 rincian pengeluaran!');
+            alert('Transaksi tidak boleh kosong! Minimal harus ada 1 baris rincian pengeluaran.');
         }
     }
 
@@ -331,6 +329,11 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         calculateTotal();
+
+        let currentRows = document.querySelectorAll('#detailTable tbody .item-row').length;
+        if (currentRows === 0) {
+            document.getElementById('addRow').click();
+        }
 
         // --- 1. SCRIPT OTORISASI ADMIN BUKA KUNCI TANGGAL ---
         const btnConfirm = document.getElementById('btnConfirmUnlock');

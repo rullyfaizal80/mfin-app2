@@ -160,196 +160,68 @@ class TransexpenseController extends Controller
     }
 
     /**
-     * TAMPILAN FORM ENTRY PENGELUARAN
+     * TAMPILAN FORM ENTRY PENGELUARAN (Sistem Draft CI2)
      */
-  public function create()
-{
-    $coas = DB::table('sis_coa')->get(); 
-    $payitems = DB::table('sis_payitem')->where('payitem_type', 'expense')->get();
-    $schools = DB::table('sis_cschool')->get();
-    $grades = DB::table('sis_cgrade')->get();
-
-    // -- LOGIKA MENCARI USER AKTIF DARI CUSTOM AUTH --
-    // Sesuaikan 'user_id' dengan nama session yang Anda buat saat proses Login
-    $activeUserId = session('user_id') ?? session('id') ?? 1; 
-    $activeUser = DB::table('sis_user')->where('id', $activeUserId)->first();
-    
-    $petugasName = $activeUser ? $activeUser->fullname : 'Petugas Tidak Diketahui';
-    $petugasId = $activeUser ? $activeUser->id : 1;
-
-    // -- LOGIKA AUTO REF NO (SAMA SEPERTI SEBELUMNYA) --
-    $year = date('Y');
-    $mon = date('M'); 
-    $day = date('d');
-    
-    $last = DB::table('sis_expense')
-        ->where('ref_no', 'like', 'EXP/%')
-        ->orderBy('id', 'desc')
-        ->first();
-        
-    if ($last) {
-        $parts = explode('/', $last->ref_no);
-        $lastNumber = (int) end($parts); 
-        $next = $lastNumber + 1; 
-    } else {
-        $next = 1; 
-    }
-    
-    $autoRef = "EXP/$year/$mon/$day/" . str_pad($next, 6, '0', STR_PAD_LEFT);
-
-    // Kirim $petugasName dan $petugasId ke View
-    return view('fincom.transexpense.create', compact('coas', 'payitems', 'schools', 'grades', 'autoRef', 'petugasName', 'petugasId'));
-}
-
-  /**
-     * PROSES SIMPAN KE DATABASE LENGKAP (Versi Fix ID Kasir & ucode di sis_expense)
-     */
-    public function store(Request $request)
+    public function create()
     {
-        // Validasi Dasar
-        $request->validate([
-            'tdate' => 'required|date',
-            'payto' => 'required|string|max:255',
-            'items' => 'required|array|min:1',
+        $userId = auth()->id() ?? session('user_id') ?? session('id') ?? 1;
+        $now = now()->toDateTimeString();
+
+        // 1. Logika Auto Ref No
+        $year = date('Y');
+        $mon = date('M');
+        $day = date('d');
+        
+        $last = DB::table('sis_expense')
+            ->where('ref_no', 'like', 'EXP/%')
+            ->orderBy('id', 'desc')
+            ->first();
+            
+        $next = $last ? ((int) explode('/', $last->ref_no)[4] + 1) : 1;
+        $autoRef = "EXP/$year/$mon/$day/" . str_pad($next, 6, '0', STR_PAD_LEFT);
+        
+        $ucode = date("YmdHis") . mt_rand(10000, 99999);
+
+        // 2. Buat Draft Header di tabel sis_expense (parent_id = 0, is_posted = no, tid = 0)
+        $draftId = DB::table('sis_expense')->insertGetId([
+            'parent_id' => 0,
+            'ref_no'    => $autoRef,
+            'tdate'     => date('Y-m-d'),
+            'payto'     => '',
+            'note'      => '',
+            'debit'     => 0,
+            'credit'    => 0,
+            'user_id'   => $userId,
+            'is_posted' => 'no', // Status Draft
+            'cdate'     => $now,
+            'mdate'     => $now,
+            'mdate_by'  => $userId,
+            'tid'       => 0,    // Belum diposting ke sis_trans & ledger
+            'ucode'     => $ucode,
         ]);
 
-        try {
-            DB::beginTransaction();
-
-            // =========================================================
-            // PERBAIKAN: Deteksi ID Kasir yang Sedang Login
-            // =========================================================
-            // Coba ambil dari Auth Laravel, jika kosong, coba ambil dari Session manual (CI2 legacy)
-            $userId = auth()->id() ?? session('user_id') ?? session('id');
-            
-            // Keamanan tambahan: Jika user benar-benar tidak terdeteksi, tolak penyimpanan
-            if (!$userId) {
-                return redirect()->back()->with('error', 'Sesi login tidak valid atau telah habis. Silakan login ulang.');
-            }
-
-            $now = now()->toDateTimeString(); 
-            
-            // Generate Unique Code (ucode) yang akan dipakai di sis_trans dan sis_expense
-            $ucode = date("YmdHis") . mt_rand(10000, 99999); 
-            
-            // Hitung Total Pengeluaran
-            $totalAmount = 0;
-            foreach ($request->items as $item) {
-                $totalAmount += (float) str_replace(['.', ','], ['', '.'], $item['amount']);
-            }
-
-            // =========================================================
-            // 1. SIMPAN KE sis_trans
-            // =========================================================
-            $transId = DB::table('sis_trans')->insertGetId([
-                'user_id'   => $userId, // <-- Sekarang menggunakan ID Kasir asli
-                'ttype'     => 'CD',
-                'ref_no'    => $request->ref_no,
-                'tdate'     => $request->tdate,
-                'note'      => $request->header_note ?? 'Pengeluaran Kasir',
-                'tvalue'    => $totalAmount,
-                'is_posted' => 'yes',
-                'cdate'     => $now, 
-                'mdate'     => $now,
-                'mdate_by'  => $userId, // <-- Sekarang menggunakan ID Kasir asli
-                'ucode'     => $ucode, 
-            ]);
-
-            // =========================================================
-            // 2. SIMPAN KE sis_expense (Header)
-            // =========================================================
-            $headerId = DB::table('sis_expense')->insertGetId([
-                'parent_id' => 0,
-                'ref_no'    => $request->ref_no,
-                'tdate'     => $request->tdate,
-                'payto'     => $request->payto,
-                'note'      => $request->header_note ?? '',
-                'debit'     => $totalAmount, 
-                'credit'    => 0,
-                'user_id'   => $userId, // <-- Sekarang menggunakan ID Kasir asli
-                'is_posted' => 'yes',
-                'cdate'     => $now,
-                'mdate'     => $now,
-                'mdate_by'  => $userId, // <-- Sekarang menggunakan ID Kasir asli
-                'tid'       => $transId,
-                'ucode'     => $ucode,
-            ]);
-
-            // =========================================================
-            // 3. SIMPAN KE sis_expense (Detail) & sis_ledger
-            // =========================================================
-            foreach ($request->items as $item) {
-                $amount = (float) str_replace(['.', ','], ['', '.'], $item['amount']);
-
-                // Insert Detail Expense
-                DB::table('sis_expense')->insert([
-                    'parent_id'  => $headerId,
-                    'ref_no'     => $request->ref_no,
-                    'tdate'      => $request->tdate,
-                    'payto'      => $request->payto,
-                    'payitem_id' => $item['payitem_id'],
-                    'note'       => $item['note'] ?? '',
-                    'debit'      => $amount,
-                    'credit'     => 0,
-                    'user_id'    => $userId, // <-- Sekarang menggunakan ID Kasir asli
-                    'is_posted'  => 'yes',
-                    'cdate'      => $now,
-                    'mdate'      => $now,
-                    'mdate_by'   => $userId, // <-- Sekarang menggunakan ID Kasir asli
-                    'tid'        => $transId,
-                    'ucode'      => $ucode,
-                ]);
-
-                // =========================================================
-                // 4. SIMPAN KE sis_ledger (Buku Besar)
-                // =========================================================
-                $payitem = DB::table('sis_payitem')->where('id', $item['payitem_id'])->first();
-                
-                $coaCash = $payitem ? $payitem->coa_cash : 0; 
-                $coaBiaya = 0;
-                if ($payitem) {
-                    if ($payitem->coa_revenue > 0) $coaBiaya = $payitem->coa_revenue;
-                    else if ($payitem->coa_payable > 0) $coaBiaya = $payitem->coa_payable;
-                }
-
-                // Insert Jurnal 1: Uang Keluar (Kredit)
-                DB::table('sis_ledger')->insert([
-                    'tid'       => $transId,
-                    'tdate'     => $request->tdate,
-                    'ttype'     => 'CD',
-                    'ref_no'    => $request->ref_no,
-                    'note'      => $request->header_note ?? 'Pengeluaran',
-                    'coa_code'  => $coaCash,
-                    'debit'     => $amount, 
-                    'credit'    => 0,
-                    'is_posted' => 'yes',
-                    // Tabel ledger tidak menyimpan user_id berdasarkan struktur CI2 lama Anda
-                ]);
-
-                // Insert Jurnal 2: Biaya Bertambah (Debit)
-                DB::table('sis_ledger')->insert([
-                    'tid'       => $transId,
-                    'tdate'     => $request->tdate,
-                    'ttype'     => 'CD',
-                    'ref_no'    => $request->ref_no,
-                    'note'      => $request->header_note ?? 'Pengeluaran',
-                    'coa_code'  => $coaBiaya, 
-                    'debit'     => 0,
-                    'credit'    => $amount, 
-                    'is_posted' => 'yes',
-                ]);
-            }
-
-            DB::commit();
-            return redirect()->route('fincom.transexpense.index')->with('success', 'Data pengeluaran berhasil disimpan!');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            // Opsional: Anda bisa mengganti "throw $e" dengan return error jika tidak ingin muncul halaman putih saat error
-            // throw $e; 
-            return redirect()->back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
-        }
+        // 3. Langsung alihkan ke form Edit yang sudah kita sempurnakan sebelumnya
+        return redirect()->route('fincom.transexpense.edit', $draftId);
     }
+
+    /**
+     * MEMBATALKAN TRANSAKSI / MENGHAPUS DRAFT KOSONG
+     */
+    public function cancel($id)
+    {
+        $header = DB::table('sis_expense')->where('id', $id)->first();
+        
+        // Jika data ditemukan dan ini adalah DRAFT (tid == 0), maka bersihkan dari database
+        if ($header && $header->tid == 0) {
+            DB::table('sis_expense')->where('id', $id)->delete();
+            DB::table('sis_expense')->where('parent_id', $id)->delete();
+        }
+
+        // Jika transaksi sudah lama/berstatus Posted (tid > 0), biarkan saja dan langsung alihkan
+        return redirect()->route('fincom.transexpense.index');
+    }
+
+  
     /**
      * AJAX: Pencarian Autocomplete untuk kolom Pay To (Dibayarkan Kepada)
      */
@@ -483,16 +355,16 @@ class TransexpenseController extends Controller
         ]);
     }
 
-    /**
-     * PROSES SIMPAN / UPDATE (Transaksi Kasir)
-     */
     public function update(Request $request, $id)
     {
-        // 1. Validasi Dasar
+        // 1. Validasi Dasar (Dengan Pesan Error Kustom)
         $request->validate([
-            'tdate' => 'required|date',
-            'user_id' => 'required', // ID Pegawai / Penerima Dana
-            'items' => 'required|array|min:1',
+            'tdate'   => 'required|date',
+            'user_id' => 'required', // ID Penerima Dana
+            'items'   => 'required|array|min:1',
+        ], [
+            'items.required' => 'Gagal disimpan! Anda belum menambahkan satupun rincian pengeluaran.',
+            'items.min'      => 'Gagal disimpan! Minimal harus ada 1 baris rincian pengeluaran.',
         ]);
 
         try {
@@ -513,9 +385,15 @@ class TransexpenseController extends Controller
                 $totalAmount += (float) str_replace(['.', ','], ['', '.'], $item['amount']);
             }
 
-            $transId = $headerOld->tid;
-            $isDraft = ($transId == 0); // Jika 0, berarti transaksi ini baru turun dari halaman Create
+            // BLOK VALIDASI TAMBAHAN: Tolak jika totalnya Rp 0
+            if ($totalAmount <= 0) {
+                return redirect()->back()->with('error', 'Gagal disimpan! Total nominal pengeluaran tidak boleh Rp 0.');
+            }
 
+            $transId = $headerOld->tid;
+            $isDraft = ($transId == 0);
+
+            // ... (sisa kode FASE 1, FASE 2, dan FASE 3 biarkan sama persis seperti sebelumnya) ...
             // =======================================================
             // FASE 1: KELOLA HEADER sis_trans 
             // =======================================================

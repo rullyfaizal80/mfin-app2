@@ -234,6 +234,8 @@ Route::middleware(['custom.auth'])->group(function () {
 
         // Rute AJAX untuk menarik default nominal berdasarkan komponen
         Route::get('/ax_getexpensedata/{id}', [TransexpenseController::class, 'axGetExpenseData'])->name('ax_getexpensedata');
+
+        Route::get('/cancel/{id}', [TransexpenseController::class, 'cancel'])->name('cancel');
     });
 
     Route::prefix('fincom/transincome')->name('fincom.transincome.')->group(function () {
